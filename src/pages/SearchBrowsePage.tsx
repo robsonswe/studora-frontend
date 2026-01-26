@@ -14,9 +14,9 @@ const SearchBrowsePage = () => {
 
   const { register, handleSubmit, setValue, watch, reset } = useForm({
     defaultValues: {
-      searchTerm: '',
       selectedDisciplina: null,
       selectedTema: null,
+      selectedSubtema: null,
       selectedConcurso: null,
       selectedBanca: '',
       selectedArea: '',
@@ -42,7 +42,7 @@ const SearchBrowsePage = () => {
 
   useEffect(() => {
     filterQuestoes();
-  }, [watchedFields.searchTerm, watchedFields.selectedDisciplina, watchedFields.selectedTema, watchedFields.selectedConcurso, watchedFields.selectedBanca, watchedFields.selectedArea, watchedFields.selectedNivel]);
+  }, [watchedFields.selectedDisciplina, watchedFields.selectedTema, watchedFields.selectedSubtema, watchedFields.selectedConcurso, watchedFields.selectedBanca, watchedFields.selectedArea, watchedFields.selectedNivel]);
 
   const filterQuestoes = async () => {
     setLocalLoading(true);
@@ -69,6 +69,10 @@ const SearchBrowsePage = () => {
       }
 
       // Apply new filters
+      if (watchedFields.selectedSubtema) {
+        allQuestoes = allQuestoes.filter(q => q.subtemaIds.includes(watchedFields.selectedSubtema!));
+      }
+
       if (watchedFields.selectedBanca) {
         allQuestoes = allQuestoes.filter(q => {
           const concurso = allConcursos.find(c => c.id === q.concursoId);
@@ -88,12 +92,6 @@ const SearchBrowsePage = () => {
           const concurso = allConcursos.find(c => c.id === q.concursoId);
           return concurso && concurso.nivel === watchedFields.selectedNivel;
         });
-      }
-
-      if (watchedFields.searchTerm) {
-        allQuestoes = allQuestoes.filter(q =>
-          q.enunciado.toLowerCase().includes(watchedFields.searchTerm.toLowerCase())
-        );
       }
 
       // Get alternatives for each question
@@ -158,19 +156,6 @@ const SearchBrowsePage = () => {
       <div className="bg-white shadow-md rounded-lg p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-              Buscar
-            </label>
-            <input
-              type="text"
-              id="search"
-              {...register('searchTerm')}
-              placeholder="Buscar em enunciados..."
-              className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
-            />
-          </div>
-
-          <div>
             <label htmlFor="disciplina" className="block text-sm font-medium text-gray-700 mb-1">
               Disciplina
             </label>
@@ -230,6 +215,39 @@ const SearchBrowsePage = () => {
               isClearable
               isSearchable
               isDisabled={!watchedFields.selectedDisciplina}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="subtema" className="block text-sm font-medium text-gray-700 mb-1">
+              Subtema
+            </label>
+            <Select
+              id="subtema"
+              options={[
+                { value: null, label: 'Todos os subtemas' },
+                ...subtemas
+                  .filter(subtema => !watchedFields.selectedTema || subtema.temaId === watchedFields.selectedTema)
+                  .map(subtema => ({
+                    value: subtema.id,
+                    label: subtema.nome
+                  }))
+              ]}
+              value={
+                watchedFields.selectedSubtema
+                  ? {
+                      value: watchedFields.selectedSubtema,
+                      label: subtemas.find(s => s.id === watchedFields.selectedSubtema)?.nome
+                    }
+                  : { value: null, label: 'Todos os subtemas' }
+              }
+              onChange={(selectedOption) => {
+                setValue('selectedSubtema', selectedOption?.value || null);
+              }}
+              placeholder="Selecione um subtema..."
+              isClearable
+              isSearchable
+              isDisabled={!watchedFields.selectedTema}
             />
           </div>
 
@@ -360,9 +378,9 @@ const SearchBrowsePage = () => {
         <div className="mt-4 flex justify-end">
           <button
             onClick={() => reset({
-              searchTerm: '',
               selectedDisciplina: null,
               selectedTema: null,
+              selectedSubtema: null,
               selectedConcurso: null,
               selectedBanca: '',
               selectedArea: '',
