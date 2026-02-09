@@ -239,6 +239,7 @@ const SimuladosPage = () => {
             </div>
 
             <div className="space-y-6 mb-6 border-t border-gray-100 pt-6">
+              {/* Disciplinas */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Seleção de Disciplinas</label>
                 <div className="flex gap-2 mb-2">
@@ -253,17 +254,17 @@ const SimuladosPage = () => {
                 </div>
                 <div className="space-y-2">
                   {formData.disciplinas?.map(item => (
-                    <div key={item.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                      <span className="text-sm">{disciplinas.find(d => d.id === item.id)?.nome}</span>
+                    <div key={item.id} className="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-100">
+                      <span className="text-sm font-medium">{disciplinas.find(d => d.id === item.id)?.nome}</span>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
                           min="1"
                           value={item.quantidade}
                           onChange={e => updateQuantity('disciplinas', item.id, parseInt(e.target.value) || 1)}
-                          className="w-16 p-1 border rounded text-sm"
+                          className="w-16 p-1 border rounded text-sm focus:ring-indigo-500 focus:border-indigo-500"
                         />
-                        <button type="button" onClick={() => removeItem('disciplinas', item.id)} className="text-red-500 hover:text-red-700">
+                        <button type="button" onClick={() => removeItem('disciplinas', item.id)} className="text-red-500 hover:text-red-700 p-1">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                           </svg>
@@ -274,7 +275,77 @@ const SimuladosPage = () => {
                 </div>
               </div>
 
-              {/* Similar sections for Temas and Subtemas could be added here for full functionality */}
+              {/* Temas */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Seleção de Temas</label>
+                <div className="flex gap-2 mb-2">
+                  <div className="flex-1">
+                    <Select
+                      options={temas.map(t => ({ value: t.id, label: `${t.disciplinaNome} - ${t.nome}` }))}
+                      onChange={opt => opt && addItem('temas', opt.value)}
+                      placeholder="Adicionar tema..."
+                      value={null}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {formData.temas?.map(item => (
+                    <div key={item.id} className="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-100">
+                      <span className="text-sm font-medium">{temas.find(t => t.id === item.id)?.nome} <span className="text-xs text-gray-400 font-normal">({temas.find(t => t.id === item.id)?.disciplinaNome})</span></span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantidade}
+                          onChange={e => updateQuantity('temas', item.id, parseInt(e.target.value) || 1)}
+                          className="w-16 p-1 border rounded text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        <button type="button" onClick={() => removeItem('temas', item.id)} className="text-red-500 hover:text-red-700 p-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Subtemas */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Seleção de Subtemas</label>
+                <div className="flex gap-2 mb-2">
+                  <div className="flex-1">
+                    <Select
+                      options={subtemas.map(s => ({ value: s.id, label: `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}` }))}
+                      onChange={opt => opt && addItem('subtemas', opt.value)}
+                      placeholder="Adicionar subtema..."
+                      value={null}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {formData.subtemas?.map(item => (
+                    <div key={item.id} className="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-100">
+                      <span className="text-sm font-medium">{subtemas.find(s => s.id === item.id)?.nome} <span className="text-xs text-gray-400 font-normal">({subtemas.find(s => s.id === item.id)?.temaNome})</span></span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantidade}
+                          onChange={e => updateQuantity('subtemas', item.id, parseInt(e.target.value) || 1)}
+                          className="w-16 p-1 border rounded text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        <button type="button" onClick={() => removeItem('subtemas', item.id)} className="text-red-500 hover:text-red-700 p-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {submissionError && (
