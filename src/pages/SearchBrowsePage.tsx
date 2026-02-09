@@ -61,6 +61,7 @@ const SearchBrowsePage = () => {
 
   const filterQuestoes = useCallback(async (page: number = 0) => {
     setLocalLoading(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     try {
       const params: any = {

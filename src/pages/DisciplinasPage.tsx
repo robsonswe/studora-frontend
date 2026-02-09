@@ -1,23 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
-import { useStudora } from '@/context/StudoraContext';
 import { disciplinaService } from '@/services/api';
 import * as Types from '@/types';
 
 type DisciplinaDto = Types.DisciplinaSummaryDto;
 
 const DisciplinasPage = () => {
-  const {
-    disciplinas,
-    loading: contextLoading,
-    errors,
-    refreshDisciplinas
-  } = useStudora();
+  const [disciplinas, setDisciplinas] = useState<DisciplinaDto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<DisciplinaDto | null>(null);
   const [formData, setFormData] = useState<{ nome: string }>({ nome: '' });
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  
+  const [pagination, setPagination] = useState<Types.PageResponse<DisciplinaDto>>({
+    content: [],
+    pageNumber: 0,
+    pageSize: 20,
+    totalElements: 0,
+    totalPages: 0,
+    last: true
+  });
+  const [currentPage, setCurrentPage] = useState(0);
+
+  const loadDisciplinas = useCallback(async (page: number = 0) => {
+    setLoading(true);
+    try {
+      const data = await disciplinaService.getAll({ page, size: 20 });
+      setDisciplinas(data.content);
+      setPagination(data);
+      setCurrentPage(page);
+      window.scrollTo(0, 0);
+    } catch (error) {
+      console.error('Erro ao carregar disciplinas:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDisciplinas(0);
+  }, [loadDisciplinas]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,15 +50,12 @@ const DisciplinasPage = () => {
 
     try {
       if (editingItem) {
-        // Update existing
         await disciplinaService.update(editingItem.id, formData);
       } else {
-        // Create new
         await disciplinaService.create(formData);
       }
 
-      // Refresh data from context
-      await refreshDisciplinas();
+      await loadDisciplinas(currentPage);
       resetForm();
     } catch (error: any) {
       console.error('Erro ao salvar disciplina:', error);
@@ -55,9 +76,7 @@ const DisciplinasPage = () => {
       setLocalLoading(true);
       try {
         await disciplinaService.delete(id);
-
-        // Refresh data from context
-        await refreshDisciplinas();
+        await loadDisciplinas(currentPage);
       } catch (error) {
         console.error('Erro ao excluir disciplina:', error);
       } finally {
@@ -70,37 +89,13 @@ const DisciplinasPage = () => {
     setFormData({ nome: '' });
     setEditingItem(null);
     setShowForm(false);
+    setSubmissionError(null);
   };
 
-  if (contextLoading.disciplinas || localLoading) {
+  if (loading && disciplinas.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
-    );
-  }
-
-  if (errors.disciplinas) {
-    return (
-      <div className="bg-red-50 border-l-4 border-red-400 p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <p className="text-sm text-red-700">
-              Erro ao carregar disciplinas: {errors.disciplinas.message}
-            </p>
-            <button
-              onClick={() => refreshDisciplinas()}
-              className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700"
-            >
-              Tentar novamente
-            </button>
-          </div>
-        </div>
       </div>
     );
   }
@@ -142,11 +137,6 @@ const DisciplinasPage = () => {
             {submissionError && (
               <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
                 <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
                   <div className="ml-3">
                     <p className="text-sm text-red-700">{submissionError}</p>
                   </div>
@@ -168,15 +158,7 @@ const DisciplinasPage = () => {
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 disabled={localLoading}
               >
-                {localLoading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Salvando...
-                  </>
-                ) : editingItem ? 'Atualizar' : 'Salvar'}
+                {localLoading ? 'Salvando...' : editingItem ? 'Atualizar' : 'Salvar'}
               </button>
             </div>
           </form>
@@ -211,6 +193,140 @@ const DisciplinasPage = () => {
             </li>
           ))}
         </ul>
+
+        {/* Pagination Controls */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => loadDisciplinas(currentPage - 1)}
+                disabled={currentPage === 0}
+                className={`relative inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
+                  currentPage === 0
+                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                }`}
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => loadDisciplinas(currentPage + 1)}
+                disabled={currentPage === pagination.totalPages - 1}
+                className={`relative ml-3 inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
+                  currentPage === pagination.totalPages - 1
+                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                }`}
+              >
+                Próximo
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Mostrando <span className="font-medium">{currentPage * pagination.pageSize + 1}</span> até{' '}
+                  <span className="font-medium">
+                    {Math.min((currentPage + 1) * pagination.pageSize, pagination.totalElements)}
+                  </span>{' '}
+                  de <span className="font-medium">{pagination.totalElements}</span> resultados
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => loadDisciplinas(currentPage - 1)}
+                    disabled={currentPage === 0}
+                    className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                      currentPage === 0
+                        ? 'cursor-not-allowed bg-gray-100 text-gray-300'
+                        : 'bg-white text-gray-900 hover:text-gray-600'
+                    }`}
+                  >
+                    <span className="sr-only">Anterior</span>
+                    &larr;
+                  </button>
+
+                  {/* Render page numbers */}
+                  {(() => {
+                    const pages = [];
+                    const totalPages = pagination.totalPages;
+                    
+                    if (totalPages > 0) {
+                      pages.push(0);
+                    }
+                    
+                    if (totalPages > 1) {
+                      if (totalPages <= 5) {
+                        for (let i = 1; i < totalPages - 1; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        const startPage = Math.max(1, Math.min(currentPage - 1, totalPages - 4));
+                        const endPage = Math.min(totalPages - 1, startPage + 2);
+                        
+                        for (let i = startPage; i <= endPage; i++) {
+                          if (!pages.includes(i)) {
+                            pages.push(i);
+                          }
+                        }
+                      }
+                      
+                      if (totalPages > 1 && !pages.includes(totalPages - 1)) {
+                        pages.push(totalPages - 1);
+                      }
+                    }
+                    
+                    pages.sort((a, b) => a - b);
+                    
+                    const elements = [];
+                    for (let i = 0; i < pages.length; i++) {
+                      const page = pages[i];
+                      if (i > 0 && pages[i] - pages[i - 1] > 1) {
+                        elements.push(
+                          <span
+                            key={`ellipsis-${pages[i - 1]}-${page}`}
+                            className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300"
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+                      
+                      elements.push(
+                        <button
+                          key={page}
+                          onClick={() => loadDisciplinas(page)}
+                          className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                            currentPage === page
+                              ? 'z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
+                              : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page + 1}
+                        </button>
+                      );
+                    }
+                    
+                    return elements;
+                  })()}
+
+                  <button
+                    onClick={() => loadDisciplinas(currentPage + 1)}
+                    disabled={currentPage === pagination.totalPages - 1}
+                    className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                      currentPage === pagination.totalPages - 1
+                        ? 'cursor-not-allowed bg-gray-100 text-gray-300'
+                        : 'bg-white text-gray-900 hover:text-gray-600'
+                    }`}
+                  >
+                    <span className="sr-only">Próximo</span>
+                    &rarr;
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

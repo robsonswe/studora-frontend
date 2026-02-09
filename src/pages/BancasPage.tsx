@@ -13,15 +13,29 @@ const BancasPage = () => {
   const [formData, setFormData] = useState<{ nome: string }>({ nome: '' });
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  
+  const [pagination, setPagination] = useState<Types.PageResponse<any>>({
+    content: [],
+    pageNumber: 0,
+    pageSize: 20,
+    totalElements: 0,
+    totalPages: 0,
+    last: true
+  });
+  const [currentPage, setCurrentPage] = useState(0);
 
   useEffect(() => {
-    loadBancas();
+    loadBancas(0);
   }, []);
 
-  const loadBancas = async () => {
+  const loadBancas = async (page: number = 0) => {
+    setLoading(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     try {
-      const data = await bancaService.getAll({ size: 1000 });
+      const data = await bancaService.getAll({ page, size: 20 });
       setBancas(data.content);
+      setPagination(data);
+      setCurrentPage(page);
     } catch (error) {
       console.error('Erro ao carregar bancas:', error);
     } finally {
@@ -41,7 +55,7 @@ const BancasPage = () => {
         await bancaService.create(formData);
       }
 
-      await loadBancas();
+      await loadBancas(currentPage);
       resetForm();
     } catch (error: any) {
       console.error('Erro ao salvar banca:', error);
@@ -62,7 +76,7 @@ const BancasPage = () => {
       setLocalLoading(true);
       try {
         await bancaService.delete(id);
-        await loadBancas();
+        await loadBancas(currentPage);
       } catch (error: any) {
         console.error('Erro ao excluir banca:', error);
         alert(error.message || 'Erro ao excluir banca');
@@ -79,7 +93,7 @@ const BancasPage = () => {
     setSubmissionError(null);
   };
 
-  if (loading) {
+  if (loading && bancas.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -185,6 +199,119 @@ const BancasPage = () => {
             </li>
           ))}
         </ul>
+
+        {/* Pagination Controls */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => loadBancas(currentPage - 1)}
+                disabled={currentPage === 0}
+                className={`relative inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
+                  currentPage === 0
+                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                }`}
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => loadBancas(currentPage + 1)}
+                disabled={currentPage === pagination.totalPages - 1}
+                className={`relative ml-3 inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
+                  currentPage === pagination.totalPages - 1
+                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                }`}
+              >
+                Próximo
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Mostrando <span className="font-medium">{currentPage * pagination.pageSize + 1}</span> até{' '}
+                  <span className="font-medium">
+                    {Math.min((currentPage + 1) * pagination.pageSize, pagination.totalElements)}
+                  </span>{' '}
+                  de <span className="font-medium">{pagination.totalElements}</span> resultados
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => loadBancas(currentPage - 1)}
+                    disabled={currentPage === 0}
+                    className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                      currentPage === 0
+                        ? 'cursor-not-allowed bg-gray-100 text-gray-300'
+                        : 'bg-white text-gray-900 hover:text-gray-600'
+                    }`}
+                  >
+                    <span className="sr-only">Anterior</span>
+                    &larr;
+                  </button>
+
+                  {/* Render page numbers */}
+                  {(() => {
+                    const pages = [];
+                    const totalPages = pagination.totalPages;
+                    
+                    if (totalPages > 0) pages.push(0);
+                    if (totalPages > 1) {
+                      if (totalPages <= 5) {
+                        for (let i = 1; i < totalPages - 1; i++) pages.push(i);
+                      } else {
+                        const startPage = Math.max(1, Math.min(currentPage - 1, totalPages - 4));
+                        const endPage = Math.min(totalPages - 1, startPage + 2);
+                        for (let i = startPage; i <= endPage; i++) if (!pages.includes(i)) pages.push(i);
+                      }
+                      if (!pages.includes(totalPages - 1)) pages.push(totalPages - 1);
+                    }
+                    pages.sort((a, b) => a - b);
+                    
+                    const elements = [];
+                    for (let i = 0; i < pages.length; i++) {
+                      const page = pages[i];
+                      if (i > 0 && pages[i] - pages[i - 1] > 1) {
+                        elements.push(
+                          <span key={`ellipsis-${pages[i - 1]}-${page}`} className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">...</span>
+                        );
+                      }
+                      elements.push(
+                        <button
+                          key={page}
+                          onClick={() => loadBancas(page)}
+                          className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                            currentPage === page
+                              ? 'z-10 bg-indigo-600 text-white'
+                              : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page + 1}
+                        </button>
+                      );
+                    }
+                    return elements;
+                  })()}
+
+                  <button
+                    onClick={() => loadBancas(currentPage + 1)}
+                    disabled={currentPage === pagination.totalPages - 1}
+                    className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                      currentPage === pagination.totalPages - 1
+                        ? 'cursor-not-allowed bg-gray-100 text-gray-300'
+                        : 'bg-white text-gray-900 hover:text-gray-600'
+                    }`}
+                  >
+                    <span className="sr-only">Próximo</span>
+                    &rarr;
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
