@@ -20,11 +20,11 @@ const SimuladosPage = () => {
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   // Filter and Options data
-  const [disciplinas, setDisciplinas] = useState<DisciplinaDto[]>([]);
-  const [temas, setTemas] = useState<TemaDto[]>([]);
-  const [subtemas, setSubtemas] = useState<SubtemaDto[]>([]);
-  const [bancas, setBancas] = useState<BancaDto[]>([]);
-  const [cargos, setCargos] = useState<CargoDto[]>([]);
+  const [disciplinas, setDisciplinas] = useState<Types.DisciplinaSummaryDto[]>([]);
+  const [temas, setTemas] = useState<Types.TemaSummaryDto[]>([]);
+  const [subtemas, setSubtemas] = useState<Types.SubtemaSummaryDto[]>([]);
+  const [bancas, setBancas] = useState<Types.BancaSummaryDto[]>([]);
+  const [cargos, setCargos] = useState<Types.CargoDetailDto[]>([]);
 
   // Form State
   const [formData, setFormData] = useState<Types.SimuladoGenerationRequest>({
@@ -59,23 +59,11 @@ const SimuladosPage = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     try {
-      const [simuladosRes, discRes, temasRes, subRes, bancaRes, cargoRes] = await Promise.all([
-        simuladoService.getAll({ page, size: 20 }).catch(() => ({ content: [], totalPages: 0, totalElements: 0, pageNumber: 0, pageSize: 20, last: true })),
-        disciplinaService.getAll({ size: 1000 }),
-        temaService.getAll({ size: 1000 }),
-        subtemaService.getAll({ size: 1000 }),
-        bancaService.getAll({ size: 1000 }),
-        cargoService.getAll({ size: 1000 })
-      ]);
+      const simuladosRes = await simuladoService.getAll({ page, size: 20 }).catch(() => ({ content: [], totalPages: 0, totalElements: 0, pageNumber: 0, pageSize: 20, last: true }));
 
       setSimulados(simuladosRes.content);
       setPagination(simuladosRes);
       setCurrentPage(page);
-      setDisciplinas(discRes.content);
-      setTemas(temasRes.content);
-      setSubtemas(subRes.content);
-      setBancas(bancaRes.content);
-      setCargos(cargoRes.content);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -169,7 +157,27 @@ const SimuladosPage = () => {
         title="Simulados"
         actions={
           <button
-            onClick={() => setShowForm(true)}
+            onClick={async () => {
+              setShowForm(true);
+              // Load form options when opening the form
+              try {
+                const [discRes, temasRes, subRes, bancaRes, cargoRes] = await Promise.all([
+                  disciplinaService.getAll({ size: 1000 }),
+                  temaService.getAll({ size: 1000 }),
+                  subtemaService.getAll({ size: 1000 }),
+                  bancaService.getAll({ size: 1000 }),
+                  cargoService.getAll({ size: 1000 })
+                ]);
+
+                setDisciplinas(discRes.content);
+                setTemas(temasRes.content);
+                setSubtemas(subRes.content);
+                setBancas(bancaRes.content);
+                setCargos(cargoRes.content);
+              } catch (error) {
+                console.error('Erro ao carregar opções do formulário:', error);
+              }
+            }}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             Gerar Novo Simulado
@@ -385,27 +393,95 @@ const SimuladosPage = () => {
           ) : (
             simulados.map((s) => (
               <li key={s.id}>
-                <div className="px-4 py-4 sm:px-6 flex justify-between items-center">
-                  <div className="flex flex-col">
-                    <div className="text-sm font-medium text-indigo-600 truncate">{s.nome}</div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {s.finishedAt ? `Finalizado em ${new Date(s.finishedAt).toLocaleDateString()}` : 
-                       s.startedAt ? 'Em andamento' : 'Não iniciado'}
+                <div className="px-4 py-4 sm:px-6">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-indigo-600 truncate">{s.nome}</div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                        {s.banca && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {s.banca.nome}
+                          </span>
+                        )}
+                        {s.cargo && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {s.cargo.nome}
+                          </span>
+                        )}
+                        {s.nivel && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            {s.nivel}
+                          </span>
+                        )}
+                        {s.ignorarRespondidas && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Ignorar Respondidas
+                          </span>
+                        )}
+                        {s.areas && s.areas.length > 0 && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                            {s.areas.join(', ')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        {s.finishedAt ? `Finalizado em ${new Date(s.finishedAt).toLocaleDateString()}` :
+                         s.startedAt ? 'Em andamento' : 'Não iniciado'}
+                      </div>
+                      {s.disciplinas && s.disciplinas.length > 0 && (
+                        <div className="mt-2 text-xs text-gray-600">
+                          <span className="font-medium">Disciplinas:</span> {s.disciplinas.map(d => d.nome).join(', ')}
+                        </div>
+                      )}
+                      {s.temas && s.temas.length > 0 && (
+                        <div className="mt-1 text-xs text-gray-600">
+                          <span className="font-medium">Temas:</span> {s.temas.map(t => t.nome).join(', ')}
+                        </div>
+                      )}
+                      {s.subtemas && s.subtemas.length > 0 && (
+                        <div className="mt-1 text-xs text-gray-600">
+                          <span className="font-medium">Subtemas:</span> {s.subtemas.map(st => st.nome).join(', ')}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => (window.location.href = `/simulados/${s.id}`)}
-                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
-                    >
-                      Ver
-                    </button>
-                    <button
-                      onClick={() => handleDelete(s.id)}
-                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200"
-                    >
-                      Excluir
-                    </button>
+                    <div className="flex space-x-2 ml-4">
+                      {s.finishedAt ? (
+                        <button
+                          onClick={() => (window.location.href = `/simulados/${s.id}`)}
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
+                        >
+                          Ver
+                        </button>
+                      ) : s.startedAt ? (
+                        <button
+                          onClick={() => (window.location.href = `/simulados/${s.id}`)}
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-yellow-100 hover:bg-yellow-200"
+                        >
+                          Continuar
+                        </button>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await simuladoService.iniciar(s.id);
+                              window.location.href = `/simulados/${s.id}`;
+                            } catch (error) {
+                              console.error('Erro ao iniciar simulado:', error);
+                              alert('Erro ao iniciar simulado: ' + (error as Error).message);
+                            }
+                          }}
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                        >
+                          Iniciar
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(s.id)}
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200"
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </div>
                 </div>
               </li>

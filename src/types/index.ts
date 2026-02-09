@@ -428,6 +428,12 @@ export interface SimuladoSummaryDto {
   nivel?: NivelCargo;
   /** Se ignorou questões já respondidas. */
   ignorarRespondidas?: boolean;
+  /** Seleção de disciplinas. */
+  disciplinas?: DisciplinaSimuladoDto[];
+  /** Seleção de temas. */
+  temas?: TemaSimuladoDto[];
+  /** Seleção de subtemas. */
+  subtemas?: SubtemaSimuladoDto[];
 }
 
 /**

@@ -4,8 +4,21 @@ import { useForm } from 'react-hook-form';
 import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { questaoService, respostaService, instituicaoService, cargoService, bancaService, disciplinaService, temaService, subtemaService } from '@/services/api';
-import { formatNivel, formatDificuldade } from '@/utils/formatters';
+import { formatNivel, formatDificuldade, formatDateTime } from '@/utils/formatters';
 import * as Types from '@/types';
+import { 
+  Play, 
+  Filter, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  AlertCircle, 
+  RefreshCw,
+  Award,
+  HelpCircle,
+  Tag,
+  FileText
+} from 'lucide-react';
 
 type QuestaoDto = Types.QuestaoDetailDto;
 type RespostaDto = Types.RespostaDetailDto;
@@ -105,12 +118,7 @@ const QuestaoPracticePage = () => {
   };
 
   const handleVerify = async () => {
-    if (!currentQuestion || !selectedAlternativa) return;
-
-    if (!justificativa.trim()) {
-      alert('Por favor, preencha a justificativa antes de verificar a resposta.');
-      return;
-    }
+    if (!currentQuestion || !selectedAlternativa || !justificativa.trim()) return;
 
     try {
       const response = await respostaService.create({
@@ -187,139 +195,186 @@ const QuestaoPracticePage = () => {
     return [{ value: '', label: 'Todas as áreas' }, ...options];
   };
 
+  const selectStyles = {
+    control: (base: any) => ({
+      ...base,
+      borderColor: '#e5e7eb',
+      boxShadow: 'none',
+      '&:hover': {
+        borderColor: '#6366f1'
+      },
+      paddingTop: '2px',
+      paddingBottom: '2px',
+      borderRadius: '0.5rem',
+    }),
+    placeholder: (base: any) => ({
+      ...base,
+      fontSize: '0.875rem',
+      color: '#9ca3af',
+    })
+  };
+
   // --- Render Setup Mode ---
   if (mode === 'setup') {
     return (
-      <div>
-        <Header title="Praticar Questões" />
-        <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-6 border-b pb-2">Selecione seus filtros</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Disciplina</label>
-                <AsyncSelect
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadDisciplinaOptions}
-                  value={watchedFields.selectedDisciplina}
-                  onChange={(val) => {
-                    setValue('selectedDisciplina', val);
-                    setValue('selectedTema', { value: 0, label: 'Todos os temas' });
-                    setValue('selectedSubtema', { value: 0, label: 'Todos os subtemas' });
-                  }}
-                  placeholder="Busque..."
-                  isClearable={false}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tema</label>
-                <AsyncSelect
-                  key={`tema-${watchedFields.selectedDisciplina?.value}`}
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadTemaOptions}
-                  value={watchedFields.selectedTema}
-                  onChange={(val) => {
-                    setValue('selectedTema', val);
-                    setValue('selectedSubtema', { value: 0, label: 'Todos os subtemas' });
-                  }}
-                  placeholder="Busque..."
-                  isDisabled={!watchedFields.selectedDisciplina || watchedFields.selectedDisciplina.value === 0}
-                  isClearable={false}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subtema</label>
-                <AsyncSelect
-                  key={`subtema-${watchedFields.selectedTema?.value}`}
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadSubtemaOptions}
-                  value={watchedFields.selectedSubtema}
-                  onChange={(val) => setValue('selectedSubtema', val)}
-                  placeholder="Busque..."
-                  isDisabled={!watchedFields.selectedTema || watchedFields.selectedTema.value === 0}
-                  isClearable={false}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Banca</label>
-                <AsyncSelect
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadBancaOptions}
-                  value={watchedFields.selectedBanca}
-                  onChange={(val) => setValue('selectedBanca', val)}
-                  placeholder="Busque..."
-                  isClearable={false}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Área da Instituição</label>
-                <AsyncSelect
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadInstituicaoAreaOptions}
-                  value={watchedFields.selectedInstituicaoArea}
-                  onChange={(val) => setValue('selectedInstituicaoArea', val)}
-                  placeholder="Busque..."
-                  isClearable={false}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Área do Cargo</label>
-                <AsyncSelect
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadCargoAreaOptions}
-                  value={watchedFields.selectedCargoArea}
-                  onChange={(val) => setValue('selectedCargoArea', val)}
-                  placeholder="Busque..."
-                  isClearable={false}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nível do Cargo</label>
-                <Select
-                  options={[
-                    { value: '', label: 'Todos os níveis' },
-                    { value: 'FUNDAMENTAL', label: 'Fundamental' },
-                    { value: 'MEDIO', label: 'Médio' },
-                    { value: 'SUPERIOR', label: 'Superior' },
-                  ]}
-                  value={
-                    watchedFields.selectedCargoNivel
-                      ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) }
-                      : { value: '', label: 'Todos os níveis' }
-                  }
-                  onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')}
-                  placeholder="Selecione..."
-                />
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <Header title="Praticar Questões" subtitle="Configure sua sessão de estudos" />
+        <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          
+          <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
+            <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center text-white">
+                <Filter className="w-5 h-5 mr-2" />
+                <h2 className="text-lg font-bold">Filtros da Sessão</h2>
               </div>
             </div>
+            
+            <div className="p-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Disciplina</label>
+                  <AsyncSelect
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={loadDisciplinaOptions}
+                    value={watchedFields.selectedDisciplina}
+                    onChange={(val) => {
+                      setValue('selectedDisciplina', val);
+                      setValue('selectedTema', { value: 0, label: 'Todos os temas' });
+                      setValue('selectedSubtema', { value: 0, label: 'Todos os subtemas' });
+                    }}
+                    placeholder="Selecione..."
+                    isClearable={false}
+                    styles={selectStyles}
+                  />
+                </div>
 
-            {error && (
-              <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-md border border-red-200">
-                {error}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tema</label>
+                  <AsyncSelect
+                    key={`tema-${watchedFields.selectedDisciplina?.value}`}
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={loadTemaOptions}
+                    value={watchedFields.selectedTema}
+                    onChange={(val) => {
+                      setValue('selectedTema', val);
+                      setValue('selectedSubtema', { value: 0, label: 'Todos os subtemas' });
+                    }}
+                    placeholder="Selecione..."
+                    isDisabled={!watchedFields.selectedDisciplina || watchedFields.selectedDisciplina.value === 0}
+                    isClearable={false}
+                    styles={selectStyles}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Subtema</label>
+                  <AsyncSelect
+                    key={`subtema-${watchedFields.selectedTema?.value}`}
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={loadSubtemaOptions}
+                    value={watchedFields.selectedSubtema}
+                    onChange={(val) => setValue('selectedSubtema', val)}
+                    placeholder="Selecione..."
+                    isDisabled={!watchedFields.selectedTema || watchedFields.selectedTema.value === 0}
+                    isClearable={false}
+                    styles={selectStyles}
+                  />
+                </div>
               </div>
-            )}
 
-            <div className="mt-8 flex justify-end">
-              <button
-                onClick={fetchRandomQuestion}
-                disabled={loading}
-                className="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-              >
-                {loading ? 'Buscando...' : 'Iniciar Prática'}
-              </button>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-6 border-t border-gray-100">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Banca</label>
+                  <AsyncSelect
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={loadBancaOptions}
+                    value={watchedFields.selectedBanca}
+                    onChange={(val) => setValue('selectedBanca', val)}
+                    placeholder="Todas..."
+                    isClearable={false}
+                    styles={selectStyles}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Área Instituição</label>
+                  <AsyncSelect
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={loadInstituicaoAreaOptions}
+                    value={watchedFields.selectedInstituicaoArea}
+                    onChange={(val) => setValue('selectedInstituicaoArea', val)}
+                    placeholder="Todas..."
+                    isClearable={false}
+                    styles={selectStyles}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Área Cargo</label>
+                  <AsyncSelect
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={loadCargoAreaOptions}
+                    value={watchedFields.selectedCargoArea}
+                    onChange={(val) => setValue('selectedCargoArea', val)}
+                    placeholder="Todas..."
+                    isClearable={false}
+                    styles={selectStyles}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nível</label>
+                  <Select
+                    options={[
+                      { value: '', label: 'Todos' },
+                      { value: 'FUNDAMENTAL', label: 'Fundamental' },
+                      { value: 'MEDIO', label: 'Médio' },
+                      { value: 'SUPERIOR', label: 'Superior' },
+                    ]}
+                    value={
+                      watchedFields.selectedCargoNivel
+                        ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) }
+                        : { value: '', label: 'Todos' }
+                    }
+                    onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')}
+                    placeholder="Selecione..."
+                    styles={selectStyles}
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="mt-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center">
+                  <AlertCircle className="w-5 h-5 mr-2" />
+                  {error}
+                </div>
+              )}
+
+              <div className="mt-8 flex justify-end">
+                <button
+                  onClick={fetchRandomQuestion}
+                  disabled={loading}
+                  className="w-full sm:w-auto inline-flex justify-center items-center px-8 py-4 border border-transparent text-lg font-bold rounded-xl shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70 transform transition-all hover:-translate-y-0.5"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
+                      Buscando Questão...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-5 h-5 mr-2 fill-current" />
+                      Iniciar Prática
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -330,105 +385,151 @@ const QuestaoPracticePage = () => {
   // --- Render Practice Mode ---
   if (!currentQuestion) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
   const concurso = currentQuestion.concurso;
+  const isVerifyDisabled = !selectedAlternativa || !justificativa.trim();
 
   return (
-    <div>
-      <Header title="Praticar Questões" />
-      <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        
-        <div className="bg-white shadow rounded-lg p-4 mb-4 flex justify-between items-center sticky top-4 z-10 border-l-4 border-indigo-500">
-          <div className="text-gray-700 font-medium">
-            Tempo: <span className="text-indigo-600 font-bold font-mono text-xl ml-2">{formatTime(secondsElapsed)}</span>
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <Header title="Praticar Questões" subtitle="Modo de Estudo Focado" />
+      
+      {/* Sticky Top Bar */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+          <div className="flex items-center space-x-2 text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
+            <Clock className="w-4 h-4" />
+            <span className="font-mono font-bold text-lg">{formatTime(secondsElapsed)}</span>
           </div>
+          
           <button
             onClick={() => setMode('setup')}
-            className="text-sm text-gray-500 hover:text-indigo-600 underline"
+            className="text-sm font-medium text-gray-500 hover:text-indigo-600 flex items-center transition-colors"
           >
+            <Filter className="w-4 h-4 mr-1" />
             Alterar Filtros
           </button>
         </div>
+      </div>
 
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">
-                  {concurso ? `${concurso.ano} - ${concurso.instituicaoNome} - ${concurso.bancaNome}` : `Questão ${currentQuestion.id}`}
-                </h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Cargos: {(currentQuestion.cargos || []).map(c => `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
-                </p>
+      <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        
+        <div className="bg-white shadow-sm rounded-xl overflow-hidden border border-gray-200">
+          
+          {/* Card Header */}
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                    {concurso?.bancaNome || 'Banca'}
+                  </span>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
+                    {concurso?.ano || 'Ano'}
+                  </span>
+                  <span className="text-sm font-semibold text-gray-900 ml-1">
+                    {concurso?.instituicaoNome}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 leading-relaxed">
+                   {(currentQuestion.cargos || []).map(c => `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
+                </div>
               </div>
-              <div className="flex space-x-2">
+
+              <div className="flex space-x-2 flex-shrink-0">
                 {currentQuestion.anulada && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    Anulada
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800">
+                    ANULADA
                   </span>
                 )}
                 {currentQuestion.desatualizada && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    Desatualizada
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">
+                    DESATUALIZADA
+                  </span>
+                )}
+                {!currentQuestion.anulada && !currentQuestion.desatualizada && (
+                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    #{currentQuestion.id}
                   </span>
                 )}
               </div>
             </div>
+
+            {/* Taxonomy/Topics */}
+            <div className="pt-3 mt-1 border-t border-gray-200/60">
+                <div className="flex items-start gap-2">
+                  <Tag className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs leading-relaxed text-gray-600">
+                    {(() => {
+                      const grouped: Record<string, Record<string, string[]>> = {};
+                      (currentQuestion.subtemas || []).forEach(st => {
+                        if (!grouped[st.disciplinaNome]) grouped[st.disciplinaNome] = {};
+                        if (!grouped[st.disciplinaNome][st.temaNome]) grouped[st.disciplinaNome][st.temaNome] = [];
+                        grouped[st.disciplinaNome][st.temaNome].push(st.nome);
+                      });
+                      
+                      return Object.entries(grouped).map(([disc, temasMap]) => {
+                        const temasStr = Object.entries(temasMap).map(([tema, subtemaNomes]) => {
+                          return `${tema} (${subtemaNomes.join(', ')})`;
+                        }).join(' | ');
+                        
+                        return (
+                           <span key={disc} className="block mb-0.5 last:mb-0">
+                             <span className="font-semibold text-gray-700">{disc}:</span> {temasStr}
+                           </span>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+            </div>
           </div>
 
-          <div className="p-6">
-            <div className="prose max-w-none text-gray-800 mb-6">
-              {currentQuestion.imageUrl && (
-                <div className="mb-4">
-                  <img src={currentQuestion.imageUrl} alt="Imagem da questão" className="max-w-full h-auto rounded shadow-sm" />
-                </div>
-              )}
-              <p className="whitespace-pre-line leading-relaxed text-lg">{currentQuestion.enunciado}</p>
+          <div className="p-6 md:p-8">
+            {/* Body */}
+            <div className="prose prose-indigo max-w-none text-gray-800 mb-8 font-serif leading-relaxed text-lg">
+               <p className="whitespace-pre-line">{currentQuestion.enunciado}</p>
             </div>
 
-            <div className="text-xs text-gray-400 mb-6 border-t pt-2">
-              {(() => {
-                const grouped: Record<string, Record<string, string[]>> = {};
-                (currentQuestion.subtemas || []).forEach(st => {
-                  if (!grouped[st.disciplinaNome]) grouped[st.disciplinaNome] = {};
-                  if (!grouped[st.disciplinaNome][st.temaNome]) grouped[st.disciplinaNome][st.temaNome] = [];
-                  grouped[st.disciplinaNome][st.temaNome].push(st.nome);
-                });
-                return Object.entries(grouped).map(([disc, temasMap]) => {
-                  const temasStr = Object.entries(temasMap).map(([tema, subtemaNomes]) => {
-                    return `${tema} (${subtemaNomes.join(', ')})`;
-                  }).join(' | ');
-                  return `${disc}: ${temasStr}`;
-                }).join('; ');
-              })()}
-            </div>
+            {/* Image */}
+            {currentQuestion.imageUrl && (
+              <div className="mb-8 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 p-2">
+                <img src={currentQuestion.imageUrl} alt="Imagem da questão" className="max-w-full h-auto mx-auto rounded" />
+              </div>
+            )}
 
-            <div className="space-y-3">
+            {/* Alternatives */}
+            <div className="space-y-3 mb-8">
               {displayAlternativas.map((alternativa) => {
                 const isSelected = selectedAlternativa === alternativa.id;
                 const isCorrect = alternativa.correta;
                 const showFeedback = !!feedback;
                 
-                let containerClass = "relative flex items-start p-4 cursor-pointer rounded-lg border transition-all duration-200 ";
+                let containerClass = "group relative flex items-start p-4 cursor-pointer rounded-xl border-2 transition-all duration-200 ";
+                let badgeClass = "flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold transition-colors ";
                 
                 if (showFeedback) {
                   if (isCorrect) {
-                    containerClass += "bg-green-50 border-green-500 shadow-sm";
+                    containerClass += "bg-green-50 border-green-500 shadow-sm z-10 ";
+                    badgeClass += "bg-green-500 text-white";
                   } else if (isSelected && !isCorrect) {
-                    containerClass += "bg-red-50 border-red-500 shadow-sm";
+                    containerClass += "bg-red-50 border-red-500 shadow-sm z-10 ";
+                    badgeClass += "bg-red-500 text-white";
                   } else {
-                    containerClass += "bg-white border-gray-200 opacity-60";
+                    containerClass += "bg-white border-gray-100 opacity-60 grayscale-[0.5] ";
+                    badgeClass += "bg-gray-100 text-gray-400";
                   }
                 } else {
                   if (isSelected) {
-                    containerClass += "bg-indigo-50 border-indigo-500 shadow-md ring-1 ring-indigo-500";
+                    containerClass += "bg-indigo-50 border-indigo-600 shadow-md transform scale-[1.01] ";
+                    badgeClass += "bg-indigo-600 text-white";
                   } else {
-                    containerClass += "bg-white border-gray-300 hover:bg-gray-50 hover:border-gray-400";
+                    containerClass += "bg-white border-gray-200 hover:border-indigo-300 hover:bg-gray-50 ";
+                    badgeClass += "bg-white border-2 border-gray-300 text-gray-500 group-hover:border-indigo-400 group-hover:text-indigo-500";
                   }
                 }
 
@@ -438,36 +539,29 @@ const QuestaoPracticePage = () => {
                     className={containerClass}
                     onClick={() => !showFeedback && setSelectedAlternativa(alternativa.id!)}
                   >
-                    <div className="flex items-center h-5">
-                      <div className={`flex items-center justify-center w-6 h-6 rounded-full border ${
-                        showFeedback
-                          ? isCorrect 
-                            ? 'bg-green-500 border-green-500 text-white' 
-                            : isSelected 
-                              ? 'bg-red-500 border-red-500 text-white' 
-                              : 'border-gray-300'
-                          : isSelected 
-                            ? 'bg-indigo-600 border-indigo-600 text-white' 
-                            : 'border-gray-400 text-gray-500'
-                      }`}>
+                    <div className="flex-shrink-0 flex items-center pt-0.5">
+                      <span className={badgeClass}>
                         {String.fromCharCode(64 + alternativa.ordem)}
-                      </div>
-                    </div>
-                    <div className="ml-3 text-base text-gray-700 w-full">
-                      <span className={showFeedback && isCorrect ? 'font-semibold text-green-900' : ''}>
-                        {alternativa.texto}
                       </span>
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <div className={`text-base ${showFeedback && isCorrect ? 'font-medium text-green-900' : 'text-gray-700'}`}>
+                        {alternativa.texto}
+                      </div>
                       
                       {showFeedback && (
-                        <div className="mt-2">
+                        <div className="mt-3 animate-fade-in">
                           {(isCorrect || (isSelected && !isCorrect)) && (
-                            <div className={`text-sm rounded p-2 ${isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                              <strong>{isCorrect ? 'Correta!' : 'Incorreta.'}</strong> 
-                              {alternativa.justificativa && <span className="ml-1">{alternativa.justificativa}</span>}
+                            <div className={`flex items-start text-sm p-3 rounded-lg mb-2 ${isCorrect ? 'bg-green-100/50 text-green-800' : 'bg-red-100/50 text-red-800'}`}>
+                              {isCorrect ? <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" /> : <XCircle className="w-5 h-5 mr-2 flex-shrink-0" />}
+                              <div>
+                                <strong className="block mb-1">{isCorrect ? 'Gabarito' : 'Incorreta'}</strong>
+                                {alternativa.justificativa}
+                              </div>
                             </div>
                           )}
                           {!isCorrect && !isSelected && alternativa.justificativa && (
-                            <div className="text-sm text-gray-500 mt-1 pl-1 border-l-2 border-gray-300">
+                            <div className="text-sm text-gray-500 mt-1 pl-3 border-l-2 border-gray-300 italic">
                               {alternativa.justificativa}
                             </div>
                           )}
@@ -479,40 +573,49 @@ const QuestaoPracticePage = () => {
               })}
             </div>
 
-            <div className="mt-8 border-t pt-6">
+            <div className="mt-8 border-t border-gray-100 pt-8">
               {!feedback ? (
-                <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100 animate-fade-in">
+                  <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-wide mb-4 flex items-center">
+                      <FileText className="w-4 h-4 mr-2" />
+                      Justificativa obrigatória
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                        Justificativa
+                        Por que você escolheu esta alternativa?
                       </label>
                       <textarea
                         value={justificativa}
                         onChange={(e) => setJustificativa(e.target.value)}
-                        className="w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300 rounded-md"
+                        className="w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm border-gray-300 rounded-lg p-3 bg-white"
                         rows={3}
-                        placeholder="Por que você escolheu esta alternativa?"
+                        placeholder="Descreva seu raciocínio aqui..."
                       />
+                      {!justificativa.trim() && selectedAlternativa && (
+                        <p className="mt-2 text-xs text-indigo-600 font-medium italic animate-pulse">
+                          * Escreva uma justificativa para habilitar o botão.
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                        Dificuldade
+                        Dificuldade percebida
                       </label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-3">
                         {[
-                          { val: 1, label: 'Fácil', color: 'bg-green-100 text-green-800 border-green-200' },
-                          { val: 2, label: 'Média', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-                          { val: 3, label: 'Difícil', color: 'bg-orange-100 text-orange-800 border-orange-200' },
-                          { val: 4, label: 'Chute', color: 'bg-red-100 text-red-800 border-red-200' }
+                          { val: 1, label: 'Fácil', bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
+                          { val: 2, label: 'Média', bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' },
+                          { val: 3, label: 'Difícil', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+                          { val: 4, label: 'Chute', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }
                         ].map((opt) => (
                           <button
                             key={opt.val}
                             onClick={() => setDificuldade(opt.val)}
-                            className={`px-3 py-2 text-sm font-medium rounded-md border ${
+                            className={`px-3 py-2 text-sm font-bold uppercase rounded-lg border transition-all ${
                               dificuldade === opt.val 
-                                ? `ring-2 ring-offset-1 ring-indigo-500 ${opt.color}` 
-                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                ? `${opt.bg} ${opt.text} ${opt.border} ring-2 ring-offset-1 ring-indigo-400` 
+                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                             }`}
                           >
                             {opt.label}
@@ -524,9 +627,11 @@ const QuestaoPracticePage = () => {
                   <div className="flex justify-end">
                     <button
                       onClick={handleVerify}
-                      disabled={!selectedAlternativa}
-                      className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                        !selectedAlternativa ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
+                      disabled={isVerifyDisabled}
+                      className={`inline-flex items-center px-8 py-3 border border-transparent text-base font-bold rounded-lg shadow-sm text-white transition-all ${
+                        isVerifyDisabled 
+                          ? 'bg-gray-300 cursor-not-allowed opacity-60' 
+                          : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-md hover:-translate-y-0.5'
                       }`}
                     >
                       Verificar Resposta
@@ -535,44 +640,48 @@ const QuestaoPracticePage = () => {
                 </div>
               ) : (
                 <div className="animate-fade-in">
-                  <div className="bg-indigo-50 rounded-lg p-5 border border-indigo-100 mb-6">
-                    <h4 className="text-sm font-bold text-indigo-800 uppercase tracking-wide mb-3">Resumo da Tentativa</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                      <div className="bg-white p-3 rounded border border-indigo-100">
-                        <span className="block text-gray-500 text-xs uppercase">Tempo</span>
-                        <span className="font-mono font-medium text-gray-900">{formatTime(feedback.tempoRespostaSegundos)}</span>
-                      </div>
-                      <div className="bg-white p-3 rounded border border-indigo-100">
-                        <span className="block text-gray-500 text-xs uppercase">Dificuldade</span>
-                        <span className="font-medium text-gray-900">{formatDificuldade(feedback.dificuldade)}</span>
-                      </div>
-                      <div className="bg-white p-3 rounded border border-indigo-100">
-                        <span className="block text-gray-500 text-xs uppercase">Resultado</span>
-                        <span className={`font-bold ${feedback.correta ? 'text-green-600' : 'text-red-600'}`}>
-                          {feedback.correta ? 'ACERTOU' : 'ERROU'}
-                        </span>
-                      </div>
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+                    <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                       <h4 className="font-bold text-gray-700 flex items-center">
+                          <Award className="w-5 h-5 mr-2 text-indigo-500" />
+                          Resumo do Resultado
+                       </h4>
+                       <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${feedback.correta ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {feedback.correta ? 'Acertou!' : 'Errou'}
+                       </span>
                     </div>
-                    {feedback.justificativa && (
-                      <div className="mt-4 bg-white p-3 rounded border border-indigo-100">
-                        <span className="block text-gray-500 text-xs uppercase mb-1">Minha Justificativa</span>
-                        <p className="text-gray-800">{feedback.justificativa}</p>
-                      </div>
-                    )}
+                    <div className="p-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-4">
+                           <div>
+                              <span className="block text-gray-400 text-xs uppercase font-bold tracking-wider mb-1">Tempo</span>
+                              <span className="font-mono text-lg font-medium text-gray-900">{formatTime(feedback.tempoRespostaSegundos)}</span>
+                           </div>
+                           <div>
+                              <span className="block text-gray-400 text-xs uppercase font-bold tracking-wider mb-1">Dificuldade</span>
+                              <span className="text-lg font-medium text-gray-900">{formatDificuldade(feedback.dificuldade)}</span>
+                           </div>
+                           <div>
+                              <span className="block text-gray-400 text-xs uppercase font-bold tracking-wider mb-1">Data</span>
+                              <span className="text-lg font-medium text-gray-900">{formatDateTime(new Date().toISOString())}</span>
+                           </div>
+                        </div>
+                        
+                        {feedback.justificativa && (
+                          <div className="mt-4 pt-4 border-t border-gray-100">
+                             <span className="block text-gray-400 text-xs uppercase font-bold tracking-wider mb-2">Minha Justificativa</span>
+                             <p className="text-gray-700 italic bg-gray-50 p-3 rounded-lg border border-gray-100">"{feedback.justificativa}"</p>
+                          </div>
+                        )}
+                    </div>
                   </div>
 
-                  <div className="flex justify-between items-center">
-                    <button
-                      onClick={() => setMode('setup')}
-                      className="text-gray-600 hover:text-gray-900 font-medium text-sm"
-                    >
-                      &larr; Voltar aos Filtros
-                    </button>
+                  <div className="flex justify-end">
                     <button
                       onClick={fetchRandomQuestion}
-                      className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      className="inline-flex items-center px-8 py-3 border border-transparent text-base font-bold rounded-lg shadow-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all hover:-translate-y-0.5"
                     >
-                      Próxima Questão &rarr;
+                      <RefreshCw className="w-5 h-5 mr-2" />
+                      Próxima Questão
                     </button>
                   </div>
                 </div>

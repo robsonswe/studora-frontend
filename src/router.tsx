@@ -10,6 +10,7 @@ import BancasPage from '@/pages/BancasPage';
 import InstituicoesPage from '@/pages/InstituicoesPage';
 import CargosPage from '@/pages/CargosPage';
 import SimuladosPage from '@/pages/SimuladosPage';
+import SimuladoDetailPage from '@/pages/SimuladoDetailPage';
 import QuestaoPracticePage from '@/pages/QuestaoPracticePage';
 import SearchBrowsePage from '@/pages/SearchBrowsePage';
 import ProfilePage from '@/pages/ProfilePage';
@@ -59,6 +60,10 @@ export const router = createBrowserRouter([
       {
         path: '/simulados',
         element: <SimuladosPage />,
+      },
+      {
+        path: '/simulados/:id',
+        element: <SimuladoDetailPage />,
       },
       {
         path: '/praticar',
