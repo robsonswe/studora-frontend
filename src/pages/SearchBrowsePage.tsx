@@ -84,18 +84,26 @@ const SearchBrowsePage = () => {
       });
       setDisplayAlternativas(newDisplayMap);
 
-      // Load existing responses for the user to pre-populate states
-      const todasRespostas = await respostaService.getAll({ size: 1000 });
+      // Extract existing responses from the questions data to pre-populate states
       const responses: Record<number, number> = {};
       const justifications: Record<number, string> = {};
       const answeredStatus: Record<number, boolean> = {};
       const fullRespostas: Record<number, Types.RespostaSummaryDto> = {};
 
-      todasRespostas.content.forEach(resposta => {
-        responses[resposta.questaoId] = resposta.alternativaId;
-        justifications[resposta.questaoId] = resposta.justificativa || '';
-        answeredStatus[resposta.questaoId] = true;
-        fullRespostas[resposta.questaoId] = resposta;
+      fetchedQuestoes.forEach(questao => {
+        if (questao.respostas && questao.respostas.length > 0) {
+          // Get the most recent resposta for this question (handling potential null createdAt)
+          const respostaMaisRecente = questao.respostas.reduce((latest, current) => {
+            const latestTime = latest.createdAt ? new Date(latest.createdAt).getTime() : 0;
+            const currentTime = current.createdAt ? new Date(current.createdAt).getTime() : 0;
+            return currentTime > latestTime ? current : latest;
+          });
+          
+          responses[questao.id] = respostaMaisRecente.alternativaId;
+          justifications[questao.id] = respostaMaisRecente.justificativa || '';
+          answeredStatus[questao.id] = true;
+          fullRespostas[questao.id] = respostaMaisRecente;
+        }
       });
 
       setSelectedAlternativas(responses);
@@ -182,22 +190,42 @@ const SearchBrowsePage = () => {
         dificuldadeId: dificuldades[questaoId] || 2
       });
 
+      // Update the questoes state to include the resposta information
+      setQuestoes(prevQuestoes => 
+        prevQuestoes.map(questao => 
+          questao.id === questaoId 
+            ? { 
+                ...questao, 
+                alternativas: result.alternativas || questao.alternativas,
+                respostas: [...(questao.respostas || []), result] // Add the new resposta to the array
+              } 
+            : questao
+        )
+      );
+
       // Update alternatives with the ones returned by the API (which include the gabarito)
       const enrichedAlts = result.alternativas || [];
-      const currentOrder = displayAlternativas[questaoId] || [];
       
-      if (enrichedAlts.length > 0) {
+      // Update the displayAlternativas to use the enriched alternatives while maintaining order
+      setDisplayAlternativas(prev => {
+        const currentOrder = prev[questaoId] || [];
+        
+        // Create a map of the enriched alternatives for quick lookup
+        const enrichedMap = new Map(enrichedAlts.map(alt => [alt.id, alt]));
+        
+        // Maintain the current display order but update with enriched data
         const newDisplayOrder = currentOrder.map(displayed => {
-          const enriched = enrichedAlts.find(a => a.id === displayed.id);
+          const enriched = enrichedMap.get(displayed.id);
           return enriched || displayed;
         });
-        
-        setDisplayAlternativas(prev => ({ 
-          ...prev, 
-          [questaoId]: newDisplayOrder 
-        }));
-      }
 
+        return {
+          ...prev,
+          [questaoId]: newDisplayOrder
+        };
+      });
+
+      // Update the resposta data and show results
       setRespostasData(prev => ({ ...prev, [questaoId]: result }));
       setShowResults(prev => ({ ...prev, [questaoId]: true }));
     } catch (error) {
@@ -551,19 +579,33 @@ const SearchBrowsePage = () => {
                                 <p className="text-sm text-gray-700">{userJustificativas[questao.id]}</p>
                               </div>
                             )}
-                            
-                            {respostasData[questao.id] && (
-                              <div className="flex flex-wrap gap-4 pt-2 border-t border-gray-100">
-                                <div className="text-xs text-gray-500">
-                                  <span className="font-bold uppercase tracking-wider">Dificuldade:</span> {formatDificuldade(respostasData[questao.id].dificuldade) || 'N/A'}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  <span className="font-bold uppercase tracking-wider">Tempo:</span> {respostasData[questao.id].tempoRespostaSegundos ? `${Math.floor(respostasData[questao.id].tempoRespostaSegundos / 60)}m ${respostasData[questao.id].tempoRespostaSegundos % 60}s` : 'N/A'}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  <span className="font-bold uppercase tracking-wider">Data:</span> {formatDateTime(respostasData[questao.id].createdAt)}
-                                </div>
-                              </div>
+
+                            {/* Use resposta from questao object only - no fallback to respostasData */}
+                            {questao.respostas && questao.respostas.length > 0 && (
+                              <>
+                                {(() => {
+                                  // Get the most recent resposta from the questao object
+                                  const respostaMaisRecente = questao.respostas.reduce((latest, current) => {
+                                    const latestTime = latest.createdAt ? new Date(latest.createdAt).getTime() : 0;
+                                    const currentTime = current.createdAt ? new Date(current.createdAt).getTime() : 0;
+                                    return currentTime > latestTime ? current : latest;
+                                  });
+                                  
+                                  return (
+                                    <div className="flex flex-wrap gap-4 pt-2 border-t border-gray-100">
+                                      <div className="text-xs text-gray-500">
+                                        <span className="font-bold uppercase tracking-wider">Dificuldade:</span> {formatDificuldade(respostaMaisRecente.dificuldade) || 'N/A'}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        <span className="font-bold uppercase tracking-wider">Tempo:</span> {respostaMaisRecente.tempoRespostaSegundos ? `${Math.floor(respostaMaisRecente.tempoRespostaSegundos / 60)}m ${respostaMaisRecente.tempoRespostaSegundos % 60}s` : 'N/A'}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        <span className="font-bold uppercase tracking-wider">Data:</span> {formatDateTime(respostaMaisRecente.createdAt)}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                              </>
                             )}
                           </div>
                         )}
