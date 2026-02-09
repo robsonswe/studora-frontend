@@ -39,6 +39,15 @@ const SearchBrowsePage = () => {
 
   const [questoes, setQuestoes] = useState<QuestaoDto[]>([]);
   const [localLoading, setLocalLoading] = useState(true);
+  const [pagination, setPagination] = useState<Types.PageResponse<any>>({
+    content: [],
+    pageNumber: 0,
+    pageSize: 20,
+    totalElements: 0,
+    totalPages: 0,
+    last: true
+  });
+  const [currentPage, setCurrentPage] = useState(0);
   
   // State for user interactions
   const [selectedAlternativas, setSelectedAlternativas] = useState<Record<number, number>>({});
@@ -50,12 +59,13 @@ const SearchBrowsePage = () => {
   // Maps to store processed/enriched data for specific questions
   const [displayAlternativas, setDisplayAlternativas] = useState<Record<number, AlternativaDto[]>>({});
 
-  const filterQuestoes = useCallback(async () => {
+  const filterQuestoes = useCallback(async (page: number = 0) => {
     setLocalLoading(true);
 
     try {
       const params: any = {
-        size: 50,
+        page: page,
+        size: 20, // Changed from 50 to 20 to match the API default
         disciplinaId: (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) ? watchedFields.selectedDisciplina.value : undefined,
         temaId: (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) ? watchedFields.selectedTema.value : undefined,
         subtemaId: (watchedFields.selectedSubtema && watchedFields.selectedSubtema.value !== 0) ? watchedFields.selectedSubtema.value : undefined,
@@ -68,12 +78,14 @@ const SearchBrowsePage = () => {
       const data = await questaoService.getAll(params);
       const fetchedQuestoes = data.content as any;
       setQuestoes(fetchedQuestoes);
+      setPagination(data); // Store pagination info
+      setCurrentPage(page); // Update current page
 
       // Process alternatives for display
       const newDisplayMap: Record<number, AlternativaDto[]> = {};
       fetchedQuestoes.forEach((q: QuestaoDto) => {
         const hasGabarito = q.alternativas.some(a => a.correta !== undefined);
-        
+
         if (q.respondida && !hasGabarito && q.alternativas.length > 2) {
           // Scramble if responded but no gabarito and more than 2 alternatives
           newDisplayMap[q.id] = shuffle(q.alternativas);
@@ -98,7 +110,7 @@ const SearchBrowsePage = () => {
             const currentTime = current.createdAt ? new Date(current.createdAt).getTime() : 0;
             return currentTime > latestTime ? current : latest;
           });
-          
+
           responses[questao.id] = respostaMaisRecente.alternativaId;
           justifications[questao.id] = respostaMaisRecente.justificativa || '';
           answeredStatus[questao.id] = true;
@@ -117,17 +129,17 @@ const SearchBrowsePage = () => {
       setLocalLoading(false);
     }
   }, [
-    watchedFields.selectedDisciplina, 
-    watchedFields.selectedTema, 
-    watchedFields.selectedSubtema, 
-    watchedFields.selectedBanca, 
-    watchedFields.selectedInstituicaoArea, 
-    watchedFields.selectedCargoArea, 
+    watchedFields.selectedDisciplina,
+    watchedFields.selectedTema,
+    watchedFields.selectedSubtema,
+    watchedFields.selectedBanca,
+    watchedFields.selectedInstituicaoArea,
+    watchedFields.selectedCargoArea,
     watchedFields.selectedCargoNivel
   ]);
 
   useEffect(() => {
-    filterQuestoes();
+    filterQuestoes(0); // Start with page 0
   }, [filterQuestoes]);
 
   const loadBancaOptions = async (inputValue: string) => {
@@ -658,6 +670,149 @@ const SearchBrowsePage = () => {
             <p className="mt-1 text-sm text-gray-500">
               Tente ajustar seus filtros de busca.
             </p>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => filterQuestoes(currentPage - 1)}
+                disabled={currentPage === 0}
+                className={`relative inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
+                  currentPage === 0
+                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                }`}
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => filterQuestoes(currentPage + 1)}
+                disabled={currentPage === pagination.totalPages - 1}
+                className={`relative ml-3 inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
+                  currentPage === pagination.totalPages - 1
+                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+                }`}
+              >
+                Próximo
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Mostrando <span className="font-medium">{currentPage * pagination.pageSize + 1}</span> até{' '}
+                  <span className="font-medium">
+                    {Math.min((currentPage + 1) * pagination.pageSize, pagination.totalElements)}
+                  </span>{' '}
+                  de <span className="font-medium">{pagination.totalElements}</span> resultados
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => filterQuestoes(currentPage - 1)}
+                    disabled={currentPage === 0}
+                    className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                      currentPage === 0
+                        ? 'cursor-not-allowed bg-gray-100 text-gray-300'
+                        : 'bg-white text-gray-900 hover:text-gray-600'
+                    }`}
+                  >
+                    <span className="sr-only">Anterior</span>
+                    &larr;
+                  </button>
+
+                  {/* Render page numbers */}
+                  {(() => {
+                    const pages = [];
+                    const totalPages = pagination.totalPages;
+                    
+                    // Always show first page
+                    if (totalPages > 0) {
+                      pages.push(0);
+                    }
+                    
+                    // Determine which pages to show based on current page
+                    if (totalPages > 1) {
+                      if (totalPages <= 5) {
+                        // Show all pages if total is 5 or less
+                        for (let i = 1; i < totalPages - 1; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        // Show current page with neighbors
+                        const startPage = Math.max(1, Math.min(currentPage - 1, totalPages - 4));
+                        const endPage = Math.min(totalPages - 1, startPage + 2);
+                        
+                        for (let i = startPage; i <= endPage; i++) {
+                          if (!pages.includes(i)) {
+                            pages.push(i);
+                          }
+                        }
+                      }
+                      
+                      // Always show last page if there are more than 1 page
+                      if (totalPages > 1 && !pages.includes(totalPages - 1)) {
+                        pages.push(totalPages - 1);
+                      }
+                    }
+                    
+                    // Sort pages to ensure proper order
+                    pages.sort((a, b) => a - b);
+                    
+                    // Generate the buttons with ellipses where needed
+                    const elements = [];
+                    for (let i = 0; i < pages.length; i++) {
+                      const page = pages[i];
+                      
+                      // Add ellipsis if there's a gap
+                      if (i > 0 && pages[i] - pages[i - 1] > 1) {
+                        elements.push(
+                          <span
+                            key={`ellipsis-${pages[i - 1]}-${page}`}
+                            className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300"
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+                      
+                      elements.push(
+                        <button
+                          key={page}
+                          onClick={() => filterQuestoes(page)}
+                          className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                            currentPage === page
+                              ? 'z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
+                              : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page + 1}
+                        </button>
+                      );
+                    }
+                    
+                    return elements;
+                  })()}
+
+                  <button
+                    onClick={() => filterQuestoes(currentPage + 1)}
+                    disabled={currentPage === pagination.totalPages - 1}
+                    className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                      currentPage === pagination.totalPages - 1
+                        ? 'cursor-not-allowed bg-gray-100 text-gray-300'
+                        : 'bg-white text-gray-900 hover:text-gray-600'
+                    }`}
+                  >
+                    <span className="sr-only">Próximo</span>
+                    &rarr;
+                  </button>
+                </nav>
+              </div>
+            </div>
           </div>
         )}
       </div>
