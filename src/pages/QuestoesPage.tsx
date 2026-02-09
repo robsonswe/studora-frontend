@@ -2,38 +2,41 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { useForm } from 'react-hook-form';
 import Select from 'react-select';
-import { questaoService, temaService, subtemaService, concursoService, alternativaService, imagemService } from '@/services/api';
+import AsyncSelect from 'react-select/async';
+import { formatNivel } from '@/utils/formatters';
+import { useStudora } from '@/context/StudoraContext';
+import { questaoService, concursoService, subtemaService, cargoService } from '@/services/api';
 import * as Types from '@/types';
 
-type QuestaoDto = Types.QuestaoDto;
-type TemaDto = Types.TemaDto;
-type SubtemaDto = Types.SubtemaDto;
-type ConcursoDto = Types.ConcursoDto;
+type QuestaoDto = Types.QuestaoSummaryDto;
 type AlternativaDto = Types.AlternativaDto;
-type ImagemDto = Types.ImagemDto;
 
 const QuestoesPage = () => {
+  const { 
+    loading: contextLoading,
+    refreshQuestoes
+  } = useStudora();
+
   const [questoes, setQuestoes] = useState<QuestaoDto[]>([]);
-  const [concursos, setConcursos] = useState<ConcursoDto[]>([]);
-  const [temas, setTemas] = useState<TemaDto[]>([]);
-  const [subtemas, setSubtemas] = useState<SubtemaDto[]>([]);
-  const [imagens, setImagens] = useState<ImagemDto[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<QuestaoDto | null>(null);
+  const [availableCargos, setAvailableCargos] = useState<Types.CargoSummaryDto[]>([]); 
+  const [localLoading, setLocalLoading] = useState(false);
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm({
     defaultValues: {
-      concursoId: 0,
+      concurso: null as { value: number, label: string } | null,
       enunciado: '',
       anulada: false,
-      subtemaIds: [] as number[],
+      desatualizada: false,
+      subtemas: [] as { value: number, label: string }[],
+      cargos: [] as number[],
+      imageUrl: ''
     }
   });
 
   const watchedFields = watch();
 
-  const [alternativas, setAlternativas] = useState<AlternativaDto[]>([]);
   const [currentAlternativas, setCurrentAlternativas] = useState<AlternativaDto[]>([]);
   const [novaAlternativa, setNovaAlternativa] = useState<Omit<AlternativaDto, 'id' | 'questaoId'>>({
     ordem: 0,
@@ -47,76 +50,56 @@ const QuestoesPage = () => {
   const [alternativeErrors, setAlternativeErrors] = useState<string>('');
 
   useEffect(() => {
-    Promise.all([
-      loadQuestoes(),
-      loadConcursos(),
-      loadTemas(),
-      loadSubtemas(),
-      loadImagens()
-    ]).finally(() => {
-      setLoading(false);
-    });
+    loadQuestoes();
   }, []);
 
   const loadQuestoes = async () => {
+    setLocalLoading(true);
     try {
-      const data = await questaoService.getAll();
-      setQuestoes(data);
+      const data = await questaoService.getAll({ size: 100 });
+      setQuestoes(data.content);
     } catch (error) {
       console.error('Erro ao carregar questões:', error);
+    } finally {
+      setLocalLoading(false);
     }
   };
 
-  const loadConcursos = async () => {
-    try {
-      const data = await concursoService.getAll();
-      setConcursos(data);
-    } catch (error) {
-      console.error('Erro ao carregar concursos:', error);
+  // Update available cargos when concurso changes
+  useEffect(() => {
+    if (watchedFields.concurso?.value) {
+      concursoService.getById(watchedFields.concurso.value)
+        .then(detail => {
+          setAvailableCargos(detail.cargos);
+        })
+        .catch(console.error);
+    } else {
+      setAvailableCargos([]);
     }
-  };
-
-  const loadTemas = async () => {
-    try {
-      const data = await temaService.getAll();
-      setTemas(data);
-    } catch (error) {
-      console.error('Erro ao carregar temas:', error);
-    }
-  };
-
-  const loadSubtemas = async () => {
-    try {
-      const data = await subtemaService.getAll();
-      setSubtemas(data);
-    } catch (error) {
-      console.error('Erro ao carregar subtemas:', error);
-    }
-  };
-
-  const loadImagens = async () => {
-    try {
-      const data = await imagemService.getAll();
-      setImagens(data);
-    } catch (error) {
-      console.error('Erro ao carregar imagens:', error);
-    }
-  };
+  }, [watchedFields.concurso?.value]);
 
   const onSubmit = async (data: any) => {
-    // Validation
     const errors: string[] = [];
 
     if (currentAlternativas.length < 2) {
       errors.push('A questão deve ter pelo menos 2 alternativas');
     }
 
-    // Only validate correct alternative if the question is not marked as anulada
     if (!data.anulada) {
       const correctAlternativas = currentAlternativas.filter(a => a.correta);
       if (correctAlternativas.length === 0) {
         errors.push('Pelo menos uma alternativa deve ser marcada como correta');
+      } else if (correctAlternativas.length > 1) {
+        errors.push('Apenas uma alternativa pode ser marcada como correta (questão não anulada)');
       }
+    }
+    
+    if (data.cargos.length === 0) {
+      errors.push('A questão deve estar associada a pelo menos um cargo');
+    }
+
+    if (data.subtemas.length === 0) {
+      errors.push('A questão deve estar associada a pelo menos um subtema');
     }
 
     if (errors.length > 0) {
@@ -124,90 +107,92 @@ const QuestoesPage = () => {
       return;
     }
 
-    // Clear previous errors
     setValidationErrors([]);
+    setLocalLoading(true);
 
     try {
-      let savedQuestao: QuestaoDto;
-
-      const formDataWithSubtemas = {
-        ...data,
-        subtemaIds: data.subtemaIds
+      const payload = {
+        concursoId: data.concurso.value,
+        enunciado: data.enunciado,
+        anulada: data.anulada,
+        desatualizada: data.desatualizada,
+        imageUrl: data.imageUrl,
+        subtemaIds: data.subtemas.map((s: any) => s.value),
+        cargos: data.cargos,
+        alternativas: currentAlternativas.map((alt, index) => ({
+          ...alt,
+          ordem: index + 1
+        }))
       };
 
       if (editingItem) {
-        // Update existing
-        savedQuestao = await questaoService.update(editingItem.id!, { ...formDataWithSubtemas, id: editingItem.id });
-        setQuestoes(questoes.map(q => q.id === savedQuestao.id ? savedQuestao : q));
+        await questaoService.update(editingItem.id, payload);
       } else {
-        // Create new
-        savedQuestao = await questaoService.create(formDataWithSubtemas);
-        setQuestoes([...questoes, savedQuestao]);
+        await questaoService.create(payload);
       }
 
-      // Save alternatives if any
-      if (currentAlternativas.length > 0) {
-        // Assign order based on position in the array
-        const alternativasWithOrder = currentAlternativas.map((alt, index) => ({
-          ...alt,
-          ordem: index + 1
-        }));
-
-        for (const alternativa of alternativasWithOrder) {
-          if (alternativa.id) {
-            // Update existing
-            await alternativaService.update(alternativa.id, { ...alternativa, questaoId: savedQuestao.id! });
-          } else {
-            // Create new
-            await alternativaService.create({ ...alternativa, questaoId: savedQuestao.id! });
-          }
-        }
-      }
-
+      await loadQuestoes();
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar questão:', error);
+      setValidationErrors([error.message || 'Erro inesperado ao salvar questão']);
+    } finally {
+      setLocalLoading(false);
     }
   };
 
   const handleEdit = async (item: QuestaoDto) => {
-    setEditingItem(item);
-
-    // Set form values using react-hook-form setValue
-    setValue('concursoId', item.concursoId);
-    setValue('enunciado', item.enunciado);
-    setValue('anulada', item.anulada);
-    setValue('subtemaIds', item.subtemaIds);
-
-    // Load alternatives for this question
+    setLocalLoading(true);
     try {
-      const questaoAlternativas = await alternativaService.getByQuestao(item.id!);
-      setCurrentAlternativas(questaoAlternativas);
-    } catch (error) {
-      console.error('Erro ao carregar alternativas:', error);
-      setCurrentAlternativas([]);
-    }
+      const detail = await questaoService.getById(item.id, true);
+      setEditingItem(item);
 
-    setShowForm(true);
+      const concursoLabel = `${detail.concurso.ano} - ${detail.concurso.instituicaoNome} - ${detail.concurso.bancaNome}`;
+      setValue('concurso', { value: detail.concurso.id, label: concursoLabel });
+      setValue('enunciado', detail.enunciado);
+      setValue('anulada', detail.anulada);
+      setValue('desatualizada', detail.desatualizada);
+      
+      setValue('subtemas', (detail.subtemas || []).map(s => ({
+        value: s.id,
+        label: `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}`
+      })));
+      
+      setValue('cargos', detail.cargoIds || detail.cargos.map(c => c.id));
+      setValue('imageUrl', detail.imageUrl || '');
+
+      setCurrentAlternativas([...detail.alternativas].sort((a, b) => a.ordem - b.ordem));
+      setShowForm(true);
+    } catch (error) {
+      console.error('Erro ao carregar detalhes da questão:', error);
+    } finally {
+      setLocalLoading(false);
+    }
   };
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Tem certeza que deseja excluir esta questão?')) {
+      setLocalLoading(true);
       try {
         await questaoService.delete(id);
         setQuestoes(questoes.filter(q => q.id !== id));
       } catch (error) {
         console.error('Erro ao excluir questão:', error);
+      } finally {
+        setLocalLoading(false);
       }
     }
   };
 
   const resetForm = () => {
     reset({
-      concursoId: 0,
+      concurso: null,
       enunciado: '',
       anulada: false,
-      subtemaIds: []
+      desatualizada: false,
+      subtemas: [],
+      cargos: [],
+      imageUrl: ''
     });
     setCurrentAlternativas([]);
     setNovaAlternativa({
@@ -218,17 +203,33 @@ const QuestoesPage = () => {
     });
     setEditingItem(null);
     setShowForm(false);
+    setValidationErrors([]);
+  };
+
+  const loadConcursoOptions = async (inputValue: string) => {
+    const data = await concursoService.getAll({ size: 50 });
+    return data.content.map(c => ({
+      value: c.id,
+      label: `${c.mes}/${c.ano} - ${c.instituicao.nome} - ${c.banca.nome}`
+    })).filter(o => o.label.toLowerCase().includes(inputValue.toLowerCase()));
+  };
+
+  const loadSubtemaOptions = async (inputValue: string) => {
+    const data = await subtemaService.getAll({ nome: inputValue, size: 20 });
+    return data.content.map(s => ({ 
+      value: s.id, 
+      label: s.disciplinaNome ? `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}` : s.nome 
+    }));
   };
 
   // Alternativas management
   const adicionarAlternativa = () => {
-    // Validate that the text field is filled before adding
     if (!novaAlternativa.texto.trim()) {
       setAlternativeErrors('O campo texto da alternativa é obrigatório');
       return;
     }
 
-    setAlternativeErrors(''); // Clear error message
+    setAlternativeErrors(''); 
     const nova = {
       ...novaAlternativa,
       ordem: currentAlternativas.length + 1
@@ -248,34 +249,21 @@ const QuestoesPage = () => {
     setCurrentAlternativas(novasAlternativas);
   };
 
-  const atualizarAlternativa = (index: number, campo: keyof AlternativaDto, valor: any) => {
-    const novasAlternativas = [...currentAlternativas];
-    (novasAlternativas[index] as any)[campo] = valor;
-    setCurrentAlternativas(novasAlternativas);
-  };
-
-  // Reorder alternatives
   const moverAlternativaParaCima = (index: number) => {
-    if (index === 0) return; // Already at the top
-
+    if (index === 0) return;
     const novasAlternativas = [...currentAlternativas];
-    [novasAlternativas[index], novasAlternativas[index - 1]] =
-      [novasAlternativas[index - 1], novasAlternativas[index]];
-
+    [novasAlternativas[index], novasAlternativas[index - 1]] = [novasAlternativas[index - 1], novasAlternativas[index]];
     setCurrentAlternativas(novasAlternativas);
   };
 
   const moverAlternativaParaBaixo = (index: number) => {
-    if (index === currentAlternativas.length - 1) return; // Already at the bottom
-
+    if (index === currentAlternativas.length - 1) return;
     const novasAlternativas = [...currentAlternativas];
-    [novasAlternativas[index], novasAlternativas[index + 1]] =
-      [novasAlternativas[index + 1], novasAlternativas[index]];
-
+    [novasAlternativas[index], novasAlternativas[index + 1]] = [novasAlternativas[index + 1], novasAlternativas[index]];
     setCurrentAlternativas(novasAlternativas);
   };
 
-  if (loading) {
+  if (contextLoading.all && questoes.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -317,95 +305,109 @@ const QuestoesPage = () => {
                 {errors.enunciado && <p className="mt-1 text-sm text-red-600">{errors.enunciado.message}</p>}
               </div>
 
-              <div className="sm:col-span-2">
-                <label htmlFor="concursoId" className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="sm:col-span-3">
+                <label htmlFor="concurso" className="block text-sm font-medium text-gray-700 mb-1">
                   Concurso
                 </label>
-                <Select
-                  id="concursoId"
-                  options={concursos.map(concurso => ({
-                    value: concurso.id,
-                    label: `${concurso.ano} - ${concurso.banca} - ${concurso.nome}`
-                  }))}
-                  value={{
-                    value: watchedFields.concursoId,
-                    label: concursos.find(c => c.id === watchedFields.concursoId)?.ano +
-                           " - " +
-                           concursos.find(c => c.id === watchedFields.concursoId)?.banca +
-                           " - " +
-                           concursos.find(c => c.id === watchedFields.concursoId)?.nome
-                  } || null}
-                  onChange={(selectedOption) => {
-                    if (selectedOption) {
-                      setValue('concursoId', selectedOption.value);
-                    }
+                <AsyncSelect
+                  id="concurso"
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadConcursoOptions}
+                  value={watchedFields.concurso}
+                  onChange={(val) => {
+                    setValue('concurso', val);
+                    setValue('cargos', []);
                   }}
-                  placeholder="Selecione ou digite para pesquisar..."
-                  isClearable
-                  isSearchable
+                  placeholder="Busque por concurso..."
                 />
-                {errors.concursoId && <p className="mt-1 text-sm text-red-600">{errors.concursoId.message}</p>}
+              </div>
+
+              <div className="sm:col-span-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cargos do Concurso
+                </label>
+                <Select
+                  id="cargos"
+                  isMulti
+                  options={availableCargos.map(c => ({
+                    value: c.id,
+                    label: `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`
+                  }))}
+                  value={watchedFields.cargos.map(id => {
+                    const cargo = availableCargos.find(c => c.id === id);
+                    return {
+                      value: id,
+                      label: cargo ? `${cargo.nome} - ${cargo.area} (${formatNivel(cargo.nivel)})` : `Cargo ID: ${id}`
+                    };
+                  })}
+                  onChange={(selectedOptions) => {
+                    setValue('cargos', selectedOptions ? selectedOptions.map(o => o.value) : []);
+                  }}
+                  placeholder="Selecione os cargos..."
+                  isDisabled={!watchedFields.concurso}
+                />
               </div>
 
               <div className="sm:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Subtemas
                 </label>
-                <Select
-                  id="subtemaIds"
+                <AsyncSelect
+                  id="subtemas"
                   isMulti
-                  options={subtemas.map(subtema => {
-                    const tema = temas.find(t => t.id === subtema.temaId);
-                    return {
-                      value: subtema.id,
-                      label: `${tema?.nome} - ${subtema.nome}`
-                    };
-                  })}
-                  value={watchedFields.subtemaIds.map(id => {
-                    const subtema = subtemas.find(s => s.id === id);
-                    const tema = subtema ? temas.find(t => t.id === subtema.temaId) : null;
-                    return {
-                      value: id,
-                      label: `${tema?.nome} - ${subtema?.nome}`
-                    };
-                  })}
-                  onChange={(selectedOptions) => {
-                    const selectedIds = selectedOptions ? selectedOptions.map(option => option.value) : [];
-                    setValue('subtemaIds', selectedIds);
-                  }}
-                  placeholder="Selecione os subtemas..."
-                  isClearable
-                  isSearchable
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadSubtemaOptions}
+                  value={watchedFields.subtemas}
+                  onChange={(val) => setValue('subtemas', val as any)}
+                  placeholder="Busque por subtemas..."
                 />
               </div>
 
               <div className="sm:col-span-3">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="anulada"
-                    {...register('anulada')}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="anulada" className="ml-2 text-sm text-gray-700">
-                    Questão anulada
-                  </label>
+                <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">
+                  URL da Imagem
+                </label>
+                <input
+                  type="text"
+                  id="imageUrl"
+                  {...register('imageUrl')}
+                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+                  placeholder="https://exemplo.com/imagem.jpg"
+                />
+              </div>
+
+              <div className="sm:col-span-3">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="anulada"
+                      {...register('anulada')}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="anulada" className="ml-2 text-sm text-gray-700">
+                      Anulada
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="desatualizada"
+                      {...register('desatualizada')}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="desatualizada" className="ml-2 text-sm text-gray-700">
+                      Desatualizada
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              {/* Images for the question */}
-              <div className="sm:col-span-6">
-                <h4 className="text-md font-medium text-gray-900 mb-2">Imagens da Questão</h4>
-                <div className="border border-gray-200 rounded-md p-4">
-                  <p className="text-sm text-gray-500">Funcionalidade para adicionar imagens à questão em desenvolvimento...</p>
-                </div>
-              </div>
-
-              {/* Alternativas Section */}
               <div className="sm:col-span-6">
                 <h4 className="text-md font-medium text-gray-900 mb-2">Alternativas</h4>
 
-                {/* Form to add new alternative */}
                 <div className="bg-gray-50 p-4 rounded-md mb-4">
                   <div className="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-12">
                     <div className="sm:col-span-8">
@@ -456,11 +458,11 @@ const QuestoesPage = () => {
                   )}
 
                   <div className="mt-3">
-                    <label htmlFor="justificativa" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="justificativa_alt" className="block text-sm font-medium text-gray-700 mb-1">
                       Justificativa
                     </label>
                     <textarea
-                      id="justificativa"
+                      id="justificativa_alt"
                       rows={2}
                       value={novaAlternativa.justificativa || ''}
                       onChange={(e) => setNovaAlternativa({...novaAlternativa, justificativa: e.target.value})}
@@ -469,7 +471,6 @@ const QuestoesPage = () => {
                   </div>
                 </div>
 
-                {/* List of alternatives */}
                 <div className="space-y-3">
                   {currentAlternativas.map((alternativa, index) => (
                     <div key={index} className="bg-white border border-gray-200 rounded-md p-4">
@@ -477,11 +478,9 @@ const QuestoesPage = () => {
                         <div className="sm:col-span-1">
                           <span className="font-medium">#{index + 1}</span>
                         </div>
-
                         <div className="sm:col-span-6">
                           <div>{alternativa.texto}</div>
                         </div>
-
                         <div className="sm:col-span-2">
                           <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             alternativa.correta ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
@@ -489,38 +488,31 @@ const QuestoesPage = () => {
                             {alternativa.correta ? 'Correta' : 'Incorreta'}
                           </div>
                         </div>
-
                         <div className="sm:col-span-3 flex justify-end space-x-2">
                           <button
                             type="button"
                             onClick={() => moverAlternativaParaCima(index)}
                             disabled={index === 0}
                             className={`inline-flex items-center p-1 border border-transparent rounded-md ${
-                              index === 0
-                                ? 'text-gray-400 cursor-not-allowed'
-                                : 'text-gray-500 hover:text-gray-700'
+                              index === 0 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-500 hover:text-gray-700'
                             }`}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
                             </svg>
                           </button>
-
                           <button
                             type="button"
                             onClick={() => moverAlternativaParaBaixo(index)}
                             disabled={index === currentAlternativas.length - 1}
                             className={`inline-flex items-center p-1 border border-transparent rounded-md ${
-                              index === currentAlternativas.length - 1
-                                ? 'text-gray-400 cursor-not-allowed'
-                                : 'text-gray-500 hover:text-gray-700'
+                              index === currentAlternativas.length - 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-500 hover:text-gray-700'
                             }`}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                             </svg>
                           </button>
-
                           <button
                             type="button"
                             onClick={() => removerAlternativa(index)}
@@ -530,7 +522,6 @@ const QuestoesPage = () => {
                           </button>
                         </div>
                       </div>
-
                       {alternativa.justificativa && (
                         <div className="mt-2 pl-4">
                           <div className="text-sm text-gray-600">
@@ -542,33 +533,17 @@ const QuestoesPage = () => {
                   ))}
                 </div>
               </div>
-
-              {/* Images for alternatives section */}
-              <div className="sm:col-span-6">
-                <h4 className="text-md font-medium text-gray-900 mb-2">Imagens das Alternativas</h4>
-                <div className="border border-gray-200 rounded-md p-4">
-                  <p className="text-sm text-gray-500">Funcionalidade para adicionar imagens às alternativas em desenvolvimento...</p>
-                </div>
-              </div>
             </div>
 
-            {/* Validation Errors */}
             {validationErrors.length > 0 && (
               <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4">
                 <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
                   <div className="ml-3">
-                    <p className="text-sm text-red-700">
+                    <div className="text-sm text-red-700">
                       <ul className="list-disc pl-5 space-y-1">
-                        {validationErrors.map((error, index) => (
-                          <li key={index}>{error}</li>
-                        ))}
+                        {validationErrors.map((error, index) => <li key={index}>{error}</li>)}
                       </ul>
-                    </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -584,9 +559,10 @@ const QuestoesPage = () => {
               </button>
               <button
                 type="submit"
+                disabled={localLoading}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                Salvar
+                {localLoading ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </form>
@@ -595,40 +571,40 @@ const QuestoesPage = () => {
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {questoes.map((questao) => {
-            const concurso = concursos.find(c => c.id === questao.concursoId);
-            return (
-              <li key={questao.id}>
-                <div className="px-4 py-4 sm:px-6 flex justify-between items-start">
-                  <div className="flex flex-col">
-                    <div className="text-sm font-medium text-indigo-600 truncate max-w-2xl">
-                      {questao.enunciado.substring(0, 100)}{questao.enunciado.length > 100 ? '...' : ''}
-                    </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      {concurso?.nome || 'Concurso não encontrado'}
-                      {questao.anulada && <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        Anulada
-                      </span>}
-                    </div>
+          {questoes.map((questao) => (
+            <li key={questao.id}>
+              <div className="px-4 py-4 sm:px-6 flex justify-between items-start">
+                <div className="flex flex-col">
+                  <div className="text-sm font-medium text-indigo-600 truncate max-w-2xl">
+                    {questao.enunciado.substring(0, 100)}{questao.enunciado.length > 100 ? '...' : ''}
                   </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(questao)}
-                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(questao.id!)}
-                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                    >
-                      Excluir
-                    </button>
+                  <div className="text-sm text-gray-500 mt-1">
+                    {questao.concurso ? `${questao.concurso.ano} - ${questao.concurso.instituicaoNome} - ${questao.concurso.bancaNome}` : `Questão ${questao.id}`}
+                    {questao.anulada && <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Anulada</span>}
+                    {questao.desatualizada && <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Desatualizada</span>}
+                  </div>
+                  <div className="text-xs text-indigo-400 mt-1">
+                    Cargos: {(questao.cargos || []).map(cargo => `${cargo.nome} - ${cargo.area} (${formatNivel(cargo.nivel)})`).join(', ')}
                   </div>
                 </div>
-              </li>
-            );
-          })}
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleEdit(questao)}
+                    className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(questao.id!)}
+                    disabled={localLoading}
+                    className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            </li>
+          ))}
         </ul>
       </div>
     </div>

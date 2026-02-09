@@ -1,22 +1,23 @@
 import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { useForm } from 'react-hook-form';
-import Select from 'react-select';
+import AsyncSelect from 'react-select/async';
 import { temaService, disciplinaService } from '@/services/api';
 import * as Types from '@/types';
 
-type TemaDto = Types.TemaDto;
-type DisciplinaDto = Types.DisciplinaDto;
+type TemaDto = Types.TemaSummaryDto;
 
 const TemasPage = () => {
   const [temas, setTemas] = useState<TemaDto[]>([]);
-  const [disciplinas, setDisciplinas] = useState<DisciplinaDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<TemaDto | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [localLoading, setLocalLoading] = useState(false);
+  
   const { register, handleSubmit, setValue, reset, watch, formState: { errors } } = useForm({
     defaultValues: {
-      disciplinaId: 0,
+      disciplina: null as { value: number, label: string } | null,
       nome: ''
     }
   });
@@ -24,75 +25,94 @@ const TemasPage = () => {
   const watchedFields = watch();
 
   useEffect(() => {
-    Promise.all([
-      loadTemas(),
-      loadDisciplinas()
-    ]).finally(() => {
-      setLoading(false);
-    });
+    loadTemas();
   }, []);
 
   const loadTemas = async () => {
+    setLoading(true);
     try {
-      const data = await temaService.getAll();
-      setTemas(data);
+      const data = await temaService.getAll({ size: 1000 });
+      setTemas(data.content);
     } catch (error) {
       console.error('Erro ao carregar temas:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadDisciplinas = async () => {
-    try {
-      const data = await disciplinaService.getAll();
-      setDisciplinas(data);
-    } catch (error) {
-      console.error('Erro ao carregar disciplinas:', error);
-    }
+  const loadDisciplinaOptions = async (inputValue: string) => {
+    const data = await disciplinaService.getAll({ nome: inputValue, size: 20 });
+    return data.content.map(d => ({ value: d.id, label: d.nome }));
   };
 
   const onSubmit = async (data: any) => {
+    setSubmissionError(null);
+    if (!data.disciplina) {
+      setSubmissionError('Selecione uma disciplina');
+      return;
+    }
+
+    setLocalLoading(true);
     try {
+      const payload = {
+        disciplinaId: data.disciplina.value,
+        nome: data.nome
+      };
+
       if (editingItem) {
-        // Update existing
-        const updated = await temaService.update(editingItem.id!, { ...data, id: editingItem.id });
-        setTemas(temas.map(t => t.id === updated.id ? updated : t));
+        await temaService.update(editingItem.id, payload);
       } else {
-        // Create new
-        const created = await temaService.create(data);
-        setTemas([...temas, created]);
+        await temaService.create(payload);
       }
 
+      await loadTemas();
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar tema:', error);
+      setSubmissionError(error.message || 'Erro inesperado ao salvar tema');
+    } finally {
+      setLocalLoading(false);
     }
   };
 
-  const handleEdit = (item: TemaDto) => {
-    setEditingItem(item);
-    setValue('disciplinaId', item.disciplinaId);
-    setValue('nome', item.nome);
-    setShowForm(true);
+  const handleEdit = async (item: TemaDto) => {
+    setLocalLoading(true);
+    try {
+      const detail = await temaService.getById(item.id);
+      setEditingItem(item);
+      setValue('disciplina', { value: detail.disciplina.id, label: detail.disciplina.nome });
+      setValue('nome', detail.nome);
+      setShowForm(true);
+    } catch (error) {
+      console.error('Erro ao carregar detalhes do tema:', error);
+    } finally {
+      setLocalLoading(false);
+    }
   };
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Tem certeza que deseja excluir este tema?')) {
+      setLocalLoading(true);
       try {
         await temaService.delete(id);
         setTemas(temas.filter(t => t.id !== id));
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao excluir tema:', error);
+        alert(error.message || 'Erro ao excluir tema');
+      } finally {
+        setLocalLoading(false);
       }
     }
   };
 
   const resetForm = () => {
     reset({
-      disciplinaId: 0,
+      disciplina: null,
       nome: ''
     });
     setEditingItem(null);
     setShowForm(false);
+    setSubmissionError(null);
   };
 
   if (loading) {
@@ -125,29 +145,19 @@ const TemasPage = () => {
           <form onSubmit={handleSubmit(onSubmit)}>
             <div className="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-6">
               <div className="sm:col-span-3">
-                <label htmlFor="disciplinaId" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="disciplina" className="block text-sm font-medium text-gray-700 mb-1">
                   Disciplina
                 </label>
-                <Select
-                  id="disciplinaId"
-                  options={disciplinas.map(disciplina => ({
-                    value: disciplina.id,
-                    label: disciplina.nome
-                  }))}
-                  value={{
-                    value: watchedFields.disciplinaId,
-                    label: disciplinas.find(d => d.id === watchedFields.disciplinaId)?.nome
-                  } || null}
-                  onChange={(selectedOption) => {
-                    if (selectedOption) {
-                      setValue('disciplinaId', selectedOption.value);
-                    }
-                  }}
-                  placeholder="Selecione ou digite para pesquisar..."
+                <AsyncSelect
+                  id="disciplina"
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadDisciplinaOptions}
+                  value={watchedFields.disciplina}
+                  onChange={(val) => setValue('disciplina', val)}
+                  placeholder="Busque por disciplina..."
                   isClearable
-                  isSearchable
                 />
-                {errors.disciplinaId && <p className="mt-1 text-sm text-red-600">{errors.disciplinaId.message}</p>}
               </div>
               
               <div className="sm:col-span-3">
@@ -163,6 +173,16 @@ const TemasPage = () => {
                 {errors.nome && <p className="mt-1 text-sm text-red-600">{errors.nome.message}</p>}
               </div>
             </div>
+
+            {submissionError && (
+              <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4">
+                <div className="flex">
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">{submissionError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="mt-6 flex justify-end space-x-3">
               <button
@@ -174,9 +194,10 @@ const TemasPage = () => {
               </button>
               <button
                 type="submit"
+                disabled={localLoading}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                Salvar
+                {localLoading ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </form>
@@ -186,7 +207,6 @@ const TemasPage = () => {
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
           {temas.map((tema) => {
-            const disciplina = disciplinas.find(d => d.id === tema.disciplinaId);
             return (
               <li key={tema.id}>
                 <div className="px-4 py-4 sm:px-6 flex justify-between items-center">
@@ -195,7 +215,7 @@ const TemasPage = () => {
                       {tema.nome}
                     </div>
                     <div className="text-sm text-gray-500">
-                      {disciplina?.nome || 'Disciplina não encontrada'}
+                      {tema.disciplinaNome || 'N/A'}
                     </div>
                   </div>
                   <div className="flex space-x-2">
@@ -207,6 +227,7 @@ const TemasPage = () => {
                     </button>
                     <button
                       onClick={() => handleDelete(tema.id!)}
+                      disabled={localLoading}
                       className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                     >
                       Excluir

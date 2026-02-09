@@ -36,7 +36,7 @@ const Layout = () => {
           </button>
         </div>
         
-        <nav className="mt-6 px-2 space-y-1">
+        <nav className="mt-6 px-2 space-y-1 overflow-y-auto max-h-[calc(100vh-100px)] pb-10">
           <a 
             href="/" 
             className="flex items-center px-4 py-2 text-sm font-medium rounded-md bg-indigo-900 text-white"
@@ -47,16 +47,30 @@ const Layout = () => {
             Dashboard
           </a>
           
+          <div className="pt-4 pb-2 px-4 text-xs font-semibold text-indigo-300 uppercase tracking-wider">
+            Estrutura
+          </div>
+
           <a 
-            href="/disciplinas" 
+            href="/instituicoes" 
             className="flex items-center px-4 py-2 text-sm font-medium rounded-md text-indigo-200 hover:bg-indigo-700 hover:text-white"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
-            Disciplinas
+            Instituições
           </a>
-          
+
+          <a 
+            href="/bancas" 
+            className="flex items-center px-4 py-2 text-sm font-medium rounded-md text-indigo-200 hover:bg-indigo-700 hover:text-white"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Bancas
+          </a>
+
           <a 
             href="/concursos" 
             className="flex items-center px-4 py-2 text-sm font-medium rounded-md text-indigo-200 hover:bg-indigo-700 hover:text-white"
@@ -65,6 +79,30 @@ const Layout = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             Concursos
+          </a>
+
+          <a 
+            href="/cargos" 
+            className="flex items-center px-4 py-2 text-sm font-medium rounded-md text-indigo-200 hover:bg-indigo-700 hover:text-white"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Cargos
+          </a>
+
+          <div className="pt-4 pb-2 px-4 text-xs font-semibold text-indigo-300 uppercase tracking-wider">
+            Taxonomia
+          </div>
+          
+          <a 
+            href="/disciplinas" 
+            className="flex items-center px-4 py-2 text-sm font-medium rounded-md text-indigo-200 hover:bg-indigo-700 hover:text-white"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            Disciplinas
           </a>
           
           <a
@@ -87,6 +125,10 @@ const Layout = () => {
             Subtemas
           </a>
 
+          <div className="pt-4 pb-2 px-4 text-xs font-semibold text-indigo-300 uppercase tracking-wider">
+            Questões
+          </div>
+
           <a
             href="/questoes"
             className="flex items-center px-4 py-2 text-sm font-medium rounded-md text-indigo-200 hover:bg-indigo-700 hover:text-white"
@@ -94,7 +136,7 @@ const Layout = () => {
             <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Questões
+            Gerenciar Questões
           </a>
           
           <a
@@ -105,6 +147,27 @@ const Layout = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             Buscar e Explorar
+          </a>
+
+          <a
+            href="/simulados"
+            className="flex items-center px-4 py-2 text-sm font-medium rounded-md text-indigo-200 hover:bg-indigo-700 hover:text-white"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2a4 4 0 014-4h2a4 4 0 014 4v2m-3-9a3 3 0 11-6 0 3 3 0 016 0zM1 21h22" />
+            </svg>
+            Simulados
+          </a>
+
+          <a
+            href="/praticar"
+            className="flex items-center px-4 py-2 text-sm font-medium rounded-md text-indigo-200 hover:bg-indigo-700 hover:text-white"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Praticar
           </a>
         </nav>
       </aside>

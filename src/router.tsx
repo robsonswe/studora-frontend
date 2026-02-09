@@ -6,6 +6,10 @@ import ConcursosPage from '@/pages/ConcursosPage';
 import TemasPage from '@/pages/TemasPage';
 import SubtemasPage from '@/pages/SubtemasPage';
 import QuestoesPage from '@/pages/QuestoesPage';
+import BancasPage from '@/pages/BancasPage';
+import InstituicoesPage from '@/pages/InstituicoesPage';
+import CargosPage from '@/pages/CargosPage';
+import SimuladosPage from '@/pages/SimuladosPage';
 import QuestaoPracticePage from '@/pages/QuestaoPracticePage';
 import SearchBrowsePage from '@/pages/SearchBrowsePage';
 import ProfilePage from '@/pages/ProfilePage';
@@ -39,6 +43,22 @@ export const router = createBrowserRouter([
       {
         path: '/questoes',
         element: <QuestoesPage />,
+      },
+      {
+        path: '/bancas',
+        element: <BancasPage />,
+      },
+      {
+        path: '/instituicoes',
+        element: <InstituicoesPage />,
+      },
+      {
+        path: '/cargos',
+        element: <CargosPage />,
+      },
+      {
+        path: '/simulados',
+        element: <SimuladosPage />,
       },
       {
         path: '/praticar',

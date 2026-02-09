@@ -1,23 +1,39 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
-import { useStudora } from '@/context/StudoraContext';
-import { disciplinaService } from '@/services/api';
+import { cargoService } from '@/services/api';
+import { formatNivel } from '@/utils/formatters';
 import * as Types from '@/types';
 
-type DisciplinaDto = Types.DisciplinaSummaryDto;
+type CargoDto = Types.CargoDetailDto;
+const NivelCargo = Types.NivelCargo;
 
-const DisciplinasPage = () => {
-  const {
-    disciplinas,
-    loading: contextLoading,
-    errors,
-    refreshDisciplinas
-  } = useStudora();
+const CargosPage = () => {
+  const [cargos, setCargos] = useState<CargoDto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingItem, setEditingItem] = useState<DisciplinaDto | null>(null);
-  const [formData, setFormData] = useState<{ nome: string }>({ nome: '' });
+  const [editingItem, setEditingItem] = useState<CargoDto | null>(null);
+  const [formData, setFormData] = useState<Omit<CargoDto, 'id'>>({ 
+    nome: '', 
+    nivel: NivelCargo.SUPERIOR, 
+    area: '' 
+  });
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadCargos();
+  }, []);
+
+  const loadCargos = async () => {
+    try {
+      const data = await cargoService.getAll({ size: 1000 });
+      setCargos(data.content);
+    } catch (error) {
+      console.error('Erro ao carregar cargos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,40 +42,36 @@ const DisciplinasPage = () => {
 
     try {
       if (editingItem) {
-        // Update existing
-        await disciplinaService.update(editingItem.id, formData);
+        await cargoService.update(editingItem.id, formData);
       } else {
-        // Create new
-        await disciplinaService.create(formData);
+        await cargoService.create(formData);
       }
 
-      // Refresh data from context
-      await refreshDisciplinas();
+      await loadCargos();
       resetForm();
     } catch (error: any) {
-      console.error('Erro ao salvar disciplina:', error);
-      setSubmissionError(error.message || 'Erro inesperado ao salvar disciplina');
+      console.error('Erro ao salvar cargo:', error);
+      setSubmissionError(error.message || 'Erro inesperado ao salvar cargo');
     } finally {
       setLocalLoading(false);
     }
   };
 
-  const handleEdit = (item: DisciplinaDto) => {
+  const handleEdit = (item: CargoDto) => {
     setEditingItem(item);
-    setFormData({ nome: item.nome });
+    setFormData({ nome: item.nome, nivel: item.nivel, area: item.area });
     setShowForm(true);
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Tem certeza que deseja excluir esta disciplina?')) {
+    if (window.confirm('Tem certeza que deseja excluir este cargo?')) {
       setLocalLoading(true);
       try {
-        await disciplinaService.delete(id);
-
-        // Refresh data from context
-        await refreshDisciplinas();
-      } catch (error) {
-        console.error('Erro ao excluir disciplina:', error);
+        await cargoService.delete(id);
+        await loadCargos();
+      } catch (error: any) {
+        console.error('Erro ao excluir cargo:', error);
+        alert(error.message || 'Erro ao excluir cargo');
       } finally {
         setLocalLoading(false);
       }
@@ -67,12 +79,13 @@ const DisciplinasPage = () => {
   };
 
   const resetForm = () => {
-    setFormData({ nome: '' });
+    setFormData({ nome: '', nivel: NivelCargo.SUPERIOR, area: '' });
     setEditingItem(null);
     setShowForm(false);
+    setSubmissionError(null);
   };
 
-  if (contextLoading.disciplinas || localLoading) {
+  if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -80,41 +93,16 @@ const DisciplinasPage = () => {
     );
   }
 
-  if (errors.disciplinas) {
-    return (
-      <div className="bg-red-50 border-l-4 border-red-400 p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <p className="text-sm text-red-700">
-              Erro ao carregar disciplinas: {errors.disciplinas.message}
-            </p>
-            <button
-              onClick={() => refreshDisciplinas()}
-              className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700"
-            >
-              Tentar novamente
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <Header
-        title="Disciplinas"
+        title="Cargos"
         actions={
           <button
             onClick={() => setShowForm(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            Nova Disciplina
+            Novo Cargo
           </button>
         }
       />
@@ -122,21 +110,53 @@ const DisciplinasPage = () => {
       {showForm && (
         <div className="bg-white shadow-md rounded-lg p-6 mb-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
-            {editingItem ? 'Editar Disciplina' : 'Nova Disciplina'}
+            {editingItem ? 'Editar Cargo' : 'Novo Cargo'}
           </h3>
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-1">
-                Nome
-              </label>
-              <input
-                type="text"
-                id="nome"
-                value={formData.nome}
-                onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
-                required
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="mb-4">
+                <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome
+                </label>
+                <input
+                  type="text"
+                  id="nome"
+                  value={formData.nome}
+                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="nivel" className="block text-sm font-medium text-gray-700 mb-1">
+                  Nível
+                </label>
+                <select
+                  id="nivel"
+                  value={formData.nivel}
+                  onChange={(e) => setFormData({ ...formData, nivel: e.target.value as Types.NivelCargo })}
+                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+                  required
+                >
+                  <option value={NivelCargo.FUNDAMENTAL}>Fundamental</option>
+                  <option value={NivelCargo.MEDIO}>Médio</option>
+                  <option value={NivelCargo.SUPERIOR}>Superior</option>
+                </select>
+              </div>
+              <div className="mb-4">
+                <label htmlFor="area" className="block text-sm font-medium text-gray-700 mb-1">
+                  Área
+                </label>
+                <input
+                  type="text"
+                  id="area"
+                  value={formData.area}
+                  onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+                  required
+                  placeholder="Ex: TI, Jurídica, Administrativa"
+                />
+              </div>
             </div>
 
             {submissionError && (
@@ -168,15 +188,7 @@ const DisciplinasPage = () => {
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 disabled={localLoading}
               >
-                {localLoading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Salvando...
-                  </>
-                ) : editingItem ? 'Atualizar' : 'Salvar'}
+                {localLoading ? 'Salvando...' : editingItem ? 'Atualizar' : 'Salvar'}
               </button>
             </div>
           </form>
@@ -185,22 +197,27 @@ const DisciplinasPage = () => {
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {disciplinas.map((disciplina) => (
-            <li key={disciplina.id}>
+          {cargos.map((cargo) => (
+            <li key={cargo.id}>
               <div className="px-4 py-4 sm:px-6 flex justify-between items-center">
-                <div className="text-sm font-medium text-indigo-600 truncate">
-                  {disciplina.nome}
+                <div className="flex flex-col">
+                  <div className="text-sm font-medium text-indigo-600 truncate">
+                    {cargo.nome}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {formatNivel(cargo.nivel)} - {cargo.area}
+                  </div>
                 </div>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => handleEdit(disciplina)}
+                    onClick={() => handleEdit(cargo)}
                     className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     disabled={localLoading}
                   >
                     Editar
                   </button>
                   <button
-                    onClick={() => handleDelete(disciplina.id!)}
+                    onClick={() => handleDelete(cargo.id)}
                     className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                     disabled={localLoading}
                   >
@@ -216,4 +233,4 @@ const DisciplinasPage = () => {
   );
 };
 
-export default DisciplinasPage;
+export default CargosPage;

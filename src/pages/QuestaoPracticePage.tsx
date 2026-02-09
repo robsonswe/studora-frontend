@@ -1,235 +1,582 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
-import { questaoService, alternativaService, respostaService } from '@/services/api';
+import { useForm } from 'react-hook-form';
+import Select from 'react-select';
+import AsyncSelect from 'react-select/async';
+import { questaoService, respostaService, instituicaoService, cargoService, bancaService, disciplinaService, temaService, subtemaService } from '@/services/api';
+import { formatNivel, formatDificuldade } from '@/utils/formatters';
 import * as Types from '@/types';
 
-type QuestaoDto = Types.QuestaoDto;
-type AlternativaDto = Types.AlternativaDto;
-type RespostaDto = Types.RespostaDto;
+type QuestaoDto = Types.QuestaoDetailDto;
+type RespostaDto = Types.RespostaDetailDto;
+
+type PracticeMode = 'setup' | 'practice';
 
 const QuestaoPracticePage = () => {
-  const [questoes, setQuestoes] = useState<QuestaoDto[]>([]);
-  const [alternativas, setAlternativas] = useState<Record<number, AlternativaDto[]>>({});
-  const [selectedAlternativas, setSelectedAlternativas] = useState<Record<number, number>>({});
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [showResult, setShowResult] = useState(false);
+  const [mode, setMode] = useState<PracticeMode>('setup');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Question State
+  const [currentQuestion, setCurrentQuestion] = useState<QuestaoDto | null>(null);
+  const [selectedAlternativa, setSelectedAlternativa] = useState<number | null>(null);
+  const [justificativa, setJustificativa] = useState('');
+  const [dificuldade, setDificuldade] = useState(2);
+  
+  // Feedback State
+  const [feedback, setFeedback] = useState<RespostaDto | null>(null);
+  const [displayAlternativas, setDisplayAlternativas] = useState<Types.AlternativaDto[]>([]);
+
+  // Timer State
+  const [secondsElapsed, setSecondsElapsed] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Filter Form
+  const { setValue, watch, getValues } = useForm({
+    defaultValues: {
+      selectedDisciplina: { value: 0, label: 'Todas as disciplinas' } as { value: number, label: string } | null,
+      selectedTema: { value: 0, label: 'Todos os temas' } as { value: number, label: string } | null,
+      selectedSubtema: { value: 0, label: 'Todos os subtemas' } as { value: number, label: string } | null,
+      selectedBanca: { value: 0, label: 'Todas as bancas' } as { value: number, label: string } | null,
+      selectedInstituicaoArea: { value: '', label: 'Todas as áreas' } as { value: string, label: string } | null,
+      selectedCargoArea: { value: '', label: 'Todas as áreas' } as { value: string, label: string } | null,
+      selectedCargoNivel: ''
+    }
+  });
+
+  const watchedFields = watch();
+
+  // --- Timer Logic ---
   useEffect(() => {
-    loadQuestoes();
-  }, []);
+    if (mode === 'practice' && currentQuestion && !feedback) {
+      setSecondsElapsed(0);
+      timerRef.current = setInterval(() => {
+        setSecondsElapsed(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [mode, currentQuestion, feedback]);
 
-  const loadQuestoes = async () => {
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // --- Fetch Logic ---
+  const fetchRandomQuestion = async () => {
+    setLoading(true);
+    setError(null);
+    setFeedback(null);
+    setSelectedAlternativa(null);
+    setJustificativa('');
+    setDificuldade(2);
+    setCurrentQuestion(null);
+
     try {
-      // Load non-cancelled questions
-      const questoesData = await questaoService.getNaoAnuladas();
-      setQuestoes(questoesData);
+      const filters = getValues();
+      const params: any = {
+        disciplinaId: (filters.selectedDisciplina && filters.selectedDisciplina.value !== 0) ? filters.selectedDisciplina.value : undefined,
+        temaId: (filters.selectedTema && filters.selectedTema.value !== 0) ? filters.selectedTema.value : undefined,
+        subtemaId: (filters.selectedSubtema && filters.selectedSubtema.value !== 0) ? filters.selectedSubtema.value : undefined,
+        bancaId: (filters.selectedBanca && filters.selectedBanca.value !== 0) ? filters.selectedBanca.value : undefined,
+        instituicaoArea: (filters.selectedInstituicaoArea && filters.selectedInstituicaoArea.value !== '') ? filters.selectedInstituicaoArea.value : undefined,
+        cargoArea: (filters.selectedCargoArea && filters.selectedCargoArea.value !== '') ? filters.selectedCargoArea.value : undefined,
+        cargoNivel: filters.selectedCargoNivel || undefined,
+        anulada: false 
+      };
 
-      // Load alternatives for each question
-      const alternativasMap: Record<number, AlternativaDto[]> = {};
-      for (const questao of questoesData) {
-        const alternativasData = await alternativaService.getByQuestao(questao.id!);
-        alternativasMap[questao.id!] = alternativasData.sort((a, b) => a.ordem - b.ordem);
-      }
-      setAlternativas(alternativasMap);
-    } catch (error) {
-      console.error('Erro ao carregar questões:', error);
+      const question = await questaoService.getRandom(params);
+      const alternatives = [...question.alternativas].sort((a, b) => a.ordem - b.ordem);
+      
+      setCurrentQuestion(question);
+      setDisplayAlternativas(alternatives);
+      setMode('practice');
+    } catch (err: any) {
+      console.error('Erro ao buscar questão:', err);
+      setError(err.message || 'Não foi possível encontrar uma questão com os filtros selecionados.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAlternativaSelect = (alternativaId: number) => {
-    if (!questoes[currentQuestionIndex]?.id) return;
-    
-    setSelectedAlternativas({
-      ...selectedAlternativas,
-      [questoes[currentQuestionIndex].id!]: alternativaId
-    });
-  };
+  const handleVerify = async () => {
+    if (!currentQuestion || !selectedAlternativa) return;
 
-  const handleNextQuestion = () => {
-    if (currentQuestionIndex < questoes.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setShowResult(false);
+    if (!justificativa.trim()) {
+      alert('Por favor, preencha a justificativa antes de verificar a resposta.');
+      return;
     }
-  };
 
-  const handlePreviousQuestion = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
-      setShowResult(false);
-    }
-  };
+    try {
+      const response = await respostaService.create({
+        questaoId: currentQuestion.id,
+        alternativaId: selectedAlternativa,
+        justificativa: justificativa,
+        dificuldadeId: dificuldade,
+        tempoRespostaSegundos: secondsElapsed
+      });
 
-  const handleSubmitAnswer = () => {
-    setShowResult(true);
-  };
-
-  const handleFinish = async () => {
-    // Save all responses to the backend
-    for (const [questaoIdStr, alternativaId] of Object.entries(selectedAlternativas)) {
-      const questaoId = parseInt(questaoIdStr);
-      if (!isNaN(questaoId) && alternativaId) {
-        try {
-          await respostaService.create({
-            questaoId,
-            alternativaId,
-          });
-        } catch (error) {
-          console.error(`Erro ao salvar resposta para questão ${questaoId}:`, error);
-        }
+      setFeedback(response);
+      
+      if (response.alternativas) {
+        const enrichedAlts = response.alternativas;
+        const newDisplay = displayAlternativas.map(displayed => {
+          const enriched = enrichedAlts.find(a => a.id === displayed.id);
+          return enriched || displayed;
+        });
+        setDisplayAlternativas(newDisplay);
       }
+
+      if (timerRef.current) clearInterval(timerRef.current);
+
+    } catch (err) {
+      console.error('Erro ao verificar resposta:', err);
+      alert('Erro ao enviar resposta. Tente novamente.');
     }
-    
-    alert('Respostas salvas com sucesso!');
   };
 
-  if (loading || questoes.length === 0) {
+  // --- Filter Options Loaders ---
+  const loadBancaOptions = async (inputValue: string) => {
+    const data = await bancaService.getAll({ nome: inputValue, size: 20 });
+    const options = data.content.map(b => ({ value: b.id, label: b.nome }));
+    return [{ value: 0, label: 'Todas as bancas' }, ...options];
+  };
+
+  const loadDisciplinaOptions = async (inputValue: string) => {
+    const data = await disciplinaService.getAll({ nome: inputValue, size: 20 });
+    const options = data.content.map(d => ({ value: d.id, label: d.nome }));
+    return [{ value: 0, label: 'Todas as disciplinas' }, ...options];
+  };
+
+  const loadTemaOptions = async (inputValue: string) => {
+    if (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) {
+      const data = await temaService.getByDisciplina(watchedFields.selectedDisciplina.value);
+      const options = data
+        .map(t => ({ value: t.id, label: t.nome }))
+        .filter(o => o.label.toLowerCase().includes(inputValue.toLowerCase()));
+      return [{ value: 0, label: 'Todos os temas' }, ...options];
+    }
+    return [{ value: 0, label: 'Todos os temas' }];
+  };
+
+  const loadSubtemaOptions = async (inputValue: string) => {
+    if (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) {
+      const data = await subtemaService.getByTema(watchedFields.selectedTema.value);
+      const options = data
+        .map(s => ({ value: s.id, label: s.nome }))
+        .filter(o => o.label.toLowerCase().includes(inputValue.toLowerCase()));
+      return [{ value: 0, label: 'Todos os subtemas' }, ...options];
+    }
+    return [{ value: 0, label: 'Todos os subtemas' }];
+  };
+
+  const loadInstituicaoAreaOptions = async (inputValue: string) => {
+    const areas = await instituicaoService.getAreas(inputValue);
+    const options = areas.map(area => ({ value: area, label: area }));
+    return [{ value: '', label: 'Todas as áreas' }, ...options];
+  };
+
+  const loadCargoAreaOptions = async (inputValue: string) => {
+    const areas = await cargoService.getAreas(inputValue);
+    const options = areas.map(area => ({ value: area, label: area }));
+    return [{ value: '', label: 'Todas as áreas' }, ...options];
+  };
+
+  // --- Render Setup Mode ---
+  if (mode === 'setup') {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div>
+        <Header title="Praticar Questões" />
+        <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-6 border-b pb-2">Selecione seus filtros</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Disciplina</label>
+                <AsyncSelect
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadDisciplinaOptions}
+                  value={watchedFields.selectedDisciplina}
+                  onChange={(val) => {
+                    setValue('selectedDisciplina', val);
+                    setValue('selectedTema', { value: 0, label: 'Todos os temas' });
+                    setValue('selectedSubtema', { value: 0, label: 'Todos os subtemas' });
+                  }}
+                  placeholder="Busque..."
+                  isClearable={false}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tema</label>
+                <AsyncSelect
+                  key={`tema-${watchedFields.selectedDisciplina?.value}`}
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadTemaOptions}
+                  value={watchedFields.selectedTema}
+                  onChange={(val) => {
+                    setValue('selectedTema', val);
+                    setValue('selectedSubtema', { value: 0, label: 'Todos os subtemas' });
+                  }}
+                  placeholder="Busque..."
+                  isDisabled={!watchedFields.selectedDisciplina || watchedFields.selectedDisciplina.value === 0}
+                  isClearable={false}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subtema</label>
+                <AsyncSelect
+                  key={`subtema-${watchedFields.selectedTema?.value}`}
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadSubtemaOptions}
+                  value={watchedFields.selectedSubtema}
+                  onChange={(val) => setValue('selectedSubtema', val)}
+                  placeholder="Busque..."
+                  isDisabled={!watchedFields.selectedTema || watchedFields.selectedTema.value === 0}
+                  isClearable={false}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Banca</label>
+                <AsyncSelect
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadBancaOptions}
+                  value={watchedFields.selectedBanca}
+                  onChange={(val) => setValue('selectedBanca', val)}
+                  placeholder="Busque..."
+                  isClearable={false}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Área da Instituição</label>
+                <AsyncSelect
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadInstituicaoAreaOptions}
+                  value={watchedFields.selectedInstituicaoArea}
+                  onChange={(val) => setValue('selectedInstituicaoArea', val)}
+                  placeholder="Busque..."
+                  isClearable={false}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Área do Cargo</label>
+                <AsyncSelect
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadCargoAreaOptions}
+                  value={watchedFields.selectedCargoArea}
+                  onChange={(val) => setValue('selectedCargoArea', val)}
+                  placeholder="Busque..."
+                  isClearable={false}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nível do Cargo</label>
+                <Select
+                  options={[
+                    { value: '', label: 'Todos os níveis' },
+                    { value: 'FUNDAMENTAL', label: 'Fundamental' },
+                    { value: 'MEDIO', label: 'Médio' },
+                    { value: 'SUPERIOR', label: 'Superior' },
+                  ]}
+                  value={
+                    watchedFields.selectedCargoNivel
+                      ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) }
+                      : { value: '', label: 'Todos os níveis' }
+                  }
+                  onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')}
+                  placeholder="Selecione..."
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-md border border-red-200">
+                {error}
+              </div>
+            )}
+
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={fetchRandomQuestion}
+                disabled={loading}
+                className="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              >
+                {loading ? 'Buscando...' : 'Iniciar Prática'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Render Practice Mode ---
+  if (!currentQuestion) {
+    return (
+      <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
 
-  const currentQuestion = questoes[currentQuestionIndex];
-  const currentAlternativas = alternativas[currentQuestion?.id!] || [];
+  const concurso = currentQuestion.concurso;
 
   return (
     <div>
-      <Header 
-        title="Praticar Questões" 
-      />
-
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">
-            Questão {currentQuestionIndex + 1} de {questoes.length}
-          </h3>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">
-            Selecione a alternativa correta
-          </p>
-        </div>
+      <Header title="Praticar Questões" />
+      <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         
-        <div className="px-4 py-5 sm:p-6">
-          <div className="mb-6">
-            <p className="text-lg text-gray-800">
-              {currentQuestion.enunciado}
-            </p>
+        <div className="bg-white shadow rounded-lg p-4 mb-4 flex justify-between items-center sticky top-4 z-10 border-l-4 border-indigo-500">
+          <div className="text-gray-700 font-medium">
+            Tempo: <span className="text-indigo-600 font-bold font-mono text-xl ml-2">{formatTime(secondsElapsed)}</span>
           </div>
-          
-          <div className="space-y-3 mb-6">
-            {currentAlternativas.map((alternativa) => {
-              const isSelected = selectedAlternativas[currentQuestion.id!] === alternativa.id;
-              const isCorrect = alternativa.correta;
-              const showResultForThis = showResult && isSelected;
-              const showCorrectAnswer = showResult && isCorrect;
+          <button
+            onClick={() => setMode('setup')}
+            className="text-sm text-gray-500 hover:text-indigo-600 underline"
+          >
+            Alterar Filtros
+          </button>
+        </div>
 
-              let buttonClass = "w-full text-left p-4 rounded-lg border transition-colors ";
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">
+                  {concurso ? `${concurso.ano} - ${concurso.instituicaoNome} - ${concurso.bancaNome}` : `Questão ${currentQuestion.id}`}
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Cargos: {(currentQuestion.cargos || []).map(c => `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
+                </p>
+              </div>
+              <div className="flex space-x-2">
+                {currentQuestion.anulada && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    Anulada
+                  </span>
+                )}
+                {currentQuestion.desatualizada && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    Desatualizada
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
 
-              if (showResult) {
-                if (isCorrect) {
-                  buttonClass += "bg-green-100 border-green-500 text-green-800";
-                } else if (isSelected) {
-                  buttonClass += "bg-red-100 border-red-500 text-red-800";
+          <div className="p-6">
+            <div className="prose max-w-none text-gray-800 mb-6">
+              {currentQuestion.imageUrl && (
+                <div className="mb-4">
+                  <img src={currentQuestion.imageUrl} alt="Imagem da questão" className="max-w-full h-auto rounded shadow-sm" />
+                </div>
+              )}
+              <p className="whitespace-pre-line leading-relaxed text-lg">{currentQuestion.enunciado}</p>
+            </div>
+
+            <div className="text-xs text-gray-400 mb-6 border-t pt-2">
+              {(() => {
+                const grouped: Record<string, Record<string, string[]>> = {};
+                (currentQuestion.subtemas || []).forEach(st => {
+                  if (!grouped[st.disciplinaNome]) grouped[st.disciplinaNome] = {};
+                  if (!grouped[st.disciplinaNome][st.temaNome]) grouped[st.disciplinaNome][st.temaNome] = [];
+                  grouped[st.disciplinaNome][st.temaNome].push(st.nome);
+                });
+                return Object.entries(grouped).map(([disc, temasMap]) => {
+                  const temasStr = Object.entries(temasMap).map(([tema, subtemaNomes]) => {
+                    return `${tema} (${subtemaNomes.join(', ')})`;
+                  }).join(' | ');
+                  return `${disc}: ${temasStr}`;
+                }).join('; ');
+              })()}
+            </div>
+
+            <div className="space-y-3">
+              {displayAlternativas.map((alternativa) => {
+                const isSelected = selectedAlternativa === alternativa.id;
+                const isCorrect = alternativa.correta;
+                const showFeedback = !!feedback;
+                
+                let containerClass = "relative flex items-start p-4 cursor-pointer rounded-lg border transition-all duration-200 ";
+                
+                if (showFeedback) {
+                  if (isCorrect) {
+                    containerClass += "bg-green-50 border-green-500 shadow-sm";
+                  } else if (isSelected && !isCorrect) {
+                    containerClass += "bg-red-50 border-red-500 shadow-sm";
+                  } else {
+                    containerClass += "bg-white border-gray-200 opacity-60";
+                  }
                 } else {
-                  buttonClass += "bg-white border-gray-300";
+                  if (isSelected) {
+                    containerClass += "bg-indigo-50 border-indigo-500 shadow-md ring-1 ring-indigo-500";
+                  } else {
+                    containerClass += "bg-white border-gray-300 hover:bg-gray-50 hover:border-gray-400";
+                  }
                 }
-              } else if (isSelected) {
-                buttonClass += "bg-indigo-100 border-indigo-500 text-indigo-800";
-              } else {
-                buttonClass += "bg-white border-gray-300 hover:bg-gray-50";
-              }
-              
-              return (
-                <button
-                  key={alternativa.id}
-                  className={buttonClass}
-                  onClick={() => handleAlternativaSelect(alternativa.id!)}
-                  disabled={showResult && !isSelected}
-                >
-                  <div className="flex items-center">
-                    <span className="font-medium mr-3">{String.fromCharCode(64 + alternativa.ordem)}</span>
-                    <span>{alternativa.texto}</span>
-                    {showCorrectAnswer && (
-                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Correta
+
+                return (
+                  <div 
+                    key={alternativa.id} 
+                    className={containerClass}
+                    onClick={() => !showFeedback && setSelectedAlternativa(alternativa.id!)}
+                  >
+                    <div className="flex items-center h-5">
+                      <div className={`flex items-center justify-center w-6 h-6 rounded-full border ${
+                        showFeedback
+                          ? isCorrect 
+                            ? 'bg-green-500 border-green-500 text-white' 
+                            : isSelected 
+                              ? 'bg-red-500 border-red-500 text-white' 
+                              : 'border-gray-300'
+                          : isSelected 
+                            ? 'bg-indigo-600 border-indigo-600 text-white' 
+                            : 'border-gray-400 text-gray-500'
+                      }`}>
+                        {String.fromCharCode(64 + alternativa.ordem)}
+                      </div>
+                    </div>
+                    <div className="ml-3 text-base text-gray-700 w-full">
+                      <span className={showFeedback && isCorrect ? 'font-semibold text-green-900' : ''}>
+                        {alternativa.texto}
                       </span>
+                      
+                      {showFeedback && (
+                        <div className="mt-2">
+                          {(isCorrect || (isSelected && !isCorrect)) && (
+                            <div className={`text-sm rounded p-2 ${isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              <strong>{isCorrect ? 'Correta!' : 'Incorreta.'}</strong> 
+                              {alternativa.justificativa && <span className="ml-1">{alternativa.justificativa}</span>}
+                            </div>
+                          )}
+                          {!isCorrect && !isSelected && alternativa.justificativa && (
+                            <div className="text-sm text-gray-500 mt-1 pl-1 border-l-2 border-gray-300">
+                              {alternativa.justificativa}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-8 border-t pt-6">
+              {!feedback ? (
+                <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                        Justificativa
+                      </label>
+                      <textarea
+                        value={justificativa}
+                        onChange={(e) => setJustificativa(e.target.value)}
+                        className="w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300 rounded-md"
+                        rows={3}
+                        placeholder="Por que você escolheu esta alternativa?"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                        Dificuldade
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { val: 1, label: 'Fácil', color: 'bg-green-100 text-green-800 border-green-200' },
+                          { val: 2, label: 'Média', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+                          { val: 3, label: 'Difícil', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+                          { val: 4, label: 'Chute', color: 'bg-red-100 text-red-800 border-red-200' }
+                        ].map((opt) => (
+                          <button
+                            key={opt.val}
+                            onClick={() => setDificuldade(opt.val)}
+                            className={`px-3 py-2 text-sm font-medium rounded-md border ${
+                              dificuldade === opt.val 
+                                ? `ring-2 ring-offset-1 ring-indigo-500 ${opt.color}` 
+                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleVerify}
+                      disabled={!selectedAlternativa}
+                      className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                        !selectedAlternativa ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
+                      }`}
+                    >
+                      Verificar Resposta
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="animate-fade-in">
+                  <div className="bg-indigo-50 rounded-lg p-5 border border-indigo-100 mb-6">
+                    <h4 className="text-sm font-bold text-indigo-800 uppercase tracking-wide mb-3">Resumo da Tentativa</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                      <div className="bg-white p-3 rounded border border-indigo-100">
+                        <span className="block text-gray-500 text-xs uppercase">Tempo</span>
+                        <span className="font-mono font-medium text-gray-900">{formatTime(feedback.tempoRespostaSegundos)}</span>
+                      </div>
+                      <div className="bg-white p-3 rounded border border-indigo-100">
+                        <span className="block text-gray-500 text-xs uppercase">Dificuldade</span>
+                        <span className="font-medium text-gray-900">{formatDificuldade(feedback.dificuldade)}</span>
+                      </div>
+                      <div className="bg-white p-3 rounded border border-indigo-100">
+                        <span className="block text-gray-500 text-xs uppercase">Resultado</span>
+                        <span className={`font-bold ${feedback.correta ? 'text-green-600' : 'text-red-600'}`}>
+                          {feedback.correta ? 'ACERTOU' : 'ERROU'}
+                        </span>
+                      </div>
+                    </div>
+                    {feedback.justificativa && (
+                      <div className="mt-4 bg-white p-3 rounded border border-indigo-100">
+                        <span className="block text-gray-500 text-xs uppercase mb-1">Minha Justificativa</span>
+                        <p className="text-gray-800">{feedback.justificativa}</p>
+                      </div>
                     )}
                   </div>
-                  {showResultForThis && !isCorrect && (
-                    <div className="mt-2 text-sm text-red-600">
-                      Justificativa: {alternativa.justificativa || 'Nenhuma justificativa fornecida.'}
-                    </div>
-                  )}
-                  {showResultForThis && isCorrect && (
-                    <div className="mt-2 text-sm text-green-600">
-                      Justificativa: {alternativa.justificativa || 'Nenhuma justificativa fornecida.'}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          
-          <div className="flex justify-between items-center">
-            <div className="flex space-x-3">
-              <button
-                onClick={handlePreviousQuestion}
-                disabled={currentQuestionIndex === 0}
-                className={`inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md ${
-                  currentQuestionIndex === 0 
-                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
-                    : 'text-gray-700 bg-white hover:bg-gray-50'
-                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
-              >
-                Anterior
-              </button>
-              
-              {!showResult ? (
-                <button
-                  onClick={handleSubmitAnswer}
-                  disabled={!selectedAlternativas[currentQuestion.id!]}
-                  className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                    !selectedAlternativas[currentQuestion.id!]
-                      ? 'bg-indigo-400 cursor-not-allowed'
-                      : 'bg-indigo-600 hover:bg-indigo-700'
-                  }`}
-                >
-                  Verificar Resposta
-                </button>
-              ) : (
-                <button
-                  onClick={() => setShowResult(false)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Tentar Novamente
-                </button>
+
+                  <div className="flex justify-between items-center">
+                    <button
+                      onClick={() => setMode('setup')}
+                      className="text-gray-600 hover:text-gray-900 font-medium text-sm"
+                    >
+                      &larr; Voltar aos Filtros
+                    </button>
+                    <button
+                      onClick={fetchRandomQuestion}
+                      className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    >
+                      Próxima Questão &rarr;
+                    </button>
+                  </div>
+                </div>
               )}
-            </div>
-            
-            <div className="flex space-x-3">
-              {currentQuestionIndex === questoes.length - 1 && (
-                <button
-                  onClick={handleFinish}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                  Finalizar
-                </button>
-              )}
-              
-              <button
-                onClick={handleNextQuestion}
-                disabled={currentQuestionIndex === questoes.length - 1}
-                className={`inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md ${
-                  currentQuestionIndex === questoes.length - 1
-                    ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
-                    : 'text-gray-700 bg-white hover:bg-gray-50'
-                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
-              >
-                Próxima
-              </button>
             </div>
           </div>
         </div>

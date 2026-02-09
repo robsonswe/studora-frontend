@@ -1,6 +1,9 @@
 *.md
 !README.md
 
+api-docs.json
+api-docs.formatted.json
+
 # Logs
 logs
 *.log

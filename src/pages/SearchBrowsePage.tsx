@@ -1,144 +1,211 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Header from '@/components/Header';
 import { useStudora } from '@/context/StudoraContext';
 import { useForm } from 'react-hook-form';
 import Select from 'react-select';
-import { questaoService, alternativaService, respostaService } from '@/services/api';
+import AsyncSelect from 'react-select/async';
+import { questaoService, respostaService, instituicaoService, cargoService, bancaService, disciplinaService, temaService, subtemaService } from '@/services/api';
+import { formatNivel, formatDificuldade, formatDateTime } from '@/utils/formatters';
 import * as Types from '@/types';
 
-type QuestaoDto = Types.QuestaoDto;
+type QuestaoDto = Types.QuestaoDetailDto;
 type AlternativaDto = Types.AlternativaDto;
 
+const shuffle = <T,>(array: T[]): T[] => {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+};
+
 const SearchBrowsePage = () => {
-  const { disciplinas, temas, subtemas, concursos, loading: contextLoading } = useStudora();
+  const { loading: contextLoading } = useStudora();
 
   const { register, handleSubmit, setValue, watch, reset } = useForm({
     defaultValues: {
-      selectedDisciplina: null,
-      selectedTema: null,
-      selectedSubtema: null,
-      selectedConcurso: null,
-      selectedBanca: '',
-      selectedArea: '',
-      selectedNivel: ''
+      selectedDisciplina: { value: 0, label: 'Todas as disciplinas' } as { value: number, label: string } | null,
+      selectedTema: { value: 0, label: 'Todos os temas' } as { value: number, label: string } | null,
+      selectedSubtema: { value: 0, label: 'Todos os subtemas' } as { value: number, label: string } | null,
+      selectedBanca: { value: 0, label: 'Todas as bancas' } as { value: number, label: string } | null,
+      selectedInstituicaoArea: { value: '', label: 'Todas as áreas' } as { value: string, label: string } | null,
+      selectedCargoArea: { value: '', label: 'Todas as áreas' } as { value: string, label: string } | null,
+      selectedCargoNivel: ''
     }
   });
 
   const watchedFields = watch();
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredQuestoes, setFilteredQuestoes] = useState<QuestaoDto[]>([]);
-  const [questoesWithAlternativas, setQuestoesWithAlternativas] = useState<
-    (QuestaoDto & { alternativas: AlternativaDto[] })[]
-  >([]);
+  const [questoes, setQuestoes] = useState<QuestaoDto[]>([]);
   const [localLoading, setLocalLoading] = useState(true);
-
-  // Extract unique values for new filters
-  const bancas = [...new Set(concursos.map(c => c.banca))];
-  const areas = [...new Set(concursos.map(c => c.area).filter(area => area))];
-  const niveis = [...new Set(concursos.map(c => c.nivel).filter(nivel => nivel))];
+  
+  // State for user interactions
   const [selectedAlternativas, setSelectedAlternativas] = useState<Record<number, number>>({});
   const [showResults, setShowResults] = useState<Record<number, boolean>>({});
+  const [userJustificativas, setUserJustificativas] = useState<Record<number, string>>({});
+  const [dificuldades, setDificuldades] = useState<Record<number, number>>({});
+  const [respostasData, setRespostasData] = useState<Record<number, Types.RespostaSummaryDto>>({});
+  
+  // Maps to store processed/enriched data for specific questions
+  const [displayAlternativas, setDisplayAlternativas] = useState<Record<number, AlternativaDto[]>>({});
 
-  useEffect(() => {
-    filterQuestoes();
-  }, [watchedFields.selectedDisciplina, watchedFields.selectedTema, watchedFields.selectedSubtema, watchedFields.selectedConcurso, watchedFields.selectedBanca, watchedFields.selectedArea, watchedFields.selectedNivel]);
-
-  const filterQuestoes = async () => {
+  const filterQuestoes = useCallback(async () => {
     setLocalLoading(true);
 
     try {
-      let allQuestoes = await questaoService.getAll();
+      const params: any = {
+        size: 50,
+        disciplinaId: (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) ? watchedFields.selectedDisciplina.value : undefined,
+        temaId: (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) ? watchedFields.selectedTema.value : undefined,
+        subtemaId: (watchedFields.selectedSubtema && watchedFields.selectedSubtema.value !== 0) ? watchedFields.selectedSubtema.value : undefined,
+        bancaId: (watchedFields.selectedBanca && watchedFields.selectedBanca.value !== 0) ? watchedFields.selectedBanca.value : undefined,
+        instituicaoArea: (watchedFields.selectedInstituicaoArea && watchedFields.selectedInstituicaoArea.value !== '') ? watchedFields.selectedInstituicaoArea.value : undefined,
+        cargoArea: (watchedFields.selectedCargoArea && watchedFields.selectedCargoArea.value !== '') ? watchedFields.selectedCargoArea.value : undefined,
+        cargoNivel: watchedFields.selectedCargoNivel || undefined,
+      };
 
-      // Get all concursos to map concursoId to concurso details
-      const allConcursos = await import('@/services/api').then(({ concursoService }) => concursoService.getAll());
+      const data = await questaoService.getAll(params);
+      const fetchedQuestoes = data.content as any;
+      setQuestoes(fetchedQuestoes);
 
-      // Apply filters
-      if (watchedFields.selectedDisciplina) {
-        // This would require a backend endpoint to get questions by discipline
-        // For now, we'll skip this filter
-      }
+      // Process alternatives for display
+      const newDisplayMap: Record<number, AlternativaDto[]> = {};
+      fetchedQuestoes.forEach((q: QuestaoDto) => {
+        const hasGabarito = q.alternativas.some(a => a.correta !== undefined);
+        
+        if (q.respondida && !hasGabarito && q.alternativas.length > 2) {
+          // Scramble if responded but no gabarito and more than 2 alternatives
+          newDisplayMap[q.id] = shuffle(q.alternativas);
+        } else {
+          // Standard order
+          newDisplayMap[q.id] = [...q.alternativas].sort((a, b) => a.ordem - b.ordem);
+        }
+      });
+      setDisplayAlternativas(newDisplayMap);
 
-      if (watchedFields.selectedTema) {
-        // This would require a backend endpoint to get questions by tema
-        // For now, we'll skip this filter
-      }
+      // Load existing responses for the user to pre-populate states
+      const todasRespostas = await respostaService.getAll({ size: 1000 });
+      const responses: Record<number, number> = {};
+      const justifications: Record<number, string> = {};
+      const answeredStatus: Record<number, boolean> = {};
+      const fullRespostas: Record<number, Types.RespostaSummaryDto> = {};
 
-      if (watchedFields.selectedConcurso) {
-        allQuestoes = allQuestoes.filter(q => q.concursoId === watchedFields.selectedConcurso);
-      }
-
-      // Apply new filters
-      if (watchedFields.selectedSubtema) {
-        allQuestoes = allQuestoes.filter(q => q.subtemaIds.includes(watchedFields.selectedSubtema!));
-      }
-
-      if (watchedFields.selectedBanca) {
-        allQuestoes = allQuestoes.filter(q => {
-          const concurso = allConcursos.find(c => c.id === q.concursoId);
-          return concurso && concurso.banca === watchedFields.selectedBanca;
-        });
-      }
-
-      if (watchedFields.selectedArea) {
-        allQuestoes = allQuestoes.filter(q => {
-          const concurso = allConcursos.find(c => c.id === q.concursoId);
-          return concurso && concurso.area === watchedFields.selectedArea;
-        });
-      }
-
-      if (watchedFields.selectedNivel) {
-        allQuestoes = allQuestoes.filter(q => {
-          const concurso = allConcursos.find(c => c.id === q.concursoId);
-          return concurso && concurso.nivel === watchedFields.selectedNivel;
-        });
-      }
-
-      // Get alternatives for each question
-      const questoesWithAlts = await Promise.all(
-        allQuestoes.map(async (questao) => {
-          const alternativas = await alternativaService.getByQuestao(questao.id!);
-          return {
-            ...questao,
-            alternativas: alternativas.sort((a, b) => a.ordem - b.ordem)
-          };
-        })
-      );
-
-      // Load existing responses for the user
-      const todasRespostas = await respostaService.getAll();
-      const respostasPorQuestao: Record<number, number> = {};
-      todasRespostas.forEach(resposta => {
-        respostasPorQuestao[resposta.questaoId] = resposta.alternativaId;
+      todasRespostas.content.forEach(resposta => {
+        responses[resposta.questaoId] = resposta.alternativaId;
+        justifications[resposta.questaoId] = resposta.justificativa || '';
+        answeredStatus[resposta.questaoId] = true;
+        fullRespostas[resposta.questaoId] = resposta;
       });
 
-      setFilteredQuestoes(allQuestoes);
-      setQuestoesWithAlternativas(questoesWithAlts);
+      setSelectedAlternativas(responses);
+      setUserJustificativas(justifications);
+      setShowResults(answeredStatus);
+      setRespostasData(fullRespostas);
 
-      // Set previously selected answers
-      setSelectedAlternativas(respostasPorQuestao);
-
-      // Pre-populate showResults for questions that have been answered
-      const answeredQuestions: Record<number, boolean> = {};
-      Object.keys(respostasPorQuestao).forEach(questaoId => {
-        answeredQuestions[parseInt(questaoId)] = true;
-      });
-      setShowResults(answeredQuestions);
     } catch (error) {
       console.error('Erro ao filtrar questões:', error);
     } finally {
       setLocalLoading(false);
     }
+  }, [
+    watchedFields.selectedDisciplina, 
+    watchedFields.selectedTema, 
+    watchedFields.selectedSubtema, 
+    watchedFields.selectedBanca, 
+    watchedFields.selectedInstituicaoArea, 
+    watchedFields.selectedCargoArea, 
+    watchedFields.selectedCargoNivel
+  ]);
+
+  useEffect(() => {
+    filterQuestoes();
+  }, [filterQuestoes]);
+
+  const loadBancaOptions = async (inputValue: string) => {
+    const data = await bancaService.getAll({ nome: inputValue, size: 20 });
+    const options = data.content.map(b => ({ value: b.id, label: b.nome }));
+    return [{ value: 0, label: 'Todas as bancas' }, ...options];
   };
 
-  const resetFilters = () => {
-    setSearchTerm('');
-    setSelectedDisciplina(null);
-    setSelectedTema(null);
-    setSelectedConcurso(null);
+  const loadDisciplinaOptions = async (inputValue: string) => {
+    const data = await disciplinaService.getAll({ nome: inputValue, size: 20 });
+    const options = data.content.map(d => ({ value: d.id, label: d.nome }));
+    return [{ value: 0, label: 'Todas as disciplinas' }, ...options];
   };
 
-  if (contextLoading.all || localLoading) {
+  const loadTemaOptions = async (inputValue: string) => {
+    if (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) {
+      const data = await temaService.getByDisciplina(watchedFields.selectedDisciplina.value);
+      const options = data
+        .map(t => ({ value: t.id, label: t.nome }))
+        .filter(o => o.label.toLowerCase().includes(inputValue.toLowerCase()));
+      return [{ value: 0, label: 'Todos os temas' }, ...options];
+    }
+    return [{ value: 0, label: 'Todos os temas' }];
+  };
+
+  const loadSubtemaOptions = async (inputValue: string) => {
+    if (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) {
+      const data = await subtemaService.getByTema(watchedFields.selectedTema.value);
+      const options = data
+        .map(s => ({ value: s.id, label: s.nome }))
+        .filter(o => o.label.toLowerCase().includes(inputValue.toLowerCase()));
+      return [{ value: 0, label: 'Todos os subtemas' }, ...options];
+    }
+    return [{ value: 0, label: 'Todos os subtemas' }];
+  };
+
+  const loadInstituicaoAreaOptions = async (inputValue: string) => {
+    const areas = await instituicaoService.getAreas(inputValue);
+    const options = areas.map(area => ({ value: area, label: area }));
+    return [{ value: '', label: 'Todas as áreas' }, ...options];
+  };
+
+  const loadCargoAreaOptions = async (inputValue: string) => {
+    const areas = await cargoService.getAreas(inputValue);
+    const options = areas.map(area => ({ value: area, label: area }));
+    return [{ value: '', label: 'Todas as áreas' }, ...options];
+  };
+
+  const handleVerificarResposta = async (questaoId: number) => {
+    if (!userJustificativas[questaoId]?.trim()) {
+      alert('Por favor, preencha a justificativa antes de verificar a resposta.');
+      return;
+    }
+
+    try {
+      const result = await respostaService.create({
+        questaoId: questaoId,
+        alternativaId: selectedAlternativas[questaoId],
+        justificativa: userJustificativas[questaoId] || '',
+        dificuldadeId: dificuldades[questaoId] || 2
+      });
+
+      // Update alternatives with the ones returned by the API (which include the gabarito)
+      const enrichedAlts = result.alternativas || [];
+      const currentOrder = displayAlternativas[questaoId] || [];
+      
+      if (enrichedAlts.length > 0) {
+        const newDisplayOrder = currentOrder.map(displayed => {
+          const enriched = enrichedAlts.find(a => a.id === displayed.id);
+          return enriched || displayed;
+        });
+        
+        setDisplayAlternativas(prev => ({ 
+          ...prev, 
+          [questaoId]: newDisplayOrder 
+        }));
+      }
+
+      setRespostasData(prev => ({ ...prev, [questaoId]: result }));
+      setShowResults(prev => ({ ...prev, [questaoId]: true }));
+    } catch (error) {
+      console.error('Erro ao salvar resposta:', error);
+    }
+  };
+
+  if (contextLoading.all && localLoading && questoes.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -154,34 +221,26 @@ const SearchBrowsePage = () => {
 
       {/* Filters Section */}
       <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label htmlFor="disciplina" className="block text-sm font-medium text-gray-700 mb-1">
               Disciplina
             </label>
-            <Select
+            <AsyncSelect
               id="disciplina"
-              options={[
-                { value: null, label: 'Todas as disciplinas' },
-                ...disciplinas.map(disciplina => ({
-                  value: disciplina.id,
-                  label: disciplina.nome
-                }))
-              ]}
-              value={
-                watchedFields.selectedDisciplina
-                  ? {
-                      value: watchedFields.selectedDisciplina,
-                      label: disciplinas.find(d => d.id === watchedFields.selectedDisciplina)?.nome
-                    }
-                  : { value: null, label: 'Todas as disciplinas' }
-              }
-              onChange={(selectedOption) => {
-                setValue('selectedDisciplina', selectedOption?.value || null);
+              cacheOptions
+              defaultOptions
+              loadOptions={loadDisciplinaOptions}
+              value={watchedFields.selectedDisciplina}
+              onChange={(val) => {
+                setValue('selectedDisciplina', val);
+                if (!val || val.value === 0) {
+                  setValue('selectedTema', { value: 0, label: 'Todos os temas' });
+                  setValue('selectedSubtema', { value: 0, label: 'Todos os subtemas' });
+                }
               }}
-              placeholder="Selecione uma disciplina..."
-              isClearable
-              isSearchable
+              placeholder="Busque..."
+              isClearable={false}
             />
           </div>
 
@@ -189,32 +248,22 @@ const SearchBrowsePage = () => {
             <label htmlFor="tema" className="block text-sm font-medium text-gray-700 mb-1">
               Tema
             </label>
-            <Select
+            <AsyncSelect
               id="tema"
-              options={[
-                { value: null, label: 'Todos os temas' },
-                ...temas
-                  .filter(tema => !watchedFields.selectedDisciplina || tema.disciplinaId === watchedFields.selectedDisciplina)
-                  .map(tema => ({
-                    value: tema.id,
-                    label: tema.nome
-                  }))
-              ]}
-              value={
-                watchedFields.selectedTema
-                  ? {
-                      value: watchedFields.selectedTema,
-                      label: temas.find(t => t.id === watchedFields.selectedTema)?.nome
-                    }
-                  : { value: null, label: 'Todos os temas' }
-              }
-              onChange={(selectedOption) => {
-                setValue('selectedTema', selectedOption?.value || null);
+              key={`tema-select-${watchedFields.selectedDisciplina?.value}`}
+              cacheOptions
+              defaultOptions
+              loadOptions={loadTemaOptions}
+              value={watchedFields.selectedTema}
+              onChange={(val) => {
+                setValue('selectedTema', val);
+                if (!val || val.value === 0) {
+                  setValue('selectedSubtema', { value: 0, label: 'Todos os subtemas' });
+                }
               }}
-              placeholder="Selecione um tema..."
-              isClearable
-              isSearchable
-              isDisabled={!watchedFields.selectedDisciplina}
+              placeholder="Busque..."
+              isClearable={false}
+              isDisabled={!watchedFields.selectedDisciplina || watchedFields.selectedDisciplina.value === 0}
             />
           </div>
 
@@ -222,170 +271,110 @@ const SearchBrowsePage = () => {
             <label htmlFor="subtema" className="block text-sm font-medium text-gray-700 mb-1">
               Subtema
             </label>
-            <Select
+            <AsyncSelect
               id="subtema"
-              options={[
-                { value: null, label: 'Todos os subtemas' },
-                ...subtemas
-                  .filter(subtema => !watchedFields.selectedTema || subtema.temaId === watchedFields.selectedTema)
-                  .map(subtema => ({
-                    value: subtema.id,
-                    label: subtema.nome
-                  }))
-              ]}
-              value={
-                watchedFields.selectedSubtema
-                  ? {
-                      value: watchedFields.selectedSubtema,
-                      label: subtemas.find(s => s.id === watchedFields.selectedSubtema)?.nome
-                    }
-                  : { value: null, label: 'Todos os subtemas' }
-              }
-              onChange={(selectedOption) => {
-                setValue('selectedSubtema', selectedOption?.value || null);
-              }}
-              placeholder="Selecione um subtema..."
-              isClearable
-              isSearchable
-              isDisabled={!watchedFields.selectedTema}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="concurso" className="block text-sm font-medium text-gray-700 mb-1">
-              Concurso
-            </label>
-            <Select
-              id="concurso"
-              options={[
-                { value: null, label: 'Todos os concursos' },
-                ...concursos.map(concurso => ({
-                  value: concurso.id,
-                  label: `${concurso.ano} - ${concurso.banca} - ${concurso.nome}`
-                }))
-              ]}
-              value={
-                watchedFields.selectedConcurso
-                  ? {
-                      value: watchedFields.selectedConcurso,
-                      label: `${concursos.find(c => c.id === watchedFields.selectedConcurso)?.ano} - ${concursos.find(c => c.id === watchedFields.selectedConcurso)?.banca} - ${concursos.find(c => c.id === watchedFields.selectedConcurso)?.nome}`
-                    }
-                  : { value: null, label: 'Todos os concursos' }
-              }
-              onChange={(selectedOption) => {
-                setValue('selectedConcurso', selectedOption?.value || null);
-              }}
-              placeholder="Selecione um concurso..."
-              isClearable
-              isSearchable
+              key={`subtema-select-${watchedFields.selectedTema?.value}`}
+              cacheOptions
+              defaultOptions
+              loadOptions={loadSubtemaOptions}
+              value={watchedFields.selectedSubtema}
+              onChange={(val) => setValue('selectedSubtema', val)}
+              placeholder="Busque..."
+              isClearable={false}
+              isDisabled={!watchedFields.selectedTema || watchedFields.selectedTema.value === 0}
             />
           </div>
         </div>
 
         {/* Additional filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
           <div>
             <label htmlFor="banca" className="block text-sm font-medium text-gray-700 mb-1">
               Banca
             </label>
-            <Select
+            <AsyncSelect
               id="banca"
-              options={[
-                { value: '', label: 'Todas as bancas' },
-                ...bancas.map(banca => ({
-                  value: banca,
-                  label: banca
-                }))
-              ]}
-              value={
-                watchedFields.selectedBanca
-                  ? {
-                      value: watchedFields.selectedBanca,
-                      label: watchedFields.selectedBanca
-                    }
-                  : { value: '', label: 'Todas as bancas' }
-              }
-              onChange={(selectedOption) => {
-                setValue('selectedBanca', selectedOption?.value || '');
-              }}
-              placeholder="Selecione uma banca..."
-              isClearable
-              isSearchable
+              cacheOptions
+              defaultOptions
+              loadOptions={loadBancaOptions}
+              value={watchedFields.selectedBanca}
+              onChange={(val) => setValue('selectedBanca', val)}
+              placeholder="Busque..."
+              isClearable={false}
             />
           </div>
 
           <div>
-            <label htmlFor="area" className="block text-sm font-medium text-gray-700 mb-1">
-              Área
+            <label htmlFor="instituicaoArea" className="block text-sm font-medium text-gray-700 mb-1">
+              Área da Instituição
             </label>
-            <Select
-              id="area"
-              options={[
-                { value: '', label: 'Todas as áreas' },
-                ...areas.map(area => ({
-                  value: area,
-                  label: area
-                }))
-              ]}
-              value={
-                watchedFields.selectedArea
-                  ? {
-                      value: watchedFields.selectedArea,
-                      label: watchedFields.selectedArea
-                    }
-                  : { value: '', label: 'Todas as áreas' }
-              }
-              onChange={(selectedOption) => {
-                setValue('selectedArea', selectedOption?.value || '');
-              }}
-              placeholder="Selecione uma área..."
-              isClearable
-              isSearchable
+            <AsyncSelect
+              id="instituicaoArea"
+              cacheOptions
+              defaultOptions
+              loadOptions={loadInstituicaoAreaOptions}
+              value={watchedFields.selectedInstituicaoArea}
+              onChange={(val) => setValue('selectedInstituicaoArea', val)}
+              placeholder="Busque..."
+              isClearable={false}
             />
           </div>
 
           <div>
-            <label htmlFor="nivel" className="block text-sm font-medium text-gray-700 mb-1">
-              Nível
+            <label htmlFor="cargoArea" className="block text-sm font-medium text-gray-700 mb-1">
+              Área do Cargo
+            </label>
+            <AsyncSelect
+              id="cargoArea"
+              cacheOptions
+              defaultOptions
+              loadOptions={loadCargoAreaOptions}
+              value={watchedFields.selectedCargoArea}
+              onChange={(val) => setValue('selectedCargoArea', val)}
+              placeholder="Busque..."
+              isClearable={false}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="cargoNivel" className="block text-sm font-medium text-gray-700 mb-1">
+              Nível do Cargo
             </label>
             <Select
-              id="nivel"
+              id="cargoNivel"
               options={[
                 { value: '', label: 'Todos os níveis' },
-                ...niveis.map(nivel => ({
-                  value: nivel,
-                  label: nivel
-                }))
+                { value: 'FUNDAMENTAL', label: 'Fundamental' },
+                { value: 'MEDIO', label: 'Médio' },
+                { value: 'SUPERIOR', label: 'Superior' },
               ]}
               value={
-                watchedFields.selectedNivel
-                  ? {
-                      value: watchedFields.selectedNivel,
-                      label: watchedFields.selectedNivel
-                    }
+                watchedFields.selectedCargoNivel
+                  ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) }
                   : { value: '', label: 'Todos os níveis' }
               }
               onChange={(selectedOption) => {
-                setValue('selectedNivel', selectedOption?.value || '');
+                setValue('selectedCargoNivel', selectedOption?.value || '');
               }}
-              placeholder="Selecione um nível..."
-              isClearable
-              isSearchable
+              placeholder="Selecione..."
+              isClearable={false}
             />
           </div>
         </div>
 
         <div className="mt-4 flex justify-end">
           <button
-            onClick={() => reset({
-              selectedDisciplina: null,
-              selectedTema: null,
-              selectedSubtema: null,
-              selectedConcurso: null,
-              selectedBanca: '',
-              selectedArea: '',
-              selectedNivel: ''
-            })}
+            onClick={() => {
+              reset({
+                selectedDisciplina: { value: 0, label: 'Todas as disciplinas' },
+                selectedTema: { value: 0, label: 'Todos os temas' },
+                selectedSubtema: { value: 0, label: 'Todos os subtemas' },
+                selectedBanca: { value: 0, label: 'Todas as bancas' },
+                selectedInstituicaoArea: { value: '', label: 'Todas as áreas' },
+                selectedCargoArea: { value: '', label: 'Todas as áreas' },
+                selectedCargoNivel: ''
+              });
+            }}
             className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             Limpar filtros
@@ -396,35 +385,43 @@ const SearchBrowsePage = () => {
       {/* Results Section */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {questoesWithAlternativas.map((item) => {
-            const questao = item;
-            const concurso = concursos.find(c => c.id === questao.concursoId);
-            const temaNames = questao.subtemaIds
-              .map(subtemaId => {
-                const subtema = subtemas.find(s => s.id === subtemaId);
-                if (subtema) {
-                  const tema = temas.find(t => t.id === subtema.temaId);
-                  return tema ? `${tema.nome} - ${subtema.nome}` : '';
-                }
-                return '';
-              })
-              .filter(name => name !== '');
+          {questoes.map((questao) => {
+            const concurso = questao.concurso;
+            const currentAlts = displayAlternativas[questao.id] || [];
+            const hasGabarito = currentAlts.some(a => a.correta !== undefined);
+            const showResult = showResults[questao.id];
             
             return (
               <li key={questao.id}>
                 <div className="px-4 py-5 sm:px-6">
                   <div className="flex justify-between">
                     <div className="text-sm font-medium text-indigo-600">
-                      {concurso?.ano} - {concurso?.banca} - {concurso?.nome}{concurso?.cargo ? ` - ${concurso.cargo}` : ''}{concurso?.nivel ? ` - ${concurso.nivel}` : ''}
+                      {concurso ? `${concurso.ano} - ${concurso.instituicaoNome} - ${concurso.bancaNome}` : `Questão ${questao.id}`}
                     </div>
-                    {questao.anulada && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        Anulada
-                      </span>
-                    )}
+                    <div className="flex space-x-2">
+                      {questao.anulada && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Anulada
+                        </span>
+                      )}
+                      {questao.desatualizada && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          Desatualizada
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-indigo-400 mt-1">
+                    Cargos: {(questao.cargos || []).map(cargo => `${cargo.nome} - ${cargo.area} (${formatNivel(cargo.nivel)})`).join(', ')}
                   </div>
 
                   <div className="mt-2">
+                    {questao.imageUrl && (
+                      <div className="mb-4">
+                        <img src={questao.imageUrl} alt="Imagem da questão" className="max-w-full h-auto rounded shadow-sm" />
+                      </div>
+                    )}
                     <p className="text-gray-800">
                       {questao.enunciado}
                     </p>
@@ -433,65 +430,38 @@ const SearchBrowsePage = () => {
                   <div className="mt-3">
                     <div className="text-xs text-gray-500 mb-2">
                       {(() => {
-                        // Group subtemas by disciplina
-                        const subtemasByDisciplina: Record<number, { temaNome: string, subtemas: string[] }> = {};
+                        const grouped: Record<string, Record<string, string[]>> = {};
 
-                        questao.subtemaIds.forEach(subtemaId => {
-                          const subtema = subtemas.find(s => s.id === subtemaId);
-                          if (subtema) {
-                            const tema = temas.find(t => t.id === subtema.temaId);
-                            if (tema) {
-                              const disciplina = disciplinas.find(d => d.id === tema.disciplinaId);
-                              if (disciplina) {
-                                if (!subtemasByDisciplina[disciplina.id]) {
-                                  subtemasByDisciplina[disciplina.id] = {
-                                    temaNome: tema.nome,
-                                    subtemas: [subtema.nome]
-                                  };
-                                } else {
-                                  // Check if the tema is the same, if not we need to handle differently
-                                  if (subtemasByDisciplina[disciplina.id].temaNome !== tema.nome) {
-                                    // For simplicity, we'll just add the subtema to the list
-                                    // In a more complex scenario, we might want to group by tema too
-                                    if (!subtemasByDisciplina[disciplina.id].subtemas.includes(subtema.nome)) {
-                                      subtemasByDisciplina[disciplina.id].subtemas.push(subtema.nome);
-                                    }
-                                  } else {
-                                    if (!subtemasByDisciplina[disciplina.id].subtemas.includes(subtema.nome)) {
-                                      subtemasByDisciplina[disciplina.id].subtemas.push(subtema.nome);
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
+                        (questao.subtemas || []).forEach(st => {
+                          if (!grouped[st.disciplinaNome]) grouped[st.disciplinaNome] = {};
+                          if (!grouped[st.disciplinaNome][st.temaNome]) grouped[st.disciplinaNome][st.temaNome] = [];
+                          grouped[st.disciplinaNome][st.temaNome].push(st.nome);
                         });
 
-                        // Format the output
-                        return Object.entries(subtemasByDisciplina).map(([disciplinaId, data]) => {
-                          const disciplina = disciplinas.find(d => d.id === parseInt(disciplinaId));
-                          return `${disciplina?.nome}: ${data.temaNome} - ${data.subtemas.join(', ')}`;
+                        return Object.entries(grouped).map(([disc, temasMap]) => {
+                          const temasStr = Object.entries(temasMap).map(([tema, subtemaNomes]) => {
+                            return `${tema} (${subtemaNomes.join(', ')})`;
+                          }).join(' | ');
+                          return `${disc}: ${temasStr}`;
                         }).join('; ');
                       })()}
                     </div>
                     
                     <div className="space-y-2">
-                      {questao.alternativas.map((alternativa) => {
-                        const isSelected = selectedAlternativas[questao.id!] === alternativa.id;
+                      {currentAlts.map((alternativa) => {
+                        const isSelected = selectedAlternativas[questao.id] === alternativa.id;
                         const isCorrect = alternativa.correta;
-                        const showResult = showResults[questao.id!];
-                        const showCorrectAnswer = showResult && isCorrect;
-                        const showSelectedIncorrect = showResult && isSelected && !isCorrect;
+                        const showGabaritoFeedback = showResult && hasGabarito;
+                        
+                        let alternativaClass = "p-3 rounded-lg border transition-all ";
 
-                        let alternativaClass = "p-3 rounded-lg border ";
-
-                        if (showResult) {
+                        if (showGabaritoFeedback) {
                           if (isCorrect) {
                             alternativaClass += "border-green-500 bg-green-50";
                           } else if (isSelected) {
                             alternativaClass += "border-red-500 bg-red-50";
                           } else {
-                            alternativaClass += "border-gray-300 bg-white";
+                            alternativaClass += "border-gray-200 bg-gray-50 opacity-80";
                           }
                         } else if (isSelected) {
                           alternativaClass += "border-indigo-500 bg-indigo-50";
@@ -507,7 +477,7 @@ const SearchBrowsePage = () => {
                               if (!showResult) {
                                 setSelectedAlternativas({
                                   ...selectedAlternativas,
-                                  [questao.id!]: alternativa.id!
+                                  [questao.id]: alternativa.id!
                                 });
                               }
                             }}
@@ -516,77 +486,118 @@ const SearchBrowsePage = () => {
                             <div className="flex items-center">
                               <span className="font-medium mr-3">{String.fromCharCode(64 + alternativa.ordem)}</span>
                               <span>{alternativa.texto}</span>
-                              {showCorrectAnswer && (
-                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {showGabaritoFeedback && isCorrect && (
+                                <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                   Correta
                                 </span>
                               )}
-                              {showSelectedIncorrect && (
-                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              {showGabaritoFeedback && isSelected && !isCorrect && (
+                                <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                   Incorreta
                                 </span>
                               )}
                             </div>
-                            {showSelectedIncorrect && alternativa.justificativa && (
-                              <div className="mt-2 ml-6 text-sm text-red-700">
-                                <strong>Justificativa:</strong> {alternativa.justificativa}
-                              </div>
-                            )}
-                            {showCorrectAnswer && alternativa.justificativa && (
-                              <div className="mt-2 ml-6 text-sm text-green-700">
+                            {showGabaritoFeedback && alternativa.justificativa && (
+                              <div className={`mt-2 ml-6 text-sm ${isCorrect ? 'text-green-700' : 'text-gray-600 italic'}`}>
                                 <strong>Justificativa:</strong> {alternativa.justificativa}
                               </div>
                             )}
                           </div>
                         );
                       })}
-                      <div className="mt-4 flex space-x-3">
-                        {selectedAlternativas[questao.id!] && !showResults[questao.id!] ? (
-                          <button
-                            onClick={async () => {
-                              // Save the response to the API
-                              try {
-                                await import('@/services/api').then(({ respostaService }) =>
-                                  respostaService.create({
-                                    questaoId: questao.id!,
-                                    alternativaId: selectedAlternativas[questao.id!]!
-                                  })
-                                );
 
+                      <div className="mt-4 space-y-3">
+                        {/* Pre-verification: Justification and Difficulty inputs */}
+                        {selectedAlternativas[questao.id] && !showResult && (
+                          <div className="bg-indigo-50 p-4 rounded-md border border-indigo-100">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-xs font-bold text-indigo-700 mb-1 uppercase tracking-wider">
+                                  Sua Justificativa
+                                </label>
+                                <textarea
+                                  value={userJustificativas[questao.id] || ''}
+                                  onChange={(e) => setUserJustificativas({...userJustificativas, [questao.id]: e.target.value})}
+                                  className="w-full text-sm border-indigo-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                                  rows={2}
+                                  placeholder="Explique por que escolheu esta alternativa..."
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-indigo-700 mb-1 uppercase tracking-wider">
+                                  Dificuldade
+                                </label>
+                                <select
+                                  value={dificuldades[questao.id] || 2}
+                                  onChange={(e) => setDificuldades({...dificuldades, [questao.id]: parseInt(e.target.value)})}
+                                  className="w-full text-sm border-indigo-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                                >
+                                  <option value={1}>Fácil</option>
+                                  <option value={2}>Média</option>
+                                  <option value={3}>Difícil</option>
+                                  <option value={4}>Chute</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Post-verification: User Justification, Difficulty and Time Display */}
+                        {showResult && (respostasData[questao.id] || userJustificativas[questao.id]) && (
+                          <div className="bg-gray-50 p-4 rounded-md border border-gray-200 space-y-2">
+                            {userJustificativas[questao.id] && (
+                              <div>
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Minha Justificativa:</span>
+                                <p className="text-sm text-gray-700">{userJustificativas[questao.id]}</p>
+                              </div>
+                            )}
+                            
+                            {respostasData[questao.id] && (
+                              <div className="flex flex-wrap gap-4 pt-2 border-t border-gray-100">
+                                <div className="text-xs text-gray-500">
+                                  <span className="font-bold uppercase tracking-wider">Dificuldade:</span> {formatDificuldade(respostasData[questao.id].dificuldade) || 'N/A'}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  <span className="font-bold uppercase tracking-wider">Tempo:</span> {respostasData[questao.id].tempoRespostaSegundos ? `${Math.floor(respostasData[questao.id].tempoRespostaSegundos / 60)}m ${respostasData[questao.id].tempoRespostaSegundos % 60}s` : 'N/A'}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  <span className="font-bold uppercase tracking-wider">Data:</span> {formatDateTime(respostasData[questao.id].createdAt)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex space-x-3">
+                          {selectedAlternativas[questao.id] && !showResult ? (
+                            <button
+                              onClick={() => handleVerificarResposta(questao.id)}
+                              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                              Verificar Resposta
+                            </button>
+                          ) : showResult && !hasGabarito && (
+                            // Only allow "Try Again" if the gabarito was NOT provided by the backend
+                            <button
+                              onClick={() => {
                                 setShowResults({
                                   ...showResults,
-                                  [questao.id!]: true
+                                  [questao.id]: false
                                 });
-                              } catch (error) {
-                                console.error('Erro ao salvar resposta:', error);
-                              }
-                            }}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                          >
-                            Verificar Resposta
-                          </button>
-                        ) : showResults[questao.id!] && (
-                          <button
-                            onClick={() => {
-                              setShowResults({
-                                ...showResults,
-                                [questao.id!]: false
-                              });
-                              setSelectedAlternativas({
-                                ...selectedAlternativas,
-                                [questao.id!]: undefined
-                              });
-                            }}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                          >
-                            Tentar Novamente
-                          </button>
-                        )}
-                        {showResults[questao.id!] && !selectedAlternativas[questao.id!] && (
-                          <span className="inline-flex items-center px-3 py-2 text-sm font-medium text-green-800 bg-green-100 rounded-md">
-                            Respondido
-                          </span>
-                        )}
+                                const newSelected = { ...selectedAlternativas };
+                                delete newSelected[questao.id];
+                                setSelectedAlternativas(newSelected);
+                                
+                                const newJustificativas = { ...userJustificativas };
+                                delete newJustificativas[questao.id];
+                                setUserJustificativas(newJustificativas);
+                              }}
+                              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                              Tentar Novamente
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -596,7 +607,7 @@ const SearchBrowsePage = () => {
           })}
         </ul>
         
-        {questoesWithAlternativas.length === 0 && (
+        {questoes.length === 0 && (
           <div className="text-center py-10">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

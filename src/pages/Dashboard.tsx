@@ -1,20 +1,8 @@
 import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
-import { useStudora } from '@/context/StudoraContext';
+import { questaoService, concursoService, disciplinaService, temaService } from '@/services/api';
 
 const Dashboard = () => {
-  const {
-    disciplinas,
-    concursos,
-    temas,
-    questoes,
-    loading,
-    refreshDisciplinas,
-    refreshConcursos,
-    refreshTemas,
-    refreshQuestoes
-  } = useStudora();
-
   const [stats, setStats] = useState({
     disciplinas: 0,
     concursos: 0,
@@ -28,24 +16,42 @@ const Dashboard = () => {
     questoes: [] as any[],
   });
 
+  const [loading, setLoading] = useState(true);
+
+  const loadStats = async () => {
+    setLoading(true);
+    try {
+      const [discRes, concRes, temasRes, questRes] = await Promise.all([
+        disciplinaService.getAll({ size: 1 }),
+        concursoService.getAll({ size: 1 }),
+        temaService.getAll({ size: 1 }),
+        questaoService.getAll({ size: 5 })
+      ]);
+
+      setStats({
+        disciplinas: discRes.totalElements,
+        concursos: concRes.totalElements,
+        temas: temasRes.totalElements,
+        questoes: questRes.totalElements,
+      });
+
+      setRecentItems({
+        disciplinas: [], // Can be fetched if needed
+        concursos: [], // Can be fetched if needed
+        questoes: questRes.content,
+      });
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Update stats when data changes
-    setStats({
-      disciplinas: disciplinas.length,
-      concursos: concursos.length,
-      temas: temas.length,
-      questoes: questoes.length,
-    });
+    loadStats();
+  }, []);
 
-    // Update recent items
-    setRecentItems({
-      disciplinas: disciplinas.slice(0, 5),
-      concursos: concursos.slice(0, 5),
-      questoes: questoes.slice(0, 5),
-    });
-  }, [disciplinas, concursos, temas, questoes]);
-
-  if (loading.all) {
+  if (loading) {
     return (
       <div>
         <Header title="Dashboard" />
@@ -62,12 +68,7 @@ const Dashboard = () => {
         title="Dashboard"
         actions={
           <button
-            onClick={() => {
-              refreshDisciplinas();
-              refreshConcursos();
-              refreshTemas();
-              refreshQuestoes();
-            }}
+            onClick={loadStats}
             className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             Atualizar
@@ -185,9 +186,9 @@ const Dashboard = () => {
             {recentItems.concursos.map((concurso) => (
               <li key={concurso.id} className="px-4 py-4 sm:px-6">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-indigo-600 truncate">{concurso.nome}</p>
+                  <p className="text-sm font-medium text-indigo-600 truncate">Concurso ID: {concurso.id}</p>
                   <div className="ml-2 flex-shrink-0 flex">
-                    <p className="text-xs font-medium text-gray-500">{concurso.banca} - {concurso.ano}</p>
+                    <p className="text-xs font-medium text-gray-500">{concurso.ano}</p>
                   </div>
                 </div>
               </li>
