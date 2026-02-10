@@ -1,18 +1,29 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import { simuladoService, disciplinaService, temaService, subtemaService, bancaService, cargoService } from '@/services/api';
 import { formatNivel } from '@/utils/formatters';
 import * as Types from '@/types';
 import Select from 'react-select';
+import { 
+  Plus, 
+  Trash2, 
+  Clock, 
+  CheckCircle, 
+  Play, 
+  ChevronRight,
+  X,
+  BookOpen,
+  Tag,
+  Tags,
+  AlertCircle,
+  ClipboardList
+} from 'lucide-react';
 
 type SimuladoSummaryDto = Types.SimuladoSummaryDto;
-type DisciplinaDto = Types.DisciplinaSummaryDto;
-type TemaDto = Types.TemaSummaryDto;
-type SubtemaDto = Types.SubtemaSummaryDto;
-type BancaDto = Types.BancaSummaryDto;
-type CargoDto = Types.CargoDetailDto;
 
 const SimuladosPage = () => {
+  const navigate = useNavigate();
   const [simulados, setSimulados] = useState<SimuladoSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -143,7 +154,13 @@ const SimuladosPage = () => {
     setFormData({ ...formData, [type]: list });
   };
 
-  if (loading) {
+  const selectStyles = {
+    control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.5rem' }),
+    singleValue: (base: any) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
+    placeholder: (base: any) => ({ ...base, fontSize: '0.875rem', color: '#9ca3af' })
+  };
+
+  if (loading && !showForm) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -152,14 +169,13 @@ const SimuladosPage = () => {
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       <Header
-        title="Simulados"
+        title="Meus Simulados"
         actions={
           <button
             onClick={async () => {
               setShowForm(true);
-              // Load form options when opening the form
               try {
                 const [discRes, temasRes, subRes, bancaRes, cargoRes] = await Promise.all([
                   disciplinaService.getAll({ size: 1000 }),
@@ -178,104 +194,112 @@ const SimuladosPage = () => {
                 console.error('Erro ao carregar opções do formulário:', error);
               }
             }}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className="inline-flex items-center px-4 py-2.5 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all hover:-translate-y-0.5"
           >
+            <Plus className="w-4 h-4 mr-2" />
             Gerar Novo Simulado
           </button>
         }
       />
 
       {showForm && (
-        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Novo Simulado</h3>
-          <form onSubmit={handleGenerate}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Simulado</label>
+        <div className="bg-white shadow-xl rounded-2xl border border-gray-200 overflow-hidden animate-fade-in">
+          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center">
+              <Plus className="w-5 h-5 mr-2 text-indigo-600" />
+              Novo Simulado Personalizado
+            </h3>
+            <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <form onSubmit={handleGenerate} className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <div className="md:col-span-2 lg:col-span-1">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nome do Simulado</label>
                 <input
                   type="text"
                   value={formData.nome}
                   onChange={e => setFormData({ ...formData, nome: e.target.value })}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+                  className="shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-lg p-3 border transition-all"
                   required
                   placeholder="Ex: Simulado PC-SP 2024"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Banca de Preferência</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Banca de Preferência</label>
                 <Select
                   options={bancas.map(b => ({ value: b.id, label: b.nome }))}
                   onChange={opt => setFormData({ ...formData, bancaId: opt?.value })}
                   isClearable
-                  placeholder="Selecione..."
+                  placeholder="Qualquer banca..."
+                  styles={selectStyles}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cargo de Preferência</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cargo de Preferência</label>
                 <Select
                   options={cargos.map(c => ({ value: c.id, label: `${c.nome} - ${c.area} (${formatNivel(c.nivel)})` }))}
                   onChange={opt => setFormData({ ...formData, cargoId: opt?.value })}
                   isClearable
-                  placeholder="Selecione..."
+                  placeholder="Qualquer cargo..."
+                  styles={selectStyles}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nível</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nível</label>
                 <select
                   value={formData.nivel || ''}
                   onChange={e => setFormData({ ...formData, nivel: e.target.value as Types.NivelCargo || undefined })}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+                  className="shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-lg p-2.5 border transition-all"
                 >
-                  <option value="">Todos</option>
+                  <option value="">Todos os níveis</option>
                   <option value="FUNDAMENTAL">Fundamental</option>
                   <option value="MEDIO">Médio</option>
                   <option value="SUPERIOR">Superior</option>
                 </select>
               </div>
               <div className="flex items-center pt-6">
-                <input
-                  type="checkbox"
-                  id="ignorar"
-                  checked={formData.ignorarRespondidas}
-                  onChange={e => setFormData({ ...formData, ignorarRespondidas: e.target.checked })}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label htmlFor="ignorar" className="ml-2 block text-sm text-gray-900">
-                  Ignorar questões já respondidas
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.ignorarRespondidas}
+                    onChange={e => setFormData({ ...formData, ignorarRespondidas: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  <span className="ml-3 text-sm font-medium text-gray-700">Ignorar respondidas</span>
                 </label>
               </div>
             </div>
 
-            <div className="space-y-6 mb-6 border-t border-gray-100 pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
               {/* Disciplinas */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Seleção de Disciplinas</label>
-                <div className="flex gap-2 mb-2">
-                  <div className="flex-1">
-                    <Select
-                      options={disciplinas.map(d => ({ value: d.id, label: d.nome }))}
-                      onChange={opt => opt && addItem('disciplinas', opt.value)}
-                      placeholder="Adicionar disciplina..."
-                      value={null}
-                    />
-                  </div>
+              <div className="space-y-4">
+                <div className="flex items-center text-sm font-bold text-gray-700 border-b border-gray-100 pb-2">
+                  <BookOpen className="w-4 h-4 mr-2 text-indigo-500" /> Disciplinas
                 </div>
-                <div className="space-y-2">
+                <Select
+                  options={disciplinas.map(d => ({ value: d.id, label: d.nome }))}
+                  onChange={opt => opt && addItem('disciplinas', opt.value)}
+                  placeholder="Adicionar..."
+                  value={null}
+                  styles={selectStyles}
+                />
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {formData.disciplinas?.map(item => (
-                    <div key={item.id} className="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-100">
-                      <span className="text-sm font-medium">{disciplinas.find(d => d.id === item.id)?.nome}</span>
+                    <div key={item.id} className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
+                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{disciplinas.find(d => d.id === item.id)?.nome}</span>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
                           min="1"
                           value={item.quantidade}
                           onChange={e => updateQuantity('disciplinas', item.id, parseInt(e.target.value) || 1)}
-                          className="w-16 p-1 border rounded text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                          className="w-12 p-1 border border-indigo-200 rounded text-xs focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                         />
-                        <button type="button" onClick={() => removeItem('disciplinas', item.id)} className="text-red-500 hover:text-red-700 p-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
+                        <button type="button" onClick={() => removeItem('disciplinas', item.id)} className="text-indigo-400 hover:text-red-500 transition-colors">
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -284,34 +308,31 @@ const SimuladosPage = () => {
               </div>
 
               {/* Temas */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Seleção de Temas</label>
-                <div className="flex gap-2 mb-2">
-                  <div className="flex-1">
-                    <Select
-                      options={temas.map(t => ({ value: t.id, label: `${t.disciplinaNome} - ${t.nome}` }))}
-                      onChange={opt => opt && addItem('temas', opt.value)}
-                      placeholder="Adicionar tema..."
-                      value={null}
-                    />
-                  </div>
+              <div className="space-y-4">
+                <div className="flex items-center text-sm font-bold text-gray-700 border-b border-gray-100 pb-2">
+                  <Tag className="w-4 h-4 mr-2 text-indigo-500" /> Temas
                 </div>
-                <div className="space-y-2">
+                <Select
+                  options={temas.map(t => ({ value: t.id, label: `${t.disciplinaNome} - ${t.nome}` }))}
+                  onChange={opt => opt && addItem('temas', opt.value)}
+                  placeholder="Adicionar..."
+                  value={null}
+                  styles={selectStyles}
+                />
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {formData.temas?.map(item => (
-                    <div key={item.id} className="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-100">
-                      <span className="text-sm font-medium">{temas.find(t => t.id === item.id)?.nome} <span className="text-xs text-gray-400 font-normal">({temas.find(t => t.id === item.id)?.disciplinaNome})</span></span>
+                    <div key={item.id} className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
+                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{temas.find(t => t.id === item.id)?.nome}</span>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
                           min="1"
                           value={item.quantidade}
                           onChange={e => updateQuantity('temas', item.id, parseInt(e.target.value) || 1)}
-                          className="w-16 p-1 border rounded text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                          className="w-12 p-1 border border-indigo-200 rounded text-xs focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                         />
-                        <button type="button" onClick={() => removeItem('temas', item.id)} className="text-red-500 hover:text-red-700 p-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
+                        <button type="button" onClick={() => removeItem('temas', item.id)} className="text-indigo-400 hover:text-red-500 transition-colors">
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -320,34 +341,31 @@ const SimuladosPage = () => {
               </div>
 
               {/* Subtemas */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Seleção de Subtemas</label>
-                <div className="flex gap-2 mb-2">
-                  <div className="flex-1">
-                    <Select
-                      options={subtemas.map(s => ({ value: s.id, label: `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}` }))}
-                      onChange={opt => opt && addItem('subtemas', opt.value)}
-                      placeholder="Adicionar subtema..."
-                      value={null}
-                    />
-                  </div>
+              <div className="space-y-4">
+                <div className="flex items-center text-sm font-bold text-gray-700 border-b border-gray-100 pb-2">
+                  <Tags className="w-4 h-4 mr-2 text-indigo-500" /> Subtemas
                 </div>
-                <div className="space-y-2">
+                <Select
+                  options={subtemas.map(s => ({ value: s.id, label: `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}` }))}
+                  onChange={opt => opt && addItem('subtemas', opt.value)}
+                  placeholder="Adicionar..."
+                  value={null}
+                  styles={selectStyles}
+                />
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {formData.subtemas?.map(item => (
-                    <div key={item.id} className="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-100">
-                      <span className="text-sm font-medium">{subtemas.find(s => s.id === item.id)?.nome} <span className="text-xs text-gray-400 font-normal">({subtemas.find(s => s.id === item.id)?.temaNome})</span></span>
+                    <div key={item.id} className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
+                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{subtemas.find(s => s.id === item.id)?.nome}</span>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
                           min="1"
                           value={item.quantidade}
                           onChange={e => updateQuantity('subtemas', item.id, parseInt(e.target.value) || 1)}
-                          className="w-16 p-1 border rounded text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                          className="w-12 p-1 border border-indigo-200 rounded text-xs focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                         />
-                        <button type="button" onClick={() => removeItem('subtemas', item.id)} className="text-red-500 hover:text-red-700 p-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
+                        <button type="button" onClick={() => removeItem('subtemas', item.id)} className="text-indigo-400 hover:text-red-500 transition-colors">
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -357,131 +375,95 @@ const SimuladosPage = () => {
             </div>
 
             {submissionError && (
-              <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4">
-                <div className="flex">
-                  <div className="ml-3">
-                    <p className="text-sm text-red-700">{submissionError}</p>
-                  </div>
+              <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
+                  <p className="text-sm text-red-700 font-medium">{submissionError}</p>
                 </div>
               </div>
             )}
 
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end space-x-4 border-t border-gray-100 pt-6">
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="px-6 py-2.5 border border-gray-300 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={localLoading}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                className="px-8 py-2.5 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all disabled:opacity-50"
               >
-                {localLoading ? 'Gerando...' : 'Gerar Simulado'}
+                {localLoading ? 'Gerando...' : 'Criar Simulado'}
               </button>
             </div>
           </form>
         </div>
       )}
-
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        <ul className="divide-y divide-gray-200">
+      
+      <div className="bg-white shadow-sm overflow-hidden sm:rounded-2xl border border-gray-200">
+        <ul className="divide-y divide-gray-100">
           {simulados.length === 0 ? (
-            <li className="px-4 py-10 text-center text-gray-500">Nenhum simulado gerado ainda.</li>
+            <li className="px-4 py-16 text-center text-gray-500">
+              <ClipboardList className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Nenhum simulado ainda</h3>
+              <p className="text-gray-500 max-w-md mx-auto mb-8">
+                Você ainda não gerou simulados personalizados. Comece criando um para testar seus conhecimentos!
+              </p>
+              {!showForm && (
+                <button onClick={() => setShowForm(true)} className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md">
+                  <Plus className="w-5 h-5 mr-2" /> Gerar Meu Primeiro Simulado
+                </button>
+              )}
+            </li>
           ) : (
             simulados.map((s) => (
-              <li key={s.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-indigo-600 truncate">{s.nome}</div>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        {s.banca && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {s.banca.nome}
-                          </span>
-                        )}
-                        {s.cargo && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            {s.cargo.nome}
-                          </span>
-                        )}
-                        {s.nivel && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            {s.nivel}
-                          </span>
-                        )}
-                        {s.ignorarRespondidas && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                            Ignorar Respondidas
-                          </span>
-                        )}
-                        {s.areas && s.areas.length > 0 && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
-                            {s.areas.join(', ')}
-                          </span>
-                        )}
+              <li key={s.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50/50 transition-colors">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center mb-1">
+                      <div className={`p-1.5 rounded-md mr-3 ${s.finishedAt ? 'bg-green-100 text-green-600' : s.startedAt ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-400'}`}>
+                        {s.finishedAt ? <CheckCircle className="w-4 h-4" /> : s.startedAt ? <Clock className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                       </div>
-                      <div className="mt-2 text-xs text-gray-500">
-                        {s.finishedAt ? `Finalizado em ${new Date(s.finishedAt).toLocaleDateString()}` :
-                         s.startedAt ? 'Em andamento' : 'Não iniciado'}
+                      <h4 className="text-base font-bold text-gray-800 truncate">{s.nome}</h4>
+                    </div>
+                    <div className="pl-10 text-xs text-gray-500 space-y-1 mt-1">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        {s.banca && <span className="font-medium text-gray-600">Banca: <span className="font-bold text-gray-800">{s.banca.nome}</span></span>}
+                        {s.cargo && <span className="font-medium text-gray-600">Cargo: <span className="font-bold text-gray-800">{s.cargo.nome}</span></span>}
+                        {s.nivel && <span className="font-medium text-gray-600">Nível: <span className="font-bold text-gray-800">{s.nivel}</span></span>}
                       </div>
                       {s.disciplinas && s.disciplinas.length > 0 && (
-                        <div className="mt-2 text-xs text-gray-600">
+                        <p className="leading-tight">
                           <span className="font-medium">Disciplinas:</span> {s.disciplinas.map(d => d.nome).join(', ')}
-                        </div>
-                      )}
-                      {s.temas && s.temas.length > 0 && (
-                        <div className="mt-1 text-xs text-gray-600">
-                          <span className="font-medium">Temas:</span> {s.temas.map(t => t.nome).join(', ')}
-                        </div>
-                      )}
-                      {s.subtemas && s.subtemas.length > 0 && (
-                        <div className="mt-1 text-xs text-gray-600">
-                          <span className="font-medium">Subtemas:</span> {s.subtemas.map(st => st.nome).join(', ')}
-                        </div>
+                        </p>
                       )}
                     </div>
-                    <div className="flex space-x-2 ml-4">
-                      {s.finishedAt ? (
-                        <button
-                          onClick={() => (window.location.href = `/simulados/${s.id}`)}
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
-                        >
-                          Ver
-                        </button>
-                      ) : s.startedAt ? (
-                        <button
-                          onClick={() => (window.location.href = `/simulados/${s.id}`)}
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-yellow-100 hover:bg-yellow-200"
-                        >
-                          Continuar
-                        </button>
-                      ) : (
-                        <button
-                          onClick={async () => {
-                            try {
-                              await simuladoService.iniciar(s.id);
-                              window.location.href = `/simulados/${s.id}`;
-                            } catch (error) {
-                              console.error('Erro ao iniciar simulado:', error);
-                              alert('Erro ao iniciar simulado: ' + (error as Error).message);
-                            }
-                          }}
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-                        >
-                          Iniciar
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDelete(s.id)}
-                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200"
-                      >
-                        Excluir
+                  </div>
+                  <div className="flex space-x-2 flex-shrink-0 self-end sm:self-center">
+                    {s.finishedAt ? (
+                      <button onClick={() => navigate(`/simulados/${s.id}`)} className="text-indigo-600 bg-indigo-50 text-sm font-bold flex items-center hover:bg-indigo-100 transition-all px-4 py-2 rounded-lg">
+                        Ver Resultados
                       </button>
-                    </div>
+                    ) : s.startedAt ? (
+                      <button onClick={() => navigate(`/simulados/${s.id}`)} className="text-yellow-700 bg-yellow-50 text-sm font-bold flex items-center hover:bg-yellow-100 transition-all px-4 py-2 rounded-lg">
+                        Continuar
+                      </button>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          try { await simuladoService.iniciar(s.id); navigate(`/simulados/${s.id}`); } catch (error) { alert('Erro ao iniciar simulado: ' + (error as Error).message); }
+                        }}
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-indigo-700 transition-all"
+                      >
+                        Iniciar
+                      </button>
+                    )}
+                    <button onClick={() => handleDelete(s.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </li>
@@ -491,114 +473,34 @@ const SimuladosPage = () => {
 
         {/* Pagination Controls */}
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
-            <div className="flex flex-1 justify-between sm:hidden">
+          <div className="flex items-center justify-center py-4 border-t border-gray-100">
+            <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm bg-white border border-gray-200 overflow-hidden" aria-label="Pagination">
               <button
                 onClick={() => loadData(currentPage - 1)}
                 disabled={currentPage === 0}
-                className={`relative inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
-                  currentPage === 0
-                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                }`}
+                className="relative inline-flex items-center px-3 py-2 text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors"
               >
-                Anterior
+                <ChevronRight className="w-5 h-5 rotate-180" />
               </button>
+              {[...Array(pagination.totalPages)].map((_, page) => (
+                <button
+                  key={page}
+                  onClick={() => loadData(page)}
+                  className={`relative inline-flex items-center px-4 py-2 text-sm font-bold transition-all ${
+                    currentPage === page ? 'z-10 bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {page + 1}
+                </button>
+              ))}
               <button
                 onClick={() => loadData(currentPage + 1)}
                 disabled={currentPage === pagination.totalPages - 1}
-                className={`relative ml-3 inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
-                  currentPage === pagination.totalPages - 1
-                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                }`}
+                className="relative inline-flex items-center px-3 py-2 text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors"
               >
-                Próximo
+                <ChevronRight className="w-5 h-5" />
               </button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Mostrando <span className="font-medium">{currentPage * pagination.pageSize + 1}</span> até{' '}
-                  <span className="font-medium">
-                    {Math.min((currentPage + 1) * pagination.pageSize, pagination.totalElements)}
-                  </span>{' '}
-                  de <span className="font-medium">{pagination.totalElements}</span> resultados
-                </p>
-              </div>
-              <div>
-                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                  <button
-                    onClick={() => loadData(currentPage - 1)}
-                    disabled={currentPage === 0}
-                    className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
-                      currentPage === 0
-                        ? 'cursor-not-allowed bg-gray-100 text-gray-300'
-                        : 'bg-white text-gray-900 hover:text-gray-600'
-                    }`}
-                  >
-                    <span className="sr-only">Anterior</span>
-                    &larr;
-                  </button>
-
-                  {/* Render page numbers */}
-                  {(() => {
-                    const pages = [];
-                    const totalPages = pagination.totalPages;
-                    
-                    if (totalPages > 0) pages.push(0);
-                    if (totalPages > 1) {
-                      if (totalPages <= 5) {
-                        for (let i = 1; i < totalPages - 1; i++) pages.push(i);
-                      } else {
-                        const startPage = Math.max(1, Math.min(currentPage - 1, totalPages - 4));
-                        const endPage = Math.min(totalPages - 1, startPage + 2);
-                        for (let i = startPage; i <= endPage; i++) if (!pages.includes(i)) pages.push(i);
-                      }
-                      if (!pages.includes(totalPages - 1)) pages.push(totalPages - 1);
-                    }
-                    pages.sort((a, b) => a - b);
-                    
-                    const elements = [];
-                    for (let i = 0; i < pages.length; i++) {
-                      const page = pages[i];
-                      if (i > 0 && pages[i] - pages[i - 1] > 1) {
-                        elements.push(
-                          <span key={`ellipsis-${pages[i - 1]}-${page}`} className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">...</span>
-                        );
-                      }
-                      elements.push(
-                        <button
-                          key={page}
-                          onClick={() => loadData(page)}
-                          className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                            currentPage === page
-                              ? 'z-10 bg-indigo-600 text-white'
-                              : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {page + 1}
-                        </button>
-                      );
-                    }
-                    return elements;
-                  })()}
-
-                  <button
-                    onClick={() => loadData(currentPage + 1)}
-                    disabled={currentPage === pagination.totalPages - 1}
-                    className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
-                      currentPage === pagination.totalPages - 1
-                        ? 'cursor-not-allowed bg-gray-100 text-gray-300'
-                        : 'bg-white text-gray-900 hover:text-gray-600'
-                    }`}
-                  >
-                    <span className="sr-only">Próximo</span>
-                    &rarr;
-                  </button>
-                </nav>
-              </div>
-            </div>
+            </nav>
           </div>
         )}
       </div>
