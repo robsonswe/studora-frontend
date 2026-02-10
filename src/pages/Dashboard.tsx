@@ -23,6 +23,7 @@ const Dashboard = () => {
   const [simulados, setSimulados] = useState<Types.SimuladoSummaryDto[]>([]);
   const [concursos, setConcursos] = useState<Types.ConcursoSummaryDto[]>([]);
   const [respostas, setRespostas] = useState<Types.RespostaSummaryDto[]>([]);
+  const [weeklyCount, setWeeklyCount] = useState(0);
 
   const loadDashboardData = async () => {
     setLoading(true);
@@ -30,12 +31,19 @@ const Dashboard = () => {
       const [simRes, concRes, respRes] = await Promise.all([
         simuladoService.getAll({ size: 5 }).catch(() => ({ content: [] })),
         concursoService.getAll({ size: 5 }).catch(() => ({ content: [] })),
-        respostaService.getAll({ size: 8 }).catch(() => ({ content: [] }))
+        // Fetch more to accurately calculate weekly progress
+        respostaService.getAll({ size: 100 }).catch(() => ({ content: [] }))
       ]);
 
       setSimulados(simRes.content);
       setConcursos(concRes.content);
-      setRespostas(respRes.content);
+      setRespostas(respRes.content.slice(0, 8)); // Keep 8 for the history list
+
+      // Calculate weekly count (last 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const count = respRes.content.filter((r: any) => new Date(r.createdAt) >= sevenDaysAgo).length;
+      setWeeklyCount(count);
     } catch (error) {
       console.error('Erro ao carregar dados do dashboard:', error);
     } finally {
@@ -64,11 +72,11 @@ const Dashboard = () => {
         actions={
           <div className="flex space-x-3">
             <button
-              onClick={() => navigate('/simulados')}
+              onClick={() => navigate('/praticar')}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all"
             >
               <PlusCircle className="w-4 h-4 mr-2" />
-              Novo Simulado
+              Praticar
             </button>
           </div>
         }
@@ -239,29 +247,16 @@ const Dashboard = () => {
             <div className="mt-6 pt-6 border-t border-indigo-500/50">
               <div className="flex items-center justify-between text-xs font-bold text-indigo-200 mb-2">
                 <span>Meta Semanal</span>
-                <span>0/50 Questões</span>
+                <span>{weeklyCount}/50 Questões</span>
               </div>
               <div className="w-full bg-indigo-900/40 h-2 rounded-full overflow-hidden">
-                <div className="bg-indigo-300 h-full w-0 rounded-full shadow-[0_0_8px_rgba(165,180,252,0.5)]"></div>
+                <div 
+                  className="bg-indigo-300 h-full rounded-full shadow-[0_0_8px_rgba(165,180,252,0.5)] transition-all duration-1000" 
+                  style={{ width: `${Math.min((weeklyCount / 50) * 100, 100)}%` }}
+                ></div>
               </div>
             </div>
           </section>
-
-          {/* Quick Browse */}
-          <div className="grid grid-cols-2 gap-4">
-            <Link to="/admin/buscar" className="p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-indigo-300 transition-all text-center group">
-              <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-indigo-50 transition-colors">
-                <BookOpen className="w-5 h-5 text-gray-400 group-hover:text-indigo-600" />
-              </div>
-              <span className="text-xs font-bold text-gray-600 group-hover:text-indigo-700">Explorar Questões</span>
-            </Link>
-            <Link to="/praticar" className="p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:border-indigo-300 transition-all text-center group">
-              <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-indigo-50 transition-colors">
-                <PlusCircle className="w-5 h-5 text-gray-400 group-hover:text-indigo-600" />
-              </div>
-              <span className="text-xs font-bold text-gray-600 group-hover:text-indigo-700">Prática Rápida</span>
-            </Link>
-          </div>
 
         </div>
       </div>
