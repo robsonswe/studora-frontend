@@ -142,11 +142,12 @@ const ProvaDetailPage = () => {
 
       setConcurso(concursoRes);
       
-      // Sort questions by discipline name (using the first subtema as reference)
+      // Sort questions by discipline name and then by ID
       const sortedQuestoes = [...questoesRes.content].sort((a, b) => {
         const discA = a.subtemas?.[0]?.disciplinaNome || 'Outros';
         const discB = b.subtemas?.[0]?.disciplinaNome || 'Outros';
-        return discA.localeCompare(discB);
+        if (discA !== discB) return discA.localeCompare(discB);
+        return a.id - b.id;
       });
 
       setQuestoes(sortedQuestoes);
