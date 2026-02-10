@@ -17,6 +17,7 @@ import ProfilePage from '@/pages/ProfilePage';
 import SettingsPage from '@/pages/SettingsPage';
 import ProvasPage from '@/pages/ProvasPage';
 import ProvaDetailPage from '@/pages/ProvaDetailPage';
+import AdminLayout from '@/components/AdminLayout';
 
 export const router = createBrowserRouter([
   {
@@ -26,38 +27,6 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <Dashboard />,
-      },
-      {
-        path: '/disciplinas',
-        element: <DisciplinasPage />,
-      },
-      {
-        path: '/concursos',
-        element: <ConcursosPage />,
-      },
-      {
-        path: '/temas',
-        element: <TemasPage />,
-      },
-      {
-        path: '/subtemas',
-        element: <SubtemasPage />,
-      },
-      {
-        path: '/questoes',
-        element: <QuestoesPage />,
-      },
-      {
-        path: '/bancas',
-        element: <BancasPage />,
-      },
-      {
-        path: '/instituicoes',
-        element: <InstituicoesPage />,
-      },
-      {
-        path: '/cargos',
-        element: <CargosPage />,
       },
       {
         path: '/simulados',
@@ -80,16 +49,58 @@ export const router = createBrowserRouter([
         element: <QuestaoPracticePage />,
       },
       {
-        path: '/buscar',
-        element: <SearchBrowsePage />,
-      },
-      {
         path: '/perfil',
         element: <ProfilePage />,
       },
       {
         path: '/configuracoes',
         element: <SettingsPage />,
+      },
+    ],
+  },
+  {
+    path: '/admin',
+    element: <AdminLayout />,
+    children: [
+      {
+        index: true,
+        element: <QuestoesPage />, // Default admin page
+      },
+      {
+        path: 'disciplinas',
+        element: <DisciplinasPage />,
+      },
+      {
+        path: 'concursos',
+        element: <ConcursosPage />,
+      },
+      {
+        path: 'temas',
+        element: <TemasPage />,
+      },
+      {
+        path: 'subtemas',
+        element: <SubtemasPage />,
+      },
+      {
+        path: 'questoes',
+        element: <QuestoesPage />,
+      },
+      {
+        path: 'bancas',
+        element: <BancasPage />,
+      },
+      {
+        path: 'instituicoes',
+        element: <InstituicoesPage />,
+      },
+      {
+        path: 'cargos',
+        element: <CargosPage />,
+      },
+      {
+        path: 'buscar',
+        element: <SearchBrowsePage />,
       },
     ],
   },
