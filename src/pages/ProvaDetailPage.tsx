@@ -13,7 +13,8 @@ import {
   ChevronRight,
   HelpCircle,
   Award,
-  FileText
+  FileText,
+  User
 } from 'lucide-react';
 
 const ProvaDetailPage = () => {
@@ -332,6 +333,13 @@ const ProvaDetailPage = () => {
                             </div>
                           )}
                         </div>
+                        {showFeedback && isSelected && (
+                          <div className="absolute top-2 right-2">
+                            <span className="bg-indigo-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase flex items-center shadow-sm">
+                              <User className="w-2 h-2 mr-1" /> Sua Resposta
+                            </span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
