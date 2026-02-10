@@ -543,6 +543,44 @@ export const simuladoService = {
 };
 
 /**
+ * Endpoints para análise de desempenho e progresso.
+ */
+export const analyticsService = {
+  /**
+   * Obter métricas de consistência diária.
+   */
+  getConsistencia: (days: number = 30): Promise<Types.AnalyticsConsistenciaDto[]> => 
+    apiCall(`/analytics/consistencia${buildQueryString({ days })}`),
+
+  /**
+   * Obter domínio por disciplinas.
+   */
+  getDisciplinasMastery: (params?: Types.PaginationParams & {
+    minMastery?: number;
+    maxMastery?: number;
+  }): Promise<Types.PageResponse<Types.AnalyticsTopicMasteryDto>> => 
+    apiCall(`/analytics/disciplinas${buildQueryString(params)}`),
+
+  /**
+   * Obter detalhes de domínio de uma disciplina (incluindo temas e subtemas).
+   */
+  getDisciplinaMasteryDetail: (id: number): Promise<Types.AnalyticsTopicMasteryDetailDto> => 
+    apiCall(`/analytics/disciplinas/${id}`),
+
+  /**
+   * Obter evolução temporal (snapshots semanais).
+   */
+  getEvolucao: (): Promise<Types.AnalyticsEvolucaoDto[]> => 
+    apiCall('/analytics/evolucao'),
+
+  /**
+   * Obter taxa de aprendizado (questões repetidas).
+   */
+  getTaxaAprendizado: (): Promise<Types.AnalyticsLearningRateDto> => 
+    apiCall('/analytics/taxa-aprendizado'),
+};
+
+/**
  * Endpoints para monitoramento e operação do sistema.
  */
 export const operationalService = {

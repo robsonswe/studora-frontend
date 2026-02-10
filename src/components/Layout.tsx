@@ -8,7 +8,8 @@ import {
   Settings, 
   Menu, 
   X,
-  User
+  User,
+  TrendingUp
 } from 'lucide-react';
 
 const Layout = () => {
@@ -24,6 +25,7 @@ const Layout = () => {
     { label: 'Simulados', path: '/simulados', icon: ClipboardList },
     { label: 'Provas', path: '/provas', icon: FileSignature },
     { label: 'Praticar', path: '/praticar', icon: GraduationCap },
+    { label: 'Desempenho', path: '/desempenho', icon: TrendingUp },
   ];
 
   return (

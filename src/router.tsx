@@ -17,6 +17,7 @@ import ProfilePage from '@/pages/ProfilePage';
 import SettingsPage from '@/pages/SettingsPage';
 import ProvasPage from '@/pages/ProvasPage';
 import ProvaDetailPage from '@/pages/ProvaDetailPage';
+import PerformancePage from '@/pages/PerformancePage';
 import AdminLayout from '@/components/AdminLayout';
 
 export const router = createBrowserRouter([
@@ -27,6 +28,10 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <Dashboard />,
+      },
+      {
+        path: '/desempenho',
+        element: <PerformancePage />,
       },
       {
         path: '/simulados',

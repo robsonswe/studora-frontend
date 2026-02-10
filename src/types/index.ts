@@ -503,15 +503,161 @@ export interface ApiResponse<T> {
 }
 
 /**
+
  * Parâmetros padrão para paginação e ordenação em requisições GET.
+
  */
+
 export interface PaginationParams {
+
   /** Número da página (inicia em 0). */
+
   page?: number;
+
   /** Quantidade de itens por página. */
+
   size?: number;
+
   /** Campo para ordenação. */
+
   sort?: string;
+
   /** Direção da ordenação. */
+
   direction?: 'ASC' | 'DESC';
+
+}
+
+
+
+/**
+
+ * DTO para métricas de consistência diária.
+
+ */
+
+export interface AnalyticsConsistenciaDto {
+
+  date: string;
+
+  totalAnswered: number;
+
+  totalCorrect: number;
+
+  totalTimeSeconds: number;
+
+  activeStreak: number;
+
+}
+
+
+
+/**
+
+
+
+ * DTO para domínio por tópico (Disciplina, Tema ou Subtema).
+
+
+
+ */
+
+
+
+export interface AnalyticsTopicMasteryDto {
+
+
+
+  id: number;
+
+
+
+  nome: string;
+
+
+
+  totalAttempts: number;
+
+
+
+  correctAttempts: number;
+
+
+
+  avgTimeSeconds: number;
+
+
+
+  masteryScore: number;
+
+
+
+  difficultyStats: Record<string, { total: number; correct: number }>;
+
+
+
+}
+
+
+
+
+
+
+
+/**
+
+ * DTO detalhado para domínio de uma disciplina com hierarquia.
+
+ */
+
+export interface AnalyticsTopicMasteryDetailDto extends AnalyticsTopicMasteryDto {
+
+  children: AnalyticsTopicMasteryDto[];
+
+}
+
+
+
+/**
+
+ * DTO para evolução temporal.
+
+ */
+
+export interface AnalyticsEvolucaoDto {
+
+  period: string;
+
+  overallAccuracy: number;
+
+  avgResponseTime: number;
+
+  difficultyDistribution: Record<string, number>;
+
+}
+
+
+
+/**
+
+ * DTO para taxa de aprendizado em questões repetidas.
+
+ */
+
+export interface AnalyticsLearningRateDto {
+
+  totalRepeatedQuestions: number;
+
+  recoveryRate: number;
+
+  retentionRate: number;
+
+  data: {
+
+    attemptNumber: number;
+
+    accuracy: number;
+
+  }[];
+
 }
