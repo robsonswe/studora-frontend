@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Header from '@/components/Header';
-import { simuladoService, concursoService, respostaService } from '@/services/api';
-import { formatDateTime, formatDificuldade } from '@/utils/formatters';
+import { simuladoService, concursoService, respostaService, questaoService } from '@/services/api';
+import { formatDateTime, formatDificuldade, formatNivel } from '@/utils/formatters';
 import * as Types from '@/types';
 import { 
   ClipboardList, 
@@ -21,7 +21,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [simulados, setSimulados] = useState<Types.SimuladoSummaryDto[]>([]);
   const [concursos, setConcursos] = useState<Types.ConcursoSummaryDto[]>([]);
-  const [respostas, setRespostas] = useState<Types.RespostaSummaryDto[]>([]);
+  const [respostas, setRespostas] = useState<(Types.RespostaSummaryDto & { questao?: Types.QuestaoDetailDto })[]>([]);
   const [weeklyCount, setWeeklyCount] = useState(0);
 
   const loadDashboardData = async () => {
@@ -36,7 +36,22 @@ const Dashboard = () => {
 
       setSimulados(simRes.content);
       setConcursos(concRes.content);
-      setRespostas(respRes.content.slice(0, 8)); // Keep 8 for the history list
+      
+      const recentRespostas = respRes.content.slice(0, 8);
+      
+      // Fetch details for each question in the history
+      const enrichedRespostas = await Promise.all(
+        recentRespostas.map(async (r: Types.RespostaSummaryDto) => {
+          try {
+            const qDetail = await questaoService.getById(r.questaoId);
+            return { ...r, questao: qDetail };
+          } catch (e) {
+            return r;
+          }
+        })
+      );
+
+      setRespostas(enrichedRespostas);
 
       // Calculate weekly count (last 7 days)
       const sevenDaysAgo = new Date();
@@ -178,16 +193,41 @@ const Dashboard = () => {
                 </div>
               ) : (
                 respostas.map((r) => (
-                  <div key={r.id} className="p-4 hover:bg-gray-50 transition-colors flex items-center gap-4">
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${r.correta ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                  <div key={r.id} className="p-4 hover:bg-gray-50 transition-colors flex items-start gap-4">
+                    <div className={`mt-1 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${r.correta ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                       {r.correta ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-gray-400 uppercase">Questão #{r.questaoId}</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-black text-gray-400 uppercase">Questão #{r.questaoId}</span>
+                          {r.simuladoId && (
+                            <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase border border-indigo-100 flex items-center">
+                              <ClipboardList className="w-2.5 h-2.5 mr-1" /> Simulado
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] text-gray-400 font-medium">{formatDateTime(r.createdAt)}</span>
                       </div>
-                      <p className="text-sm text-gray-700 truncate font-medium">
+                      
+                      {r.questao && (
+                        <div className="mb-2">
+                          <p className="text-xs font-extrabold text-indigo-600 leading-tight mb-1">
+                            {r.questao.subtemas.map(s => `${s.disciplinaNome} › ${s.temaNome} › ${s.nome}`).join(' | ')}
+                          </p>
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">
+                            Nível: {(() => {
+                              const uniqueNiveis = Array.from(new Set((r.questao?.cargos || []).map(c => formatNivel(c.nivel))));
+                              if (uniqueNiveis.length === 0) return 'Não informado';
+                              if (uniqueNiveis.length === 1) return uniqueNiveis[0];
+                              const last = uniqueNiveis.pop();
+                              return `${uniqueNiveis.join(', ')} e ${last}`;
+                            })()}
+                          </p>
+                        </div>
+                      )}
+
+                      <p className="text-xs text-gray-600 font-medium">
                         Dificuldade: <span className="text-gray-900">{formatDificuldade(r.dificuldade)}</span> • 
                         Tempo: <span className="text-gray-900">{r.tempoRespostaSegundos}s</span>
                       </p>
