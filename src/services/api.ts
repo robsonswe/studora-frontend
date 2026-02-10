@@ -407,6 +407,7 @@ export const questaoService = {
     cargoNivel?: string;
     anulada?: boolean;
     desatualizada?: boolean;
+    admin?: boolean;
   }): Promise<Types.PageResponse<Types.QuestaoSummaryDto>> => 
     apiCall(`/questoes${buildQueryString(params)}`),
   
