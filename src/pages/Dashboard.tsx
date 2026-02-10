@@ -13,8 +13,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Award,
-  BookOpen
+  Award
 } from 'lucide-react';
 
 const Dashboard = () => {
