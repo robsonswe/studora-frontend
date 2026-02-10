@@ -234,7 +234,14 @@ export const concursoService = {
   /**
    * Obter todos os concursos.
    */
-  getAll: (params?: Types.PaginationParams): Promise<Types.PageResponse<Types.ConcursoSummaryDto>> => 
+  getAll: (params?: Types.PaginationParams & {
+    bancaId?: number;
+    instituicaoId?: number;
+    cargoId?: number;
+    instituicaoArea?: string;
+    cargoArea?: string;
+    cargoNivel?: string;
+  }): Promise<Types.PageResponse<Types.ConcursoSummaryDto>> => 
     apiCall(`/concursos${buildQueryString(params)}`),
   
   /**

@@ -15,6 +15,8 @@ import QuestaoPracticePage from '@/pages/QuestaoPracticePage';
 import SearchBrowsePage from '@/pages/SearchBrowsePage';
 import ProfilePage from '@/pages/ProfilePage';
 import SettingsPage from '@/pages/SettingsPage';
+import ProvasPage from '@/pages/ProvasPage';
+import ProvaDetailPage from '@/pages/ProvaDetailPage';
 
 export const router = createBrowserRouter([
   {
@@ -64,6 +66,14 @@ export const router = createBrowserRouter([
       {
         path: '/simulados/:id',
         element: <SimuladoDetailPage />,
+      },
+      {
+        path: '/provas',
+        element: <ProvasPage />,
+      },
+      {
+        path: '/provas/executar',
+        element: <ProvaDetailPage />,
       },
       {
         path: '/praticar',
