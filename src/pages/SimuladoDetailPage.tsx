@@ -86,6 +86,17 @@ const SimuladoDetailPage = () => {
         startAttemptedRef.current = true;
         try {
           const updatedSimulado = await simuladoService.iniciar(numericId);
+          
+          // Sort questions by discipline name and then by ID
+          if (updatedSimulado.questoes) {
+            updatedSimulado.questoes.sort((a, b) => {
+              const discA = a.subtemas?.[0]?.disciplinaNome || 'Outros';
+              const discB = b.subtemas?.[0]?.disciplinaNome || 'Outros';
+              if (discA !== discB) return discA.localeCompare(discB);
+              return a.id - b.id;
+            });
+          }
+
           setSimulado(updatedSimulado);
         } catch (err) {
           console.error('Erro ao iniciar simulado automaticamente:', err);
@@ -140,6 +151,17 @@ const SimuladoDetailPage = () => {
       setLoading(true);
       setError(null);
       const data = await simuladoService.getById(numericId);
+      
+      // Sort questions by discipline name and then by ID
+      if (data.questoes) {
+        data.questoes.sort((a, b) => {
+          const discA = a.subtemas?.[0]?.disciplinaNome || 'Outros';
+          const discB = b.subtemas?.[0]?.disciplinaNome || 'Outros';
+          if (discA !== discB) return discA.localeCompare(discB);
+          return a.id - b.id;
+        });
+      }
+
       setSimulado(data);
     } catch (err: any) {
       console.error('Erro ao carregar simulado:', err);
@@ -423,8 +445,38 @@ const SimuladoDetailPage = () => {
                 <span>Navegação</span>
                 <span className={`text-xs font-bold px-2 py-1 rounded ${isFinished ? 'bg-green-100 text-green-800' : 'bg-indigo-100 text-indigo-800'}`}>{isFinished ? 'Finalizado' : 'Em Progresso'}</span>
               </h4>
-              <div className="grid grid-cols-5 gap-2">
-                {simulado.questoes.map((_, index) => (<button key={index} onClick={() => setCurrentQuestionIndex(index)} className={`h-10 w-full rounded-lg flex items-center justify-center text-sm font-medium transition-all ${getQuestionStatusColor(index)}`}>{index + 1}</button>))}
+              <div className="space-y-6 max-h-[calc(100vh-350px)] overflow-y-auto pr-2">
+                {(() => {
+                  const groups: { name: string, indices: number[] }[] = [];
+                  simulado.questoes.forEach((q, index) => {
+                    const discName = q.subtemas?.[0]?.disciplinaNome || 'Outros';
+                    let group = groups.find(g => g.name === discName);
+                    if (!group) {
+                      group = { name: discName, indices: [] };
+                      groups.push(group);
+                    }
+                    group.indices.push(index);
+                  });
+
+                  return groups.map(group => (
+                    <div key={group.name} className="space-y-2">
+                      <p className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-widest border-b border-indigo-50 pb-1 mb-2 truncate" title={group.name}>
+                        {group.name}
+                      </p>
+                      <div className="grid grid-cols-5 gap-2">
+                        {group.indices.map((index) => (
+                          <button 
+                            key={index} 
+                            onClick={() => setCurrentQuestionIndex(index)} 
+                            className={`h-10 w-full rounded-lg flex items-center justify-center text-sm font-medium transition-all ${getQuestionStatusColor(index)}`}
+                          >
+                            {index + 1}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
               </div>
               <div className="mt-6 pt-4 border-t border-gray-100 space-y-2 text-xs text-gray-500">
                 <div className="flex items-center"><span className="w-3 h-3 rounded-full bg-green-100 border border-green-300 mr-2"></span>Acertou</div>
