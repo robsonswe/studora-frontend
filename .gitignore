@@ -1,5 +1,4 @@
-*.md
-!README.md
+.agents/
 
 # Logs
 logs
