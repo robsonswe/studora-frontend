@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
 import { concursoService, bancaService, instituicaoService, cargoService, subtemaService } from '@/services/api';
 import * as Types from '@/types';
-import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { formatNivel } from '@/utils/formatters';
 

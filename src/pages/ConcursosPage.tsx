@@ -17,7 +17,6 @@ import {
   BookOpen,
   Link as LinkIcon,
   CheckCircle,
-  Circle,
   Loader2,
   AlertCircle,
   SlidersHorizontal,
@@ -83,7 +82,7 @@ const TopicsModal = ({
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
         onClick={onClose}
       />
-      <div className="relative bg-white w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+      <div className="relative bg-white w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-sm overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
           <div className="space-y-1">
@@ -364,7 +363,7 @@ const ConcursosPage = () => {
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-start gap-3 px-4 py-3 rounded-lg shadow-lg border max-w-sm animate-slide-in ${
+            className={`flex items-start gap-3 px-4 py-3 rounded-lg shadow-sm border max-w-sm animate-slide-in ${
               toast.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
               'bg-red-50 border-red-200 text-red-800'
             }`}
@@ -673,7 +672,7 @@ const ConcursosPage = () => {
           {loadError && !loading && (
             <div className="bg-white border border-red-100 rounded-xl p-6 sm:p-10 text-center shadow-sm animate-in zoom-in-95 duration-300">
               <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-4" />
-              <h3 className="text-base font-bold text-slate-900 mb-2 tracking-tight">Ops! Não conseguimos carregar os dados</h3>
+              <h3 className="text-base font-bold text-slate-900 mb-2 tracking-tight">Erro ao carregar dados.</h3>
               <p className="text-slate-500 mb-6 text-sm font-medium leading-relaxed max-w-sm mx-auto">{loadError}</p>
               <button
                 onClick={() => loadConcursos(currentPage)}

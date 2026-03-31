@@ -6,7 +6,6 @@ import * as Types from '@/types';
 import {
   ArrowLeft,
   Folder,
-  FileText,
   Clock,
   Plus,
   Trash2,
@@ -259,7 +258,7 @@ const DisciplinaDetailPage = () => {
           aria-labelledby="modal-title"
         >
           <div
-            className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6"
+            className="bg-white rounded-lg shadow-sm max-w-sm w-full p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
@@ -304,7 +303,7 @@ const DisciplinaDetailPage = () => {
       {/* Action Error Alert */}
       {actionError && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-full px-4">
-          <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg shadow-lg p-4 flex items-start gap-3">
+          <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg shadow-sm p-4 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <p className="text-sm font-medium flex-1">{actionError}</p>
             <button
@@ -323,11 +322,11 @@ const DisciplinaDetailPage = () => {
         <div className="bg-white border border-gray-200 rounded-lg p-5 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-gray-700">Progresso na disciplina</h2>
-            <span className="text-sm font-bold text-indigo-600">{progressPercentage}%</span>
+            <span className="text-sm font-bold font-mono text-indigo-600">{progressPercentage}%</span>
           </div>
           <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all duration-500 ease-out"
+              className="h-full bg-indigo-600 transition-all duration-500 ease-out"
               style={{ width: `${progressPercentage}%` }}
             />
           </div>

@@ -76,7 +76,7 @@ const QuestoesPage = () => {
     if (watchedFields.concurso?.value) {
       concursoService.getById(watchedFields.concurso.value)
         .then(detail => {
-          setAvailableCargos(detail.cargos);
+          setAvailableCargos(detail.cargos.map(c => ({ id: c.cargoId, nome: c.cargoNome, nivel: c.nivel, area: c.area })));
         })
         .catch(console.error);
     } else {

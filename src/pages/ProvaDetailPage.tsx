@@ -12,7 +12,6 @@ import {
   ChevronLeft, 
   ChevronRight,
   HelpCircle,
-  Award,
   FileText,
   User
 } from 'lucide-react';
@@ -40,7 +39,7 @@ const ProvaDetailPage = () => {
 
   // Timer State
   const [questionTimer, setQuestionTimer] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Results Modal - REMOVED for Prova as it's just an organization of questions
 
@@ -239,7 +238,7 @@ const ProvaDetailPage = () => {
     <div className="min-h-screen bg-gray-50 pb-20">
       <Header 
         title={`Prova: ${concurso?.instituicao.nome} (${concurso?.ano})`} 
-        subtitle={cargo ? `${cargo.nome} - ${cargo.area} (${formatNivel(cargo.nivel)})` : "Execução de Prova"} 
+        subtitle={cargo ? `${cargo.cargoNome} - ${cargo.area} (${formatNivel(cargo.nivel)})` : "Execução de Prova"} 
       />
       
       {/* Sticky Bar */}
@@ -281,7 +280,7 @@ const ProvaDetailPage = () => {
               </div>
 
               <div className="p-6 sm:p-8">
-                <div className="prose prose-indigo max-w-none text-gray-800 mb-6 font-serif leading-relaxed text-lg"><p className="whitespace-pre-line">{currentQuestion.enunciado}</p></div>
+                <div className="prose prose-indigo max-w-none text-gray-800 mb-6 font-sans leading-relaxed text-lg"><p className="whitespace-pre-line">{currentQuestion.enunciado}</p></div>
                 {currentQuestion.imageUrl && <div className="mb-8 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 p-2"><img src={currentQuestion.imageUrl} alt="Imagem" className="max-w-full h-auto mx-auto rounded" /></div>}
 
                 <div className="flex items-start space-x-2 text-xs text-gray-500 mb-8 p-3 bg-gray-50 rounded-lg border border-gray-100">
@@ -394,7 +393,7 @@ const ProvaDetailPage = () => {
                       <button
                         onClick={handleVerify}
                         disabled={isVerifyDisabled}
-                        className={`inline-flex items-center px-10 py-3 border border-transparent text-base font-bold rounded-xl shadow-lg text-white transition-all ${isVerifyDisabled ? 'bg-gray-300 cursor-not-allowed opacity-50' : 'bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-0.5 active:translate-y-0'}`}
+                        className={`inline-flex items-center px-10 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white transition-all ${isVerifyDisabled ? 'bg-gray-300 cursor-not-allowed opacity-50' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                       >
                         {processingAnswer ? 'Enviando...' : 'Responder'}
                       </button>

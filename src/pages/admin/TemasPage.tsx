@@ -54,7 +54,7 @@ const TemasPage = () => {
   }, [loadTemas]);
 
   const loadDisciplinaOptions = async (inputValue: string) => {
-    const data = await disciplinaService.getAll({ nome: inputValue, size: 20 });
+    const data = await disciplinaService.getAll({ nome: inputValue, size: 20 } as any);
     return data.content.map(d => ({ value: d.id, label: d.nome }));
   };
 

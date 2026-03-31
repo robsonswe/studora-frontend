@@ -21,8 +21,6 @@ import {
   Target, 
   Award, 
   Calendar, 
-  CheckCircle, 
-  XCircle,
   Activity,
   Zap,
   BookOpen,
@@ -30,7 +28,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 
-const COLORS = ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'];
+const COLORS = ['#4338CA', '#6366F1', '#818CF8', '#94A3B8', '#CBD5E1', '#FBBF24'];
 
 const PerformancePage = () => {
   const [loading, setLoading] = useState(true);
@@ -222,7 +220,7 @@ const PerformancePage = () => {
           </div>
           <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Precisão Geral</p>
-            <p className="text-2xl font-extrabold text-gray-900">{overallAccuracy.toFixed(1)}%</p>
+            <p className="text-2xl font-extrabold font-mono text-gray-900">{overallAccuracy.toFixed(1)}%</p>
           </div>
         </div>
 
@@ -358,7 +356,7 @@ const PerformancePage = () => {
                 formatter={(value: any) => [`${value.toFixed(1)}%`, 'Domínio']}
               />
               <Bar dataKey="masteryScore" radius={[0, 8, 8, 0]} barSize={20}>
-                {topDisciplines.map((entry, index) => (
+                {topDisciplines.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Bar>
@@ -462,11 +460,11 @@ const PerformancePage = () => {
                   
                   <div className="flex flex-col items-end w-32">
                     <div className="flex items-center justify-between w-full mb-1">
-                      <span className={`text-sm font-black ${
-                        disc.masteryScore >= 70 ? 'text-green-600' : 
-                        disc.masteryScore >= 50 ? 'text-yellow-600' : 
-                        'text-red-600'
-                      }`}>
+<span className={`text-sm font-black font-mono ${
+                          disc.masteryScore >= 70 ? 'text-green-600' : 
+                          disc.masteryScore >= 50 ? 'text-yellow-600' : 
+                          'text-red-600'
+                        }`}>
                         {disc.masteryScore.toFixed(1)}%
                       </span>
                       {renderDifficultyBadge(disc.difficultyStats)}
@@ -526,7 +524,7 @@ const PerformancePage = () => {
           {/* Scroll container */}
           <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
             <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0" onClick={closeDetail}>
-              <div className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-6xl" onClick={(e) => e.stopPropagation()}>
+              <div className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-sm transition-all sm:my-8 sm:w-full sm:max-w-6xl" onClick={(e) => e.stopPropagation()}>
                 <div className="sticky top-0 bg-indigo-600 px-6 py-5 flex items-center justify-between border-b border-indigo-500 z-10">
                   <h2 className="text-xl font-bold text-white flex items-center">
                     <BookOpen className="w-6 h-6 mr-3" />
@@ -563,7 +561,7 @@ const PerformancePage = () => {
                         </div>
                         <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                           <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Domínio Final</span>
-                          <span className="text-xl font-black text-indigo-600">{discDetail.masteryScore.toFixed(1)}%</span>
+                          <span className="text-xl font-black font-mono text-indigo-600">{discDetail.masteryScore.toFixed(1)}%</span>
                         </div>
                       </div>
 

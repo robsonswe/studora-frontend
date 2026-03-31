@@ -59,7 +59,7 @@ const apiCall = async <T>(endpoint: string, options: RequestInit = {}): Promise<
     const response = await fetch(url, config);
 
     if (!response.ok) {
-      let errorMessage = `HTTP error! Status: ${response.status}`;
+      let errorMessage = `Erro HTTP ${response.status}`;
       let errorDetails;
 
       try {

@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 
 type QuestaoDto = Types.QuestaoDetailDto;
-type AlternativaDto = Types.AlternativaDto;
 
 const SearchBrowsePage = () => {
   const [adminMode, setAdminMode] = useState(false);
@@ -101,7 +100,7 @@ const SearchBrowsePage = () => {
   };
 
   const loadDisciplinaOptions = async (inputValue: string) => {
-    const data = await disciplinaService.getAll({ nome: inputValue, size: 20 });
+    const data = await disciplinaService.getAll({ nome: inputValue, size: 20 } as any);
     return [{ value: 0, label: 'Todas as disciplinas' }, ...data.content.map(d => ({ value: d.id, label: d.nome }))];
   };
 
@@ -276,7 +275,7 @@ const SearchBrowsePage = () => {
 
                   <div className="p-6">
                     {/* Question Content */}
-                    <div className="prose prose-indigo max-w-none text-gray-800 mb-6 font-serif leading-relaxed text-lg">
+                    <div className="prose prose-indigo max-w-none text-gray-800 mb-6 font-sans leading-relaxed text-lg">
                        <p className="whitespace-pre-line">{questao.enunciado}</p>
                     </div>
                     

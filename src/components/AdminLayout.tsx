@@ -14,16 +14,12 @@ import {
   ArrowLeft,
   ChevronRight,
   Menu,
-  X
+  X,
 } from 'lucide-react';
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
 
   const navItems = [
     { label: 'Instituições', path: '/admin/instituicoes', icon: Building2 },
@@ -42,7 +38,7 @@ const AdminLayout = () => {
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-slate-900 bg-opacity-50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden animate-backdrop"
           onClick={() => setSidebarOpen(false)}
         ></div>
       )}
@@ -51,68 +47,68 @@ const AdminLayout = () => {
       <aside 
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 transform ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 border-r border-slate-800`}
+        } transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 border-r border-slate-800 flex flex-col`}
       >
         <div className="flex items-center justify-between p-4 border-b border-slate-800">
           <div className="flex items-center space-x-2">
-            <div className="bg-indigo-600 p-1.5 rounded-lg">
+            <div className="bg-indigo-600 p-1.5 rounded-lg shrink-0">
               <Settings className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-lg font-bold text-white tracking-tight">Studora Admin</h1>
+            <h1 className="text-lg font-semibold text-white/90 tracking-[-0.02em] whitespace-nowrap">Studora Admin</h1>
           </div>
           <button 
-            className="lg:hidden text-slate-400 hover:text-white"
+            className="lg:hidden text-slate-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 shrink-0"
             onClick={() => setSidebarOpen(false)}
           >
             <X className="h-6 w-6" />
           </button>
         </div>
         
-        <nav className="mt-6 px-3 space-y-1">
+        <nav className="mt-5 px-3 flex-1 overflow-y-auto overflow-x-hidden scrollbar-transparent">
           <Link 
             to="/" 
-            className="flex items-center px-3 py-2 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors mb-6"
+            className="flex items-center px-3 py-2 mb-4 text-sm font-medium rounded-lg text-slate-400/70 hover:bg-white/[0.04] hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 transition-colors whitespace-nowrap overflow-hidden"
           >
-            <ArrowLeft className="mr-3 h-5 w-5" />
+            <ArrowLeft className="mr-3 h-5 w-5 shrink-0 text-slate-500" />
             Voltar ao App
           </Link>
           
-          <div className="pb-2 px-3 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">
+          <div className="pt-1 pb-1.5 px-3 text-xs font-semibold text-slate-500/70 uppercase tracking-wider">
             Gerenciamento de Dados
           </div>
 
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            const Icon = item.icon;
-            
-            return (
-              <Link 
-                key={item.path}
-                to={item.path} 
-                className={`flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all ${
-                  isActive 
-                    ? 'bg-indigo-600/10 text-indigo-400' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`}
-              >
-                <div className="flex items-center">
-                  <Icon className={`mr-3 h-5 w-5 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`} />
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              const Icon = item.icon;
+              
+              return (
+                <Link 
+                  key={item.path}
+                  to={item.path} 
+                  className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 ${
+                    isActive 
+                      ? 'bg-indigo-500/[0.07] text-indigo-400 border-l-[3px] border-amber-400/80' 
+                      : 'text-slate-400/80 hover:bg-white/[0.04] hover:text-slate-200 border-l-[3px] border-transparent'
+                  }`}
+                >
+                  <Icon className={`mr-3 h-5 w-5 shrink-0 ${isActive ? 'text-indigo-400/90' : 'text-slate-500/70'}`} />
                   {item.label}
-                </div>
-                {isActive && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]"></div>}
-              </Link>
-            );
-          })}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
-        <div className="absolute bottom-0 w-full p-4 border-t border-slate-800">
-          <div className="flex items-center p-2 rounded-lg bg-slate-800/50">
-            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-xs">
+        {/* User profile */}
+        <div className="p-4 border-t border-slate-800">
+          <div className="flex items-center rounded-lg p-2">
+            <div className="w-8 h-8 rounded-full bg-indigo-600/50 flex items-center justify-center text-indigo-200 font-medium text-xs shrink-0">
               AD
             </div>
             <div className="ml-3 min-w-0">
-              <p className="text-xs font-bold text-white truncate">Administrador</p>
-              <p className="text-[10px] text-slate-500 truncate">Painel de Controle</p>
+              <p className="text-xs font-medium text-white/80 truncate">Administrador</p>
+              <p className="text-xs text-slate-500/60 truncate">Painel de Controle</p>
             </div>
           </div>
         </div>

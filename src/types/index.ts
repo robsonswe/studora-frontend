@@ -6,11 +6,12 @@
 /**
  * Nível de escolaridade exigido para o cargo.
  */
-export enum NivelCargo {
-  FUNDAMENTAL = 'FUNDAMENTAL',
-  MEDIO = 'MEDIO',
-  SUPERIOR = 'SUPERIOR',
-}
+export const NivelCargo = {
+  FUNDAMENTAL: 'FUNDAMENTAL',
+  MEDIO: 'MEDIO',
+  SUPERIOR: 'SUPERIOR',
+} as const;
+export type NivelCargo = typeof NivelCargo[keyof typeof NivelCargo];
 
 /**
  * DTO simplificado para listagem de disciplinas.
@@ -302,12 +303,13 @@ export interface AlternativaDto {
 /**
  * Grau de dificuldade percebido pelo usuário na questão.
  */
-export enum Dificuldade {
-  FACIL = 'FACIL',
-  MEDIA = 'MEDIA',
-  DIFICIL = 'DIFICIL',
-  CHUTE = 'CHUTE',
-}
+export const Dificuldade = {
+  FACIL: 'FACIL',
+  MEDIA: 'MEDIA',
+  DIFICIL: 'DIFICIL',
+  CHUTE: 'CHUTE',
+} as const;
+export type Dificuldade = typeof Dificuldade[keyof typeof Dificuldade];
 
 /**
  * DTO para resumo de resposta do usuário.

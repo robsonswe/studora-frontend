@@ -13,7 +13,6 @@ import {
   ChevronRight,
   HelpCircle,
   Award,
-  Tag,
   FileText,
   User
 } from 'lucide-react';
@@ -38,7 +37,7 @@ const SimuladoDetailPage = () => {
 
   // Timer State
   const [questionTimer, setQuestionTimer] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Results Modal
   const [showResultsModal, setShowResultsModal] = useState(false);
@@ -305,7 +304,7 @@ const SimuladoDetailPage = () => {
               </div>
 
               <div className="p-6 sm:p-8">
-                <div className="prose prose-indigo max-w-none text-gray-800 mb-6 font-serif leading-relaxed text-lg"><p className="whitespace-pre-line">{currentQuestion.enunciado}</p></div>
+                <div className="prose prose-indigo max-w-none text-gray-800 mb-6 font-sans leading-relaxed text-lg"><p className="whitespace-pre-line">{currentQuestion.enunciado}</p></div>
                 {currentQuestion.imageUrl && <div className="mb-8 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 p-2"><img src={currentQuestion.imageUrl} alt="Imagem" className="max-w-full h-auto mx-auto rounded" /></div>}
 
                 <div className="flex items-start space-x-2 text-xs text-gray-500 mb-8 p-3 bg-gray-50 rounded-lg border border-gray-100">
@@ -418,7 +417,7 @@ const SimuladoDetailPage = () => {
                       <button
                         onClick={handleVerify}
                         disabled={isVerifyDisabled}
-                        className={`inline-flex items-center px-10 py-3 border border-transparent text-base font-bold rounded-xl shadow-lg text-white transition-all ${isVerifyDisabled ? 'bg-gray-300 cursor-not-allowed opacity-50' : 'bg-indigo-600 hover:bg-indigo-700 hover:-translate-y-0.5 active:translate-y-0'}`}
+                        className={`inline-flex items-center px-10 py-3 border border-transparent text-base font-bold rounded-xl shadow-sm text-white transition-all ${isVerifyDisabled ? 'bg-gray-300 cursor-not-allowed opacity-50' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                       >
                         {processingAnswer ? 'Enviando...' : 'Responder'}
                       </button>
@@ -503,12 +502,12 @@ const SimuladoDetailPage = () => {
           <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
           <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
             <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0" onClick={() => setShowResultsModal(false)}>
-              <div className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+              <div className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-sm transition-all sm:my-8 sm:w-full sm:max-w-md" onClick={(e) => e.stopPropagation()}>
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-8">
                   <div className="sm:flex sm:items-start justify-center">
                     <div className="mt-3 text-center sm:mt-0 sm:text-center w-full">
                       <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6 ring-8 ring-green-50"><Award className="h-10 w-10 text-green-600" /></div>
-                      <h3 className="text-2xl leading-6 font-bold text-gray-900 mb-2">Simulado Concluído!</h3>
+                      <h3 className="text-2xl leading-6 font-bold text-gray-900 mb-2">Simulado Finalizado.</h3>
                       <p className="text-gray-500 text-sm mb-6">Você respondeu a todas as questões.</p>
                       <div className="bg-gray-50 rounded-xl p-6 mb-6 border border-gray-200">
                         <div className="grid grid-cols-2 gap-4 border-b border-gray-200 pb-4 mb-4">
@@ -516,7 +515,7 @@ const SimuladoDetailPage = () => {
                            <div><span className="block text-gray-500 text-xs uppercase font-bold tracking-wider">Total</span><span className="block text-4xl font-extrabold text-gray-800">{stats.total}</span></div>
                         </div>
                         <div>
-                           <div className="flex justify-between text-sm text-gray-600 mb-1 font-medium"><span>Aproveitamento</span><span className="text-indigo-600">{Math.round((stats.correct / stats.total) * 100)}%</span></div>
+                           <div className="flex justify-between text-sm text-gray-600 mb-1 font-medium"><span>Aproveitamento</span><span className="text-indigo-600 font-mono">{Math.round((stats.correct / stats.total) * 100)}%</span></div>
                            <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden"><div className={`h-full rounded-full ${(stats.correct / stats.total) >= 0.7 ? 'bg-green-500' : (stats.correct / stats.total) >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${(stats.correct / stats.total) * 100}%` }}></div></div>
                         </div>
                       </div>

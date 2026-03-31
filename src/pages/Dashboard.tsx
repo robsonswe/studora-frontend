@@ -98,7 +98,7 @@ const Dashboard = () => {
 
       {/* Hero / Action Section */}
       {inProgressSimulado && (
-        <div className="bg-indigo-600 rounded-2xl shadow-xl overflow-hidden border border-indigo-500">
+        <div className="bg-indigo-600 rounded-2xl shadow-sm overflow-hidden border border-indigo-500">
           <div className="px-6 py-8 sm:px-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex-1">
               <span className="px-3 py-1 rounded-full bg-indigo-500 text-indigo-100 text-xs font-bold uppercase tracking-wider mb-4 inline-block">
@@ -111,7 +111,7 @@ const Dashboard = () => {
             </div>
             <button
               onClick={() => navigate(`/simulados/${inProgressSimulado.id}`)}
-              className="inline-flex items-center px-8 py-4 bg-white text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+              className="inline-flex items-center px-8 py-4 bg-white text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-sm"
             >
               Continuar Simulado
               <ChevronRight className="ml-2 w-5 h-5" />
@@ -275,7 +275,7 @@ const Dashboard = () => {
           </section>
 
           {/* Quick Stats Placeholder or Tips */}
-          <section className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl shadow-lg p-6 text-white">
+          <section className="bg-indigo-800 rounded-2xl shadow-sm p-6 text-white">
             <div className="flex items-center mb-4">
               <Award className="w-6 h-6 mr-3 text-indigo-200" />
               <h3 className="text-lg font-bold">Dica do Dia</h3>

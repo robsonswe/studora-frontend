@@ -15,7 +15,6 @@ import {
   AlertCircle, 
   RefreshCw,
   Award,
-  HelpCircle,
   Tag,
   FileText,
   User
@@ -43,7 +42,7 @@ const QuestaoPracticePage = () => {
 
   // Timer State
   const [secondsElapsed, setSecondsElapsed] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Filter Form
   const { setValue, watch, getValues } = useForm({
@@ -157,7 +156,7 @@ const QuestaoPracticePage = () => {
   };
 
   const loadDisciplinaOptions = async (inputValue: string) => {
-    const data = await disciplinaService.getAll({ nome: inputValue, size: 20 });
+    const data = await disciplinaService.getAll({ nome: inputValue, size: 20 } as any);
     const options = data.content.map(d => ({ value: d.id, label: d.nome }));
     return [{ value: 0, label: 'Todas as disciplinas' }, ...options];
   };
@@ -222,7 +221,7 @@ const QuestaoPracticePage = () => {
         <Header title="Praticar Questões" subtitle="Configure sua sessão de estudos" />
         <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           
-          <div className="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
+          <div className="bg-white shadow-sm rounded-xl overflow-hidden border border-gray-100">
             <div className="bg-indigo-600 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center text-white">
                 <Filter className="w-5 h-5 mr-2" />
@@ -361,7 +360,7 @@ const QuestaoPracticePage = () => {
                 <button
                   onClick={fetchRandomQuestion}
                   disabled={loading}
-                  className="w-full sm:w-auto inline-flex justify-center items-center px-8 py-4 border border-transparent text-lg font-bold rounded-xl shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70 transform transition-all hover:-translate-y-0.5"
+                  className="w-full sm:w-auto inline-flex justify-center items-center px-8 py-4 border border-transparent text-lg font-bold rounded-xl shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70 transform transition-all"
                 >
                   {loading ? (
                     <>
@@ -492,7 +491,7 @@ const QuestaoPracticePage = () => {
 
           <div className="p-6 md:p-8">
             {/* Body */}
-            <div className="prose prose-indigo max-w-none text-gray-800 mb-8 font-serif leading-relaxed text-lg">
+            <div className="prose prose-indigo max-w-none text-gray-800 mb-8 font-sans leading-relaxed text-lg">
                <p className="whitespace-pre-line">{currentQuestion.enunciado}</p>
             </div>
 
@@ -638,8 +637,8 @@ const QuestaoPracticePage = () => {
                       disabled={isVerifyDisabled}
                       className={`inline-flex items-center px-8 py-3 border border-transparent text-base font-bold rounded-lg shadow-sm text-white transition-all ${
                         isVerifyDisabled 
-                          ? 'bg-gray-300 cursor-not-allowed opacity-60' 
-                          : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-md hover:-translate-y-0.5'
+                          ? 'bg-gray-300 cursor-not-allowed opacity-60'
+                          : 'bg-indigo-600 hover:bg-indigo-700'
                       }`}
                     >
                       Verificar Resposta
@@ -655,7 +654,7 @@ const QuestaoPracticePage = () => {
                           Resumo do Resultado
                        </h4>
                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${feedback.correta ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {feedback.correta ? 'Acertou!' : 'Errou'}
+                          {feedback.correta ? 'Correta.' : 'Incorreta.'}
                        </span>
                     </div>
                     <div className="p-6">
@@ -686,7 +685,7 @@ const QuestaoPracticePage = () => {
                   <div className="flex justify-end">
                     <button
                       onClick={fetchRandomQuestion}
-                      className="inline-flex items-center px-8 py-3 border border-transparent text-base font-bold rounded-lg shadow-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all hover:-translate-y-0.5"
+                      className="inline-flex items-center px-8 py-3 border border-transparent text-base font-bold rounded-lg shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all"
                     >
                       <RefreshCw className="w-5 h-5 mr-2" />
                       Próxima Questão
