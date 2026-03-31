@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import { useForm } from 'react-hook-form';
@@ -21,16 +21,150 @@ import {
   Loader2,
   AlertCircle,
   SlidersHorizontal,
+  ChevronRight,
+  Clock,
+  BookMarked,
   X
 } from 'lucide-react';
 
 type ConcursoDto = Types.ConcursoSummaryDto;
+type TopicoDto = Types.SubtemaSummaryDto;
+
 
 interface Toast {
   id: number;
   type: 'success' | 'error';
   message: string;
 }
+
+const TopicsModal = ({ 
+  isOpen, 
+  onClose, 
+  cargoNome, 
+  topicos 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  cargoNome: string; 
+  topicos: TopicoDto[];
+}) => {
+  const groupedTopicos = useMemo(() => {
+    const grouped: Record<string, Record<string, TopicoDto[]>> = {};
+    
+    topicos.forEach(topico => {
+      const disc = topico.disciplinaNome || 'Outras Disciplinas';
+      const tema = topico.temaNome || 'Geral';
+      
+      if (!grouped[disc]) grouped[disc] = {};
+      if (!grouped[disc][tema]) grouped[disc][tema] = [];
+      
+      grouped[disc][tema].push(topico);
+    });
+    
+    return grouped;
+  }, [topicos]);
+
+  if (!isOpen) return null;
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return 'Nunca estudado';
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(dateStr));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
+      <div 
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
+        onClick={onClose}
+      />
+      <div className="relative bg-white w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold text-slate-900 tracking-tight">Conteúdo Programático</h3>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">{cargoNome}</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 -mr-2 rounded-xl hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition-all active:scale-90"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
+          {Object.entries(groupedTopicos).length > 0 ? (
+            Object.entries(groupedTopicos).map(([disciplina, temas]) => (
+              <div key={disciplina} className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-slate-100" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 bg-indigo-50/50 px-3 py-1 rounded-full border border-indigo-100/50">
+                    {disciplina}
+                  </span>
+                  <div className="h-px flex-1 bg-slate-100" />
+                </div>
+
+                <div className="space-y-6">
+                  {Object.entries(temas).map(([tema, subtopicos]) => (
+                    <div key={tema} className="space-y-3">
+                      <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                        {tema}
+                      </h4>
+                      <div className="grid grid-cols-1 gap-2 pl-5">
+                        {subtopicos.map(topico => (
+                          <div 
+                            key={topico.id} 
+                            className="group p-3 rounded-xl border border-slate-100 bg-slate-50/30 hover:border-indigo-100 hover:bg-white transition-all duration-200"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <p className="text-sm font-semibold text-slate-600 group-hover:text-slate-900 transition-colors">
+                                {topico.nome}
+                              </p>
+                              <div className="flex items-center gap-1 text-emerald-600">
+                                <span className="text-[10px] font-bold">{topico.totalEstudos}</span>
+                                <BookMarked className="w-3 h-3" />
+                              </div>
+                            </div>
+                            <div className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                              <Clock className="w-2.5 h-2.5" />
+                              <span>Último estudo: {formatDate(topico.ultimoEstudo)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="py-12 text-center space-y-3">
+              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-medium text-slate-400">Nenhum tópico cadastrado para este cargo.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30 text-center shrink-0">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            {topicos.length} tópicos identificados
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ConcursosPage = () => {
   const navigate = useNavigate();
@@ -50,6 +184,7 @@ const ConcursosPage = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [selectedCargoTopicos, setSelectedCargoTopicos] = useState<{ nome: string; topicos: TopicoDto[] } | null>(null);
 
   const { setValue, watch, reset } = useForm({
     defaultValues: {
@@ -625,6 +760,15 @@ const ConcursosPage = () => {
                         </div>
 
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                          {cargo.topicos && cargo.topicos.length > 0 && (
+                            <button
+                              onClick={() => setSelectedCargoTopicos({ nome: cargo.cargoNome, topicos: cargo.topicos })}
+                              className="text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/50 text-center active:scale-95 inline-flex items-center justify-center gap-1.5"
+                            >
+                              <BookOpen className="w-3.5 h-3.5" />
+                              Ver Tópicos
+                            </button>
+                          )}
                           {/* Only show button if: 
                               1. This cargo is already inscribed (to allow removal)
                               2. NO cargo in this concurso is inscribed (to allow new inscription)
@@ -691,6 +835,13 @@ const ConcursosPage = () => {
             </nav>
           </div>
         )}
+
+      <TopicsModal
+        isOpen={selectedCargoTopicos !== null}
+        onClose={() => setSelectedCargoTopicos(null)}
+        cargoNome={selectedCargoTopicos?.nome || ''}
+        topicos={selectedCargoTopicos?.topicos || []}
+      />
     </div>
   );
 };

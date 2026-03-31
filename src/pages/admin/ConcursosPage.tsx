@@ -1,12 +1,58 @@
 import { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
-import { concursoService, bancaService, instituicaoService, cargoService } from '@/services/api';
+import { concursoService, bancaService, instituicaoService, cargoService, subtemaService } from '@/services/api';
 import * as Types from '@/types';
 import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { formatNivel } from '@/utils/formatters';
 
 type ConcursoDto = Types.ConcursoSummaryDto;
+
+interface TopicoEntry {
+  subtemaId: number;
+  subtemaLabel: string;
+  disciplinaId: number;
+  disciplinaNome: string;
+  temaId: number;
+  temaNome: string;
+  cargoIds: number[];
+}
+
+// Grouped structure for rendering the picked topicos list
+interface TopicosByDisciplina {
+  disciplinaId: number;
+  disciplinaNome: string;
+  temas: {
+    temaId: number;
+    temaNome: string;
+    topicos: TopicoEntry[];
+  }[];
+}
+
+const groupTopicos = (topicos: TopicoEntry[]): TopicosByDisciplina[] => {
+  const disciplinaMap = new Map<number, TopicosByDisciplina>();
+
+  for (const t of topicos) {
+    if (!disciplinaMap.has(t.disciplinaId)) {
+      disciplinaMap.set(t.disciplinaId, {
+        disciplinaId: t.disciplinaId,
+        disciplinaNome: t.disciplinaNome,
+        temas: [],
+      });
+    }
+    const disciplinaGroup = disciplinaMap.get(t.disciplinaId)!;
+
+    let temaGroup = disciplinaGroup.temas.find(tg => tg.temaId === t.temaId);
+    if (!temaGroup) {
+      temaGroup = { temaId: t.temaId, temaNome: t.temaNome, topicos: [] };
+      disciplinaGroup.temas.push(temaGroup);
+    }
+
+    temaGroup.topicos.push(t);
+  }
+
+  return Array.from(disciplinaMap.values());
+};
 
 const ConcursosPage = () => {
   const [concursos, setConcursos] = useState<ConcursoDto[]>([]);
@@ -20,7 +66,8 @@ const ConcursosPage = () => {
     ano: new Date().getFullYear(),
     mes: new Date().getMonth() + 1,
     edital: '',
-    cargos: [] as { value: number, label: string }[]
+    cargos: [] as { value: number, label: string }[],
+    topicos: [] as TopicoEntry[]
   });
 
   const [localLoading, setLocalLoading] = useState(false);
@@ -70,6 +117,77 @@ const ConcursosPage = () => {
     return data.content.map(c => ({ value: c.id, label: `${c.nome} - ${c.area} (${formatNivel(c.nivel)})` }));
   };
 
+  // No filtering here — cacheOptions is restored; filterOption handles exclusion at render time
+  const loadSubtemaOptions = async (inputValue: string) => {
+    const data = await subtemaService.getAll({ nome: inputValue, size: 20 });
+    return data.content.map(s => ({
+      value: s.id,
+      label: s.disciplinaNome ? `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}` : s.nome,
+      // carry grouping metadata so addTopico doesn't need a separate fetch
+      disciplinaId: s.disciplinaId ?? 0,
+      disciplinaNome: s.disciplinaNome ?? '',
+      temaId: s.temaId,
+      temaNome: s.temaNome ?? '',
+    }));
+  };
+
+  const addTopico = (opt: any) => {
+    if (formData.topicos.find((t: TopicoEntry) => t.subtemaId === opt.value)) return;
+    const cargoIds = formData.cargos.map((c: any) => c.value);
+    setFormData((prev: any) => ({
+      ...prev,
+      topicos: [
+        ...prev.topicos,
+        {
+          subtemaId: opt.value,
+          subtemaLabel: opt.label,
+          disciplinaId: opt.disciplinaId,
+          disciplinaNome: opt.disciplinaNome,
+          temaId: opt.temaId,
+          temaNome: opt.temaNome,
+          cargoIds,
+        },
+      ],
+    }));
+  };
+
+  const removeTopico = (subtemaId: number) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      topicos: prev.topicos.filter((t: TopicoEntry) => t.subtemaId !== subtemaId)
+    }));
+  };
+
+  const toggleTopicoCargo = (subtemaId: number, cargoId: number) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      topicos: prev.topicos
+        .map((t: TopicoEntry) => {
+          if (t.subtemaId !== subtemaId) return t;
+          const newCargoIds = t.cargoIds.includes(cargoId)
+            ? t.cargoIds.filter(id => id !== cargoId)
+            : [...t.cargoIds, cargoId];
+          return { ...t, cargoIds: newCargoIds };
+        })
+        .filter((t: TopicoEntry) => t.cargoIds.length > 0)
+    }));
+  };
+
+  const handleCargoChange = (opts: any) => {
+    const newCargos = opts || [];
+    const newCargoIds = newCargos.map((c: any) => c.value);
+    setFormData((prev: any) => ({
+      ...prev,
+      cargos: newCargos,
+      topicos: prev.topicos
+        .map((t: TopicoEntry) => ({
+          ...t,
+          cargoIds: t.cargoIds.filter((id: number) => newCargoIds.includes(id))
+        }))
+        .filter((t: TopicoEntry) => t.cargoIds.length > 0)
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationErrors([]);
@@ -80,6 +198,10 @@ const ConcursosPage = () => {
     if (formData.ano < 1900 || formData.ano > 2100) errors.push('Ano deve ser entre 1900 e 2100');
     if (formData.mes < 1 || formData.mes > 12) errors.push('Mês deve ser entre 1 e 12');
     if (formData.cargos.length === 0) errors.push('Selecione pelo menos um cargo');
+
+    formData.topicos.forEach((t: TopicoEntry) => {
+      if (t.cargoIds.length === 0) errors.push(`O tópico "${t.subtemaLabel}" deve estar vinculado a pelo menos um cargo`);
+    });
 
     if (errors.length > 0) {
       setValidationErrors(errors);
@@ -94,7 +216,11 @@ const ConcursosPage = () => {
         ano: formData.ano,
         mes: formData.mes,
         edital: formData.edital,
-        cargos: formData.cargos.map((c: any) => c.value)
+        cargos: formData.cargos.map((c: any) => c.value),
+        topicos: formData.topicos.reduce((acc: Record<number, number[]>, t: TopicoEntry) => {
+          acc[t.subtemaId] = t.cargoIds;
+          return acc;
+        }, {})
       };
 
       if (editingItem) {
@@ -119,13 +245,35 @@ const ConcursosPage = () => {
       const detail = await concursoService.getById(item.id);
       setEditingItem(item);
       
+      // Invert topicos from { cargo → [subtemas] } to { subtema → [cargos] }
+      const topicoMap = new Map<number, TopicoEntry>();
+      detail.cargos.forEach(cargo => {
+        (cargo.topicos || []).forEach(topico => {
+          if (!topicoMap.has(topico.id)) {
+            topicoMap.set(topico.id, {
+              subtemaId: topico.id,
+              subtemaLabel: topico.disciplinaNome
+                ? `${topico.disciplinaNome} - ${topico.temaNome} - ${topico.nome}`
+                : topico.nome,
+              disciplinaId: topico.disciplinaId ?? 0,
+              disciplinaNome: topico.disciplinaNome ?? '',
+              temaId: topico.temaId,
+              temaNome: topico.temaNome ?? '',
+              cargoIds: [],
+            });
+          }
+          topicoMap.get(topico.id)!.cargoIds.push(cargo.cargoId);
+        });
+      });
+
       setFormData({
         instituicao: { value: detail.instituicao.id, label: detail.instituicao.nome },
         banca: { value: detail.banca.id, label: detail.banca.nome },
         ano: detail.ano,
         mes: detail.mes,
         edital: detail.edital || '',
-        cargos: detail.cargos.map(c => ({ value: c.cargoId, label: `${c.cargoNome} - ${c.area} (${formatNivel(c.nivel)})` }))
+        cargos: detail.cargos.map(c => ({ value: c.cargoId, label: `${c.cargoNome} - ${c.area} (${formatNivel(c.nivel)})` })),
+        topicos: Array.from(topicoMap.values()),
       });
 
       setShowForm(true);
@@ -157,7 +305,8 @@ const ConcursosPage = () => {
       ano: new Date().getFullYear(),
       mes: new Date().getMonth() + 1,
       edital: '',
-      cargos: []
+      cargos: [],
+      topicos: []
     });
     setEditingItem(null);
     setShowForm(false);
@@ -171,6 +320,9 @@ const ConcursosPage = () => {
       </div>
     );
   }
+
+  const selectedSubtemaIds = new Set(formData.topicos.map((t: TopicoEntry) => t.subtemaId));
+  const groupedTopicos = groupTopicos(formData.topicos);
 
   return (
     <div>
@@ -277,12 +429,96 @@ const ConcursosPage = () => {
                   defaultOptions
                   loadOptions={loadCargoOptions}
                   value={formData.cargos}
-                  onChange={(opts) => setFormData({...formData, cargos: opts || []})}
+                  onChange={handleCargoChange}
                   placeholder="Busque por cargos..."
                 />
               </div>
             </div>
-            
+
+            {formData.cargos.length > 0 && (
+              <div className="mt-6 border-t border-gray-200 pt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tópicos (Subtemas)
+                </label>
+                <p className="text-xs text-gray-500 mb-3">Vincule subtemas aos cargos deste concurso.</p>
+
+                <AsyncSelect
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadSubtemaOptions}
+                  filterOption={(opt) => !selectedSubtemaIds.has(opt.value)}
+                  value={null}
+                  onChange={(opt: any) => { if (opt) addTopico(opt); }}
+                  placeholder="Busque um subtema para adicionar..."
+                />
+
+                {formData.topicos.length > 0 && (
+                  <div className="mt-4 space-y-4">
+                    {groupedTopicos.map((disciplinaGroup) => (
+                      <div key={disciplinaGroup.disciplinaId} className="border border-gray-200 rounded-lg overflow-hidden">
+
+                        {/* Disciplina header */}
+                        <div className="bg-indigo-50 px-4 py-2 border-b border-indigo-100">
+                          <span className="text-sm font-semibold text-indigo-800">
+                            {disciplinaGroup.disciplinaNome || 'Sem disciplina'}
+                          </span>
+                        </div>
+
+                        <div className="divide-y divide-gray-100">
+                          {disciplinaGroup.temas.map((temaGroup) => (
+                            <div key={temaGroup.temaId}>
+
+                              {/* Tema sub-header */}
+                              <div className="bg-gray-50 px-4 py-1.5">
+                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                  {temaGroup.temaNome || 'Sem tema'}
+                                </span>
+                              </div>
+
+                              {/* Subtemas */}
+                              <div className="divide-y divide-gray-50">
+                                {temaGroup.topicos.map((topico) => (
+                                  <div key={topico.subtemaId} className="px-4 py-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-medium text-gray-900">
+                                        {topico.subtemaLabel.split(' - ').pop()}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeTopico(topico.subtemaId)}
+                                        className="text-red-500 hover:text-red-700 text-xs font-medium"
+                                      >
+                                        Remover
+                                      </button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-3">
+                                      {formData.cargos.map((cargo: any) => (
+                                        <label key={cargo.value} className="inline-flex items-center text-sm text-gray-700">
+                                          <input
+                                            type="checkbox"
+                                            checked={topico.cargoIds.includes(cargo.value)}
+                                            onChange={() => toggleTopicoCargo(topico.subtemaId, cargo.value)}
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-1.5"
+                                          />
+                                          {cargo.label.split(' - ')[0]}
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                            </div>
+                          ))}
+                        </div>
+
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {validationErrors.length > 0 && (
               <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4">
                 <div className="flex">
@@ -349,7 +585,7 @@ const ConcursosPage = () => {
                     <button
                       onClick={() => handleDelete(concurso.id!)}
                       disabled={localLoading}
-                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     >
                       Excluir
                     </button>
