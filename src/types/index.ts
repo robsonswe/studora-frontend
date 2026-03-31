@@ -74,6 +74,10 @@ export interface SubtemaSummaryDto {
   disciplinaNome?: string;
   /** Nome do subtema. Example: "Atos Administrativos" */
   nome: string;
+  /** Total de sessões de estudo realizadas para este subtema. */
+  totalEstudos: number;
+  /** Data e hora do último estudo realizado (ISO string). */
+  ultimoEstudo?: string;
 }
 
 /**
@@ -86,6 +90,22 @@ export interface SubtemaDetailDto {
   tema: TemaSummaryDto;
   /** Nome do subtema. */
   nome: string;
+  /** Total de sessões de estudo realizadas para este subtema. */
+  totalEstudos: number;
+  /** Data e hora do último estudo realizado (ISO string). */
+  ultimoEstudo?: string;
+}
+
+/**
+ * DTO que representa uma sessão de estudo de um subtema.
+ */
+export interface EstudoSubtemaDto {
+  /** ID único da sessão de estudo. */
+  id: number;
+  /** ID do subtema estudado. */
+  subtemaId: number;
+  /** Data e hora em que o estudo foi realizado. */
+  createdAt: string;
 }
 
 /**
@@ -150,6 +170,26 @@ export interface ConcursoQuestaoDto {
 }
 
 /**
+ * DTO que representa a associação de um cargo a um concurso com status de inscrição.
+ */
+export interface ConcursoCargoSummaryDto {
+  /** ID da associação concurso-cargo. */
+  id: number;
+  /** ID do cargo. */
+  cargoId: number;
+  /** Nome do cargo. */
+  cargoNome: string;
+  /** Nível de escolaridade do cargo. */
+  nivel: NivelCargo;
+  /** Área de atuação do cargo. */
+  area: string;
+  /** Indica se o usuário está inscrito para este cargo neste concurso. */
+  inscrito: boolean;
+  /** Subtemas associados a este cargo neste concurso. */
+  topicos: SubtemaSummaryDto[];
+}
+
+/**
  * DTO simplificado para listagem de concursos.
  */
 export interface ConcursoSummaryDto {
@@ -165,14 +205,63 @@ export interface ConcursoSummaryDto {
   mes: number;
   /** Identificação do edital do concurso (opcional). */
   edital?: string;
-  /** Lista de cargos associados ao concurso. */
-  cargos: CargoSummaryDto[];
+  /** Lista de cargos associados ao concurso com status de inscrição. */
+  cargos: ConcursoCargoSummaryDto[];
 }
 
 /**
  * DTO detalhado para visualização de um concurso, incluindo detalhes de instituição e banca.
  */
 export interface ConcursoDetailDto extends ConcursoSummaryDto {}
+
+/**
+ * Request DTO para criação de um concurso.
+ */
+export interface ConcursoCreateRequest {
+  /** ID da instituição organizadora. */
+  instituicaoId: number;
+  /** ID da banca organizadora. */
+  bancaId: number;
+  /** Ano de realização do concurso. */
+  ano: number;
+  /** Mês de realização do concurso (1-12). */
+  mes: number;
+  /** Identificação do edital do concurso. */
+  edital?: string;
+  /** Lista de IDs dos cargos associados ao concurso. */
+  cargos: number[];
+  /**
+   * Mapa de subtemas para cargos. Cada chave é o subtemaId e o valor é um array de cargoIds
+   * que devem ser associados a este subtema neste concurso.
+   * Exemplo: { 12: [1, 2, 6], 5: [1, 2, 5] } — subtema 12 é associado aos cargos 1, 2 e 6.
+   */
+  topicos?: Record<number, number[]>;
+}
+
+/**
+ * Request DTO para atualização de um concurso.
+ */
+export interface ConcursoUpdateRequest {
+  /** ID da instituição organizadora. */
+  instituicaoId: number;
+  /** ID da banca organizadora. */
+  bancaId: number;
+  /** Ano de realização do concurso. */
+  ano: number;
+  /** Mês de realização do concurso (1-12). */
+  mes: number;
+  /** Identificação do edital do concurso. */
+  edital?: string;
+  /** Lista de IDs dos cargos associados ao concurso. */
+  cargos: number[];
+  /**
+   * Mapa de subtemas para cargos. Cada chave é o subtemaId e o valor é um array de cargoIds
+   * que devem ser associados a este subtema neste concurso.
+   * Se omitido, os topicos existentes não são alterados.
+   * Exemplo: { 12: [1, 2, 6], 5: [1, 2, 5] } — subtema 12 é associado aos cargos 1, 2 e 6.
+   */
+  topicos?: Record<number, number[]>;
+}
 
 /**
  * DTO com hierarquia do subtema para exibição em questões.

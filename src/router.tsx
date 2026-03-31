@@ -1,24 +1,26 @@
 import { createBrowserRouter } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import Dashboard from '@/pages/Dashboard';
-import DisciplinasPage from '@/pages/DisciplinasPage';
-import ConcursosPage from '@/pages/ConcursosPage';
-import TemasPage from '@/pages/TemasPage';
-import SubtemasPage from '@/pages/SubtemasPage';
-import QuestoesPage from '@/pages/QuestoesPage';
-import BancasPage from '@/pages/BancasPage';
-import InstituicoesPage from '@/pages/InstituicoesPage';
-import CargosPage from '@/pages/CargosPage';
 import SimuladosPage from '@/pages/SimuladosPage';
 import SimuladoDetailPage from '@/pages/SimuladoDetailPage';
 import QuestaoPracticePage from '@/pages/QuestaoPracticePage';
-import SearchBrowsePage from '@/pages/SearchBrowsePage';
 import ProfilePage from '@/pages/ProfilePage';
 import SettingsPage from '@/pages/SettingsPage';
-import ProvasPage from '@/pages/ProvasPage';
 import ProvaDetailPage from '@/pages/ProvaDetailPage';
 import PerformancePage from '@/pages/PerformancePage';
+import DisciplinasPage from '@/pages/DisciplinasPage';
+import DisciplinaDetailPage from '@/pages/DisciplinaDetailPage';
 import AdminLayout from '@/components/AdminLayout';
+import ConcursosPage from '@/pages/ConcursosPage';
+import DisciplinasAdminPage from '@/pages/admin/DisciplinasPage';
+import ConcursosAdminPage from '@/pages/admin/ConcursosPage';
+import TemasPage from '@/pages/admin/TemasPage';
+import SubtemasPage from '@/pages/admin/SubtemasPage';
+import QuestoesPage from '@/pages/admin/QuestoesPage';
+import BancasPage from '@/pages/admin/BancasPage';
+import InstituicoesPage from '@/pages/admin/InstituicoesPage';
+import CargosPage from '@/pages/admin/CargosPage';
+import SearchBrowsePage from '@/pages/admin/SearchBrowsePage';
 
 export const router = createBrowserRouter([
   {
@@ -42,8 +44,16 @@ export const router = createBrowserRouter([
         element: <SimuladoDetailPage />,
       },
       {
-        path: '/provas',
-        element: <ProvasPage />,
+        path: '/disciplinas',
+        element: <DisciplinasPage />,
+      },
+      {
+        path: '/disciplinas/:id',
+        element: <DisciplinaDetailPage />,
+      },
+      {
+        path: '/concursos',
+        element: <ConcursosPage />,
       },
       {
         path: '/provas/executar',
@@ -73,11 +83,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'disciplinas',
-        element: <DisciplinasPage />,
+        element: <DisciplinasAdminPage />,
       },
       {
         path: 'concursos',
-        element: <ConcursosPage />,
+        element: <ConcursosAdminPage />,
       },
       {
         path: 'temas',

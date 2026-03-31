@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  ClipboardList, 
-  FileSignature, 
-  GraduationCap, 
-  Settings, 
-  Menu, 
+import {
+  LayoutDashboard,
+  ClipboardList,
+  BookOpen,
+  GraduationCap,
+  Settings,
+  Menu,
   X,
   User,
-  TrendingUp
+  TrendingUp,
+  FolderOpen
 } from 'lucide-react';
 
 const Layout = () => {
@@ -23,7 +24,8 @@ const Layout = () => {
   const navItems = [
     { label: 'Dashboard', path: '/', icon: LayoutDashboard },
     { label: 'Simulados', path: '/simulados', icon: ClipboardList },
-    { label: 'Provas', path: '/provas', icon: FileSignature },
+    { label: 'Disciplinas', path: '/disciplinas', icon: FolderOpen },
+    { label: 'Concursos', path: '/concursos', icon: BookOpen },
     { label: 'Praticar', path: '/praticar', icon: GraduationCap },
     { label: 'Desempenho', path: '/desempenho', icon: TrendingUp },
   ];

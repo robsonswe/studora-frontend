@@ -225,6 +225,24 @@ export const subtemaService = {
    */
   delete: (id: number): Promise<void> => 
     apiCall(`/subtemas/${id}`, { method: 'DELETE' }),
+
+  /**
+   * Adicionar uma sessão de estudo para o subtema.
+   */
+  addEstudo: (id: number): Promise<Types.EstudoSubtemaDto> => 
+    apiCall(`/subtemas/${id}/estudos`, { method: 'POST' }),
+
+  /**
+   * Listar sessões de estudo de um subtema.
+   */
+  getEstudos: (id: number): Promise<Types.EstudoSubtemaDto[]> => 
+    apiCall(`/subtemas/${id}/estudos`),
+
+  /**
+   * Excluir uma sessão de estudo específica.
+   */
+  deleteEstudo: (subtemaId: number, estudoId: number): Promise<void> => 
+    apiCall(`/subtemas/${subtemaId}/estudos/${estudoId}`, { method: 'DELETE' }),
 };
 
 /**
@@ -241,6 +259,7 @@ export const concursoService = {
     instituicaoArea?: string;
     cargoArea?: string;
     cargoNivel?: string;
+    inscrito?: boolean;
   }): Promise<Types.PageResponse<Types.ConcursoSummaryDto>> => 
     apiCall(`/concursos${buildQueryString(params)}`),
   
@@ -253,13 +272,13 @@ export const concursoService = {
   /**
    * Criar novo concurso.
    */
-  create: (data: Omit<Types.ConcursoSummaryDto, 'id'>): Promise<Types.ConcursoDetailDto> => 
+  create: (data: Types.ConcursoCreateRequest): Promise<Types.ConcursoDetailDto> => 
     apiCall('/concursos', { method: 'POST', body: JSON.stringify(data) }),
   
   /**
    * Atualizar concurso.
    */
-  update: (id: number, data: Omit<Types.ConcursoSummaryDto, 'id'>): Promise<Types.ConcursoDetailDto> => 
+  update: (id: number, data: Types.ConcursoUpdateRequest): Promise<Types.ConcursoDetailDto> => 
     apiCall(`/concursos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   
   /**
@@ -267,6 +286,12 @@ export const concursoService = {
    */
   delete: (id: number): Promise<void> => 
     apiCall(`/concursos/${id}`, { method: 'DELETE' }),
+
+  /**
+   * Alternar status de inscrição em um cargo de um concurso.
+   */
+  toggleInscricao: (concursoCargoId: number): Promise<Types.ConcursoCargoSummaryDto> => 
+    apiCall(`/concursos/cargos/${concursoCargoId}/inscricao`, { method: 'PATCH' }),
 };
 
 /**
