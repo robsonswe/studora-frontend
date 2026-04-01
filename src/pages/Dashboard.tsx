@@ -6,14 +6,13 @@ import { formatDateTime, formatDificuldade, formatNivel } from '@/utils/formatte
 import * as Types from '@/types';
 import { 
   ClipboardList, 
-  FileSignature, 
-  History, 
   PlusCircle, 
   ChevronRight,
   Clock,
   CheckCircle,
   XCircle,
-  Award
+  TrendingUp,
+  ArrowRight,
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -23,6 +22,7 @@ const Dashboard = () => {
   const [concursos, setConcursos] = useState<Types.ConcursoSummaryDto[]>([]);
   const [respostas, setRespostas] = useState<(Types.RespostaSummaryDto & { questao?: Types.QuestaoDetailDto })[]>([]);
   const [weeklyCount, setWeeklyCount] = useState(0);
+  const [expandedResposta, setExpandedResposta] = useState<string | number | null>(null);
 
   const loadDashboardData = async () => {
     setLoading(true);
@@ -30,7 +30,6 @@ const Dashboard = () => {
       const [simRes, concRes, respRes] = await Promise.all([
         simuladoService.getAll({ size: 5 }).catch(() => ({ content: [] })),
         concursoService.getAll({ size: 5 }).catch(() => ({ content: [] })),
-        // Fetch more to accurately calculate weekly progress
         respostaService.getAll({ size: 100 }).catch(() => ({ content: [] }))
       ]);
 
@@ -39,13 +38,12 @@ const Dashboard = () => {
       
       const recentRespostas = respRes.content.slice(0, 8);
       
-      // Fetch details for each question in the history
       const enrichedRespostas = await Promise.all(
         recentRespostas.map(async (r: Types.RespostaSummaryDto) => {
           try {
             const qDetail = await questaoService.getById(r.questaoId);
             return { ...r, questao: qDetail };
-          } catch (e) {
+          } catch {
             return r;
           }
         })
@@ -53,13 +51,12 @@ const Dashboard = () => {
 
       setRespostas(enrichedRespostas);
 
-      // Calculate weekly count (last 7 days)
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const count = respRes.content.filter((r: any) => new Date(r.createdAt) >= sevenDaysAgo).length;
+      const count = respRes.content.filter((r: Types.RespostaSummaryDto) => new Date(r.createdAt) >= sevenDaysAgo).length;
       setWeeklyCount(count);
-    } catch (error) {
-      console.error('Erro ao carregar dados do dashboard:', error);
+    } catch {
+      // Data load failed — empty states will display
     } finally {
       setLoading(false);
     }
@@ -80,80 +77,96 @@ const Dashboard = () => {
   const inProgressSimulado = simulados.find(s => s.startedAt && !s.finishedAt);
 
   return (
-    <div className="space-y-8">
-      <Header
-        title="Bem-vindo de volta, Estudante"
-        actions={
-          <div className="flex space-x-3">
-            <button
-              onClick={() => navigate('/praticar')}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all"
-            >
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Praticar
-            </button>
-          </div>
-        }
-      />
+    <div className="space-y-6 sm:space-y-8 lg:space-y-10">
+      <div className="animate-enter-1">
+        <Header
+          title="Bem-vindo de volta, Estudante"
+          actions={
+            <div className="flex space-x-3">
+              <button
+                onClick={() => navigate('/praticar')}
+                className={`inline-flex items-center px-4 py-2.5 sm:py-2 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
+                  inProgressSimulado
+                    ? 'border border-indigo-200 text-indigo-600 hover:bg-indigo-50 bg-transparent'
+                    : 'border border-transparent text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm'
+                }`}
+              >
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Praticar
+              </button>
+            </div>
+          }
+        />
+      </div>
 
       {/* Hero / Action Section */}
       {inProgressSimulado && (
-        <div className="bg-indigo-600 rounded-2xl shadow-sm overflow-hidden border border-indigo-500">
-          <div className="px-6 py-8 sm:px-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex-1">
-              <span className="px-3 py-1 rounded-full bg-indigo-500 text-indigo-100 text-xs font-bold uppercase tracking-wider mb-4 inline-block">
-                Em Andamento
-              </span>
-              <h3 className="text-2xl font-extrabold text-white mb-2">{inProgressSimulado.nome}</h3>
-              <p className="text-indigo-100 opacity-90 max-w-xl">
-                Você tem um simulado pendente. Continue de onde parou para manter seu ritmo de estudos!
-              </p>
+        <div className="animate-enter-2">
+          <div className="bg-indigo-600 rounded-2xl overflow-hidden relative hero-grid">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-transparent pointer-events-none" />
+            <div className="relative px-5 py-8 sm:px-8 sm:py-12 lg:px-12 flex flex-col md:flex-row md:items-center justify-between gap-6 sm:gap-8">
+              <div className="flex-1">
+                <span className="px-3 py-1 rounded-full bg-indigo-500/60 text-indigo-100 text-[0.6875rem] font-semibold uppercase tracking-[0.05em] mb-4 sm:mb-5 inline-block backdrop-blur-sm">
+                  Em Andamento
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-semibold tracking-[-0.03em] text-white leading-tight mb-2 sm:mb-3">{inProgressSimulado.nome}</h3>
+                <p className="text-indigo-200/70 text-sm leading-relaxed max-w-lg">
+                  Simulado pendente. Retome quando estiver pronto.
+                </p>
+              </div>
+              <button
+                onClick={() => navigate(`/simulados/${inProgressSimulado.id}`)}
+                className="inline-flex items-center px-6 py-3.5 sm:px-8 sm:py-4 bg-white text-indigo-600 rounded-xl font-semibold hover:bg-indigo-50 transition-colors shadow-sm whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-600"
+              >
+                Continuar Simulado
+                <ChevronRight className="ml-2 w-5 h-5" />
+              </button>
             </div>
-            <button
-              onClick={() => navigate(`/simulados/${inProgressSimulado.id}`)}
-              className="inline-flex items-center px-8 py-4 bg-white text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-sm"
-            >
-              Continuar Simulado
-              <ChevronRight className="ml-2 w-5 h-5" />
-            </button>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-10">
         {/* Main Column */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-8 space-y-6 sm:space-y-8 lg:space-y-10">
           
-          {/* Meus Simulados */}
-          <section className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-              <div className="flex items-center">
-                <div className="p-2 bg-indigo-100 rounded-lg mr-3">
-                  <ClipboardList className="w-5 h-5 text-indigo-600" />
-                </div>
-                <h2 className="text-lg font-bold text-gray-900">Meus Simulados Recentes</h2>
-              </div>
-              <Link to="/simulados" className="text-sm font-bold text-indigo-600 hover:text-indigo-700">Ver todos</Link>
+          {/* Meus Simulados — Primary Section */}
+          <section className="animate-enter-3">
+            <div className="flex items-baseline justify-between mb-4 sm:mb-5">
+              <h2 className="text-lg font-semibold text-gray-900 tracking-[-0.01em]">Meus Simulados</h2>
+              <Link to="/simulados" className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded">
+                Ver todos <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
-            <div className="divide-y divide-gray-100">
+            <div className="bg-white rounded-2xl border border-indigo-100/60 overflow-hidden divide-y divide-indigo-50/80">
               {simulados.length === 0 ? (
-                <div className="p-10 text-center text-gray-500">
-                  <p>Você ainda não gerou nenhum simulado.</p>
+                <div className="px-5 py-12 sm:px-8 sm:py-16 text-center">
+                  <ClipboardList className="w-10 h-10 text-indigo-200 mx-auto mb-4" />
+                  <p className="text-sm text-gray-500 mb-1">Nenhum simulado criado ainda.</p>
+                  <p className="text-xs text-gray-400 mb-4">Gere seu primeiro simulado a partir de uma prova ou disciplina.</p>
+                  <button
+                    onClick={() => navigate('/praticar')}
+                    className="mt-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded"
+                  >
+                    Criar simulado
+                  </button>
                 </div>
               ) : (
                 simulados.map((s) => (
-                  <div key={s.id} className="p-6 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div key={s.id} className={`px-4 sm:px-6 py-4 sm:py-5 hover:bg-indigo-50/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 ${s.startedAt && !s.finishedAt ? 'border-l-[3px] border-l-amber-400' : 'border-l-[3px] border-l-transparent'}`}>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-base font-bold text-gray-900 truncate mb-1">{s.nome}</h4>
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                        {s.banca && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">{s.banca.nome}</span>}
+                      <h4 className="text-sm font-medium text-gray-900 truncate">{s.nome}</h4>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs">
+                        {s.banca && (
+                          <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100/50">{s.banca.nome}</span>
+                        )}
                         {s.finishedAt ? (
-                          <span className="flex items-center text-green-600 font-medium">
+                          <span className="flex items-center text-emerald-600 font-medium">
                             <CheckCircle className="w-3 h-3 mr-1" /> Finalizado em {new Date(s.finishedAt).toLocaleDateString()}
                           </span>
                         ) : s.startedAt ? (
-                          <span className="flex items-center text-yellow-600 font-medium">
-                            <Clock className="w-3 h-3 mr-1" /> Em andamento
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium border border-amber-100">
+                            <Clock className="w-3 h-3" /> Em andamento
                           </span>
                         ) : (
                           <span className="text-gray-400 font-medium">Não iniciado</span>
@@ -162,9 +175,9 @@ const Dashboard = () => {
                     </div>
                     <button
                       onClick={() => navigate(`/simulados/${s.id}`)}
-                      className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                      className={`inline-flex items-center px-4 py-3 sm:py-2 rounded-lg text-sm font-medium transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 ${
                         s.finishedAt 
-                          ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+                          ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' 
                           : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
                       }`}
                     >
@@ -176,125 +189,145 @@ const Dashboard = () => {
             </div>
           </section>
 
-          {/* Atividade Recente (Histórico de Respostas) */}
-          <section className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-              <div className="flex items-center">
-                <div className="p-2 bg-orange-100 rounded-lg mr-3">
-                  <History className="w-5 h-5 text-orange-600" />
-                </div>
-                <h2 className="text-lg font-bold text-gray-900">Histórico de Questões</h2>
-              </div>
-            </div>
-            <div className="divide-y divide-gray-100">
+          {/* Histórico de Questões — Secondary Section */}
+          <section className="animate-enter-4">
+            <h2 className="text-base font-medium text-gray-500 mb-3 sm:mb-4">Histórico de Questões</h2>
+            <div className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden divide-y divide-gray-100/80">
               {respostas.length === 0 ? (
-                <div className="p-10 text-center text-gray-500">
-                  <p>Inicie seus estudos para ver seu histórico aqui.</p>
+                <div className="px-5 py-10 sm:px-8 sm:py-12 text-center">
+                  <p className="text-sm text-gray-400">Suas respostas aparecerão aqui após resolver questões.</p>
                 </div>
               ) : (
-                respostas.map((r) => (
-                  <div key={r.id} className="p-4 hover:bg-gray-50 transition-colors flex items-start gap-4">
-                    <div className={`mt-1 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${r.correta ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                      {r.correta ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[10px] font-black text-gray-400 uppercase">Questão #{r.questaoId}</span>
-                          {r.simuladoId && (
-                            <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase border border-indigo-100 flex items-center">
-                              <ClipboardList className="w-2.5 h-2.5 mr-1" /> Simulado
-                            </span>
+                respostas.map((r) => {
+                  const isExpanded = expandedResposta === r.id;
+                  return (
+                    <div key={r.id}>
+                      <button
+                        onClick={() => setExpandedResposta(isExpanded ? null : r.id)}
+                        className="w-full text-left px-4 sm:px-5 py-3 sm:py-3.5 hover:bg-gray-50/60 transition-colors flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset"
+                      >
+                        <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${r.correta ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-500 border border-red-100'}`}>
+                          {r.correta ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {r.questao ? (
+                            <p className="text-sm text-gray-700 truncate">
+                              <span className="font-medium">{r.questao.subtemas[0]?.disciplinaNome}</span>
+                              <span className="text-gray-400 mx-1.5">›</span>
+                              <span className="text-gray-500">{r.questao.subtemas[0]?.temaNome}</span>
+                            </p>
+                          ) : (
+                            <p className="text-sm text-gray-500">Questão #{r.questaoId}</p>
                           )}
                         </div>
-                        <span className="text-[10px] text-gray-400 font-medium">{formatDateTime(r.createdAt)}</span>
-                      </div>
-                      
-                      {r.questao && (
-                        <div className="mb-2">
-                          <p className="text-xs font-extrabold text-indigo-600 leading-tight mb-1">
-                            {r.questao.subtemas.map(s => `${s.disciplinaNome} › ${s.temaNome} › ${s.nome}`).join(' | ')}
-                          </p>
-                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">
-                            Nível: {(() => {
-                              const uniqueNiveis = Array.from(new Set((r.questao?.cargos || []).map(c => formatNivel(c.nivel))));
-                              if (uniqueNiveis.length === 0) return 'Não informado';
-                              if (uniqueNiveis.length === 1) return uniqueNiveis[0];
-                              const last = uniqueNiveis.pop();
-                              return `${uniqueNiveis.join(', ')} e ${last}`;
-                            })()}
-                          </p>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-xs text-gray-400">{formatDateTime(r.createdAt)}</span>
+                          <ChevronRight className={`w-3.5 h-3.5 text-gray-300 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="px-4 sm:px-5 pb-4 pt-1 bg-indigo-50/30 border-t border-indigo-50">
+                          <div className="flex flex-wrap gap-x-6 gap-y-2 sm:ml-10">
+                            <div>
+                              <span className="text-[0.6875rem] font-medium font-mono text-indigo-500 uppercase tracking-[0.05em]">Questão</span>
+                              <p className="text-xs text-gray-700 font-medium mt-0.5">#{r.questaoId}</p>
+                            </div>
+                            {r.simuladoId && (
+                              <div>
+                                <span className="text-[0.6875rem] font-medium font-mono text-indigo-500 uppercase tracking-[0.05em]">Simulado</span>
+                                <p className="text-xs text-indigo-600 font-medium mt-0.5">#{r.simuladoId}</p>
+                              </div>
+                            )}
+                            {r.questao && (
+                              <div>
+                                <span className="text-[0.6875rem] font-medium font-mono text-indigo-500 uppercase tracking-[0.05em]">Assunto</span>
+                                <p className="text-xs text-gray-600 mt-0.5">
+                                  {r.questao.subtemas.map(s => `${s.disciplinaNome} › ${s.temaNome} › ${s.nome}`).join(' | ')}
+                                </p>
+                              </div>
+                            )}
+                            {r.questao && (
+                              <div>
+                                <span className="text-[0.6875rem] font-medium font-mono text-indigo-500 uppercase tracking-[0.05em]">Nível</span>
+                                <p className="text-xs text-gray-700 font-medium mt-0.5">
+                                  {(() => {
+                                    const uniqueNiveis = Array.from(new Set((r.questao?.cargos || []).map(c => formatNivel(c.nivel))));
+                                    if (uniqueNiveis.length === 0) return 'Não informado';
+                                    if (uniqueNiveis.length === 1) return uniqueNiveis[0];
+                                    const last = uniqueNiveis.pop();
+                                    return `${uniqueNiveis.join(', ')} e ${last}`;
+                                  })()}
+                                </p>
+                              </div>
+                            )}
+                            <div>
+                              <span className="text-[0.6875rem] font-medium font-mono text-amber-600 uppercase tracking-[0.05em]">Dificuldade</span>
+                              <p className="text-xs text-gray-700 font-medium mt-0.5">{formatDificuldade(r.dificuldade)}</p>
+                            </div>
+                            <div>
+                              <span className="text-[0.6875rem] font-medium font-mono text-amber-600 uppercase tracking-[0.05em]">Tempo</span>
+                              <p className="text-xs text-gray-700 font-medium mt-0.5">{r.tempoRespostaSegundos}s</p>
+                            </div>
+                          </div>
                         </div>
                       )}
-
-                      <p className="text-xs text-gray-600 font-medium">
-                        Dificuldade: <span className="text-gray-900">{formatDificuldade(r.dificuldade)}</span> • 
-                        Tempo: <span className="text-gray-900">{r.tempoRespostaSegundos}s</span>
-                      </p>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </section>
         </div>
 
         {/* Sidebar Column */}
-        <div className="lg:col-span-4 space-y-8">
+        <div className="lg:col-span-4 space-y-6 sm:space-y-8">
           
-          {/* Provas e Concursos */}
-          <section className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                  <FileSignature className="w-5 h-5 text-blue-600" />
-                </div>
-                <h2 className="text-lg font-bold text-gray-900">Novas Provas</h2>
-              </div>
-            </div>
-            <div className="p-4 space-y-4">
+          {/* Provas — Tertiary, Flattened */}
+          <section className="animate-enter-4">
+            <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3 sm:mb-4">Provas Disponíveis</h2>
+            <div className="space-y-2">
               {concursos.map((c) => (
-                <div key={c.id} className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:border-blue-200 transition-all group">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">
-                      {c.banca.nome}
-                    </span>
-                    <span className="text-[10px] font-bold text-gray-400">{c.ano}</span>
+                <button
+                  key={c.id}
+                  onClick={() => navigate('/concursos')}
+                  className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:border-amber-200 hover:bg-amber-50/30 transition-colors group flex items-center justify-between cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-800 truncate group-hover:text-amber-800 transition-colors">{c.instituicao.nome}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      <span className="text-amber-600/70">{c.banca.nome}</span>
+                      <span className="mx-1">·</span>
+                      <span>{c.ano}</span>
+                    </p>
                   </div>
-                  <h4 className="text-sm font-bold text-gray-800 mb-3 group-hover:text-blue-700 transition-colors">{c.instituicao.nome}</h4>
-                  <button 
-                    onClick={() => navigate('/provas')}
-                    className="w-full py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all"
-                  >
-                    Ver Cargos
-                  </button>
-                </div>
+                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-amber-400 transition-colors shrink-0 ml-3" />
+                </button>
               ))}
-              <Link to="/provas" className="block text-center text-xs font-bold text-indigo-600 hover:underline pt-2">Ver todas as provas</Link>
+              <Link to="/concursos" className="block text-center text-xs font-medium text-indigo-600 hover:text-indigo-700 pt-2 pb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded">Ver todas as provas</Link>
             </div>
           </section>
 
-          {/* Quick Stats Placeholder or Tips */}
-          <section className="bg-indigo-800 rounded-2xl shadow-sm p-6 text-white">
-            <div className="flex items-center mb-4">
-              <Award className="w-6 h-6 mr-3 text-indigo-200" />
-              <h3 className="text-lg font-bold">Dica do Dia</h3>
+          {/* Weekly Progress — Brand Amber */}
+          <section className="animate-enter-5 bg-amber-50 rounded-2xl border border-amber-100 p-5 sm:p-6">
+            <div className="flex items-center gap-2.5 mb-1">
+              <TrendingUp className="w-5 h-5 text-amber-600" />
+              <h3 className="text-base font-semibold text-amber-900">Meta Semanal</h3>
             </div>
-            <p className="text-indigo-100 text-sm leading-relaxed italic">
-              "A constância é mais importante que a intensidade. Realize pelo menos um pequeno simulado todos os dias para manter seu cérebro treinado."
-            </p>
-            <div className="mt-6 pt-6 border-t border-indigo-500/50">
-              <div className="flex items-center justify-between text-xs font-bold text-indigo-200 mb-2">
-                <span>Meta Semanal</span>
-                <span>{weeklyCount}/50 Questões</span>
-              </div>
-              <div className="w-full bg-indigo-900/40 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-indigo-300 h-full rounded-full shadow-[0_0_8px_rgba(165,180,252,0.5)] transition-all duration-1000" 
-                  style={{ width: `${Math.min((weeklyCount / 50) * 100, 100)}%` }}
-                ></div>
-              </div>
+            <p className="text-xs text-amber-700/80 mb-5 sm:mb-6">Resolva 50 questões por semana para manter a retenção de conteúdo.</p>
+            
+            <div className="flex items-baseline justify-between mb-3">
+              <span className="text-4xl sm:text-5xl font-medium text-amber-900 tabular-nums font-mono tracking-[-0.03em] leading-none whitespace-nowrap">{weeklyCount}</span>
+              <span className="text-sm text-amber-600 whitespace-nowrap ml-2">/ 50 questões</span>
             </div>
+            <div className="w-full bg-amber-200/60 h-3 rounded-full overflow-hidden">
+              <div 
+                className="bg-amber-500 h-full rounded-full transition-all duration-1000" 
+                style={{ width: `${Math.min((weeklyCount / 50) * 100, 100)}%` }}
+              ></div>
+            </div>
+            {weeklyCount >= 50 && (
+              <p className="text-xs font-medium text-amber-700 mt-3">Meta semanal atingida.</p>
+            )}
           </section>
 
         </div>
