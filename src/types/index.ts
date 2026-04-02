@@ -14,6 +14,16 @@ export const NivelCargo = {
 export type NivelCargo = typeof NivelCargo[keyof typeof NivelCargo];
 
 /**
+ * Estatísticas de respostas por nível de dificuldade.
+ */
+export interface DificuldadeStatDto {
+  /** Total de questões respondidas neste nível de dificuldade (considerando apenas a resposta mais recente por questão). */
+  total: number;
+  /** Total de questões acertadas neste nível de dificuldade. */
+  corretas: number;
+}
+
+/**
  * DTO simplificado para listagem de disciplinas.
  */
 export interface DisciplinaSummaryDto {
@@ -21,6 +31,28 @@ export interface DisciplinaSummaryDto {
   id: number;
   /** Nome da disciplina. Example: "Direito Constitucional" */
   nome: string;
+  /** Total de sessões de estudo realizadas para todos os subtemas desta disciplina. */
+  totalEstudos: number;
+  /** Data e hora do último estudo realizado entre todos os subtemas desta disciplina (ISO string). */
+  ultimoEstudo?: string;
+  /** Total de temas nesta disciplina. */
+  totalTemas: number;
+  /** Total de subtemas nesta disciplina. */
+  totalSubtemas: number;
+  /** Número de temas onde todos os subtemas possuem pelo menos uma sessão de estudo. */
+  temasEstudados: number;
+  /** Número de subtemas que possuem pelo menos uma sessão de estudo. */
+  subtemasEstudados: number;
+  /** Total de questões associadas a esta disciplina (somando temas/subtemas). */
+  totalQuestoes: number;
+  /** Total de questões que possuem pelo menos uma resposta. */
+  questoesRespondidas: number;
+  /** Total de questões que possuem pelo menos uma resposta correta. */
+  questoesAcertadas: number;
+  /** Tempo médio de resposta em segundos. */
+  mediaTempoResposta?: number | null;
+  /** Estatísticas de respostas por nível de dificuldade (considerando apenas a resposta mais recente por questão). */
+  dificuldadeRespostas: Record<string, DificuldadeStatDto>;
 }
 
 /**
@@ -43,6 +75,24 @@ export interface TemaSummaryDto {
   nome: string;
   /** Nome da disciplina (para evitar lookups). */
   disciplinaNome?: string;
+  /** Total de sessões de estudo realizadas para todos os subtemas deste tema. */
+  totalEstudos: number;
+  /** Data e hora do último estudo realizado entre todos os subtemas deste tema (ISO string). */
+  ultimoEstudo?: string;
+  /** Total de subtemas neste tema. */
+  totalSubtemas: number;
+  /** Número de subtemas que possuem pelo menos uma sessão de estudo. */
+  subtemasEstudados: number;
+  /** Total de questões associadas a este tema (somando subtemas). */
+  totalQuestoes: number;
+  /** Total de questões que possuem pelo menos uma resposta. */
+  questoesRespondidas: number;
+  /** Total de questões que possuem pelo menos uma resposta correta. */
+  questoesAcertadas: number;
+  /** Tempo médio de resposta em segundos. */
+  mediaTempoResposta?: number | null;
+  /** Estatísticas de respostas por nível de dificuldade (considerando apenas a resposta mais recente por questão). */
+  dificuldadeRespostas: Record<string, DificuldadeStatDto>;
 }
 
 /**
@@ -57,6 +107,24 @@ export interface TemaDetailDto {
   nome: string;
   /** Lista de subtemas associados a este tema. */
   subtemas: SubtemaSummaryDto[];
+  /** Total de sessões de estudo realizadas para todos os subtemas deste tema. */
+  totalEstudos: number;
+  /** Data e hora do último estudo realizado entre todos os subtemas deste tema (ISO string). */
+  ultimoEstudo?: string;
+  /** Total de subtemas neste tema. */
+  totalSubtemas: number;
+  /** Número de subtemas que possuem pelo menos uma sessão de estudo. */
+  subtemasEstudados: number;
+  /** Total de questões associadas a este tema (somando subtemas). */
+  totalQuestoes: number;
+  /** Total de questões que possuem pelo menos uma resposta. */
+  questoesRespondidas: number;
+  /** Total de questões que possuem pelo menos uma resposta correta. */
+  questoesAcertadas: number;
+  /** Tempo médio de resposta em segundos. */
+  mediaTempoResposta?: number | null;
+  /** Estatísticas de respostas por nível de dificuldade (considerando apenas a resposta mais recente por questão). */
+  dificuldadeRespostas: Record<string, DificuldadeStatDto>;
 }
 
 /**
@@ -79,6 +147,16 @@ export interface SubtemaSummaryDto {
   totalEstudos: number;
   /** Data e hora do último estudo realizado (ISO string). */
   ultimoEstudo?: string;
+  /** Total de questões associadas a este subtema. */
+  totalQuestoes: number;
+  /** Total de questões que possuem pelo menos uma resposta. */
+  questoesRespondidas: number;
+  /** Total de questões que possuem pelo menos uma resposta correta. */
+  questoesAcertadas: number;
+  /** Tempo médio de resposta em segundos. */
+  mediaTempoResposta?: number | null;
+  /** Estatísticas de respostas por nível de dificuldade (considerando apenas a resposta mais recente por questão). */
+  dificuldadeRespostas: Record<string, DificuldadeStatDto>;
 }
 
 /**
@@ -95,6 +173,16 @@ export interface SubtemaDetailDto {
   totalEstudos: number;
   /** Data e hora do último estudo realizado (ISO string). */
   ultimoEstudo?: string;
+  /** Total de questões associadas a este subtema. */
+  totalQuestoes: number;
+  /** Total de questões que possuem pelo menos uma resposta. */
+  questoesRespondidas: number;
+  /** Total de questões que possuem pelo menos uma resposta correta. */
+  questoesAcertadas: number;
+  /** Tempo médio de resposta em segundos. */
+  mediaTempoResposta?: number | null;
+  /** Estatísticas de respostas por nível de dificuldade (considerando apenas a resposta mais recente por questão). */
+  dificuldadeRespostas: Record<string, DificuldadeStatDto>;
 }
 
 /**
