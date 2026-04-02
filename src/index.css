@@ -1,8 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Roboto Mono', monospace;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Brand Indigo */
+  --color-indigo-50: oklch(97% 0.02 264);
+  --color-indigo-100: oklch(93% 0.04 264);
+  --color-indigo-500: oklch(55% 0.20 264);
+  --color-indigo-600: oklch(45% 0.22 264);
+  --color-indigo-800: oklch(30% 0.15 264);
+  --color-indigo-900: oklch(20% 0.10 264);
+
+  /* Golden Amber */
+  --color-amber-50: oklch(97% 0.02 65);
+  --color-amber-100: oklch(93% 0.05 65);
+  --color-amber-400: oklch(80% 0.15 65);
+  --color-amber-500: oklch(73% 0.17 65);
+  --color-amber-800: oklch(45% 0.12 65);
+
+  /* Tinted Slate */
+  --color-slate-50: oklch(98% 0.005 264);
+  --color-slate-200: oklch(90% 0.010 264);
+  --color-slate-500: oklch(65% 0.015 264);
+  --color-slate-800: oklch(35% 0.015 264);
+  --color-slate-900: oklch(25% 0.015 264);
+
+  /* Semantic Feedback Palette */
+  --color-sage-50: oklch(95% 0.03 150);
+  --color-sage-500: oklch(75% 0.12 150);
+  --color-sage-700: oklch(40% 0.10 150);
+  
+  --color-terracotta-50: oklch(95% 0.03 25);
+  --color-terracotta-500: oklch(65% 0.16 25);
+  --color-terracotta-700: oklch(40% 0.10 25);
 }
 
 @keyframes slide-in {

@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Header from '@/components/Header';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { disciplinaService, ApiError } from '@/services/api';
 import * as Types from '@/types';
-import { BookOpen, AlertCircle, RotateCcw, Loader2, ChevronRight, Clock, CheckCircle2, Target } from 'lucide-react';
+import { BookOpen, AlertCircle, RotateCcw, Search, ChevronRight, ChevronLeft, X } from 'lucide-react';
 
-// ─── Refined Categorical Palette ────────────────────────────────────────────
+// ─── Tonal Indigo Palette ───────────────────────────────────────────────────
 const HUE = [
-  { iconBg: 'bg-indigo-100', iconFg: 'text-indigo-700', bar: 'bg-indigo-500' },
-  { iconBg: 'bg-emerald-100', iconFg: 'text-emerald-700', bar: 'bg-emerald-500' },
-  { iconBg: 'bg-rose-100', iconFg: 'text-rose-700', bar: 'bg-rose-500' },
-  { iconBg: 'bg-amber-100', iconFg: 'text-amber-800', bar: 'bg-amber-500' },
-  { iconBg: 'bg-sky-100', iconFg: 'text-sky-700', bar: 'bg-sky-500' },
-  { iconBg: 'bg-fuchsia-100', iconFg: 'text-fuchsia-700', bar: 'bg-fuchsia-500' },
+  { iconBg: 'bg-indigo-100', iconFg: 'text-indigo-800', bar: 'bg-indigo-500' },
+  { iconBg: 'bg-indigo-50',  iconFg: 'text-indigo-600', bar: 'bg-indigo-600' },
+  { iconBg: 'bg-amber-50',   iconFg: 'text-amber-800',  bar: 'bg-amber-500' },
+  { iconBg: 'bg-indigo-100', iconFg: 'text-indigo-900', bar: 'bg-indigo-800' },
+  { iconBg: 'bg-amber-100',  iconFg: 'text-amber-700',  bar: 'bg-amber-400' },
+  { iconBg: 'bg-indigo-50',  iconFg: 'text-indigo-500', bar: 'bg-indigo-500' },
 ] as const;
 
 function getHue(id: number) {
@@ -44,6 +43,23 @@ const formatRelativeTime = (dateString: string) => {
   return date.toLocaleDateString('pt-BR');
 };
 
+// ─── Pagination helpers ─────────────────────────────────────────────────────
+function buildPages(current: number, total: number): (number | '...')[] {
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i);
+
+  const pages: (number | '...')[] = [0];
+
+  const start = Math.max(1, current - 1);
+  const end = Math.min(total - 2, current + 1);
+
+  if (start > 1) pages.push('...');
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < total - 2) pages.push('...');
+
+  pages.push(total - 1);
+  return pages;
+}
+
 // ─── Skeleton Card ──────────────────────────────────────────────────────────
 const SkeletonCard = () => (
   <div className="flex flex-col bg-white border border-slate-200 rounded-2xl p-5">
@@ -56,33 +72,19 @@ const SkeletonCard = () => (
     </div>
 
     <div className="space-y-2 mb-6">
-      <div className="flex justify-between">
-        <div className="h-3 w-24 bg-slate-100 rounded animate-pulse" />
-        <div className="h-3 w-8 bg-slate-100 rounded animate-pulse" />
-      </div>
+      <div className="h-3 w-24 bg-slate-100 rounded animate-pulse" />
       <div className="h-2 w-full bg-slate-100 rounded-full animate-pulse" />
     </div>
 
-    {/* Skeleton for Performance Block */}
-    <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-5">
-      <div className="h-4 w-32 bg-slate-200 rounded mb-4 animate-pulse" />
-      <div className="grid grid-cols-2 gap-4 divide-x divide-slate-200">
-        <div>
-          <div className="h-3 w-20 bg-slate-200 rounded mb-2 animate-pulse" />
-          <div className="h-6 w-12 bg-slate-200 rounded mb-2 animate-pulse" />
-          <div className="h-2.5 w-full bg-slate-200 rounded animate-pulse" />
-        </div>
-        <div className="pl-4">
-          <div className="h-3 w-24 bg-slate-200 rounded mb-2 animate-pulse" />
-          <div className="h-6 w-12 bg-slate-200 rounded mb-2 animate-pulse" />
-          <div className="h-2.5 w-full bg-slate-200 rounded animate-pulse" />
-        </div>
+    <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 grid grid-cols-[0.9fr_1.1fr] gap-4">
+      <div className="flex flex-col items-center space-y-2">
+        <div className="h-2.5 w-10 bg-slate-200 rounded animate-pulse" />
+        <div className="h-4 w-8 bg-slate-200 rounded animate-pulse" />
       </div>
-    </div>
-
-    <div className="pt-4 border-t border-slate-100 flex justify-between">
-      <div className="h-3 w-24 bg-slate-100 rounded animate-pulse" />
-      <div className="h-3 w-16 bg-slate-100 rounded animate-pulse" />
+      <div className="flex flex-col items-center space-y-2 border-l border-slate-200 pl-4">
+        <div className="h-2.5 w-16 bg-slate-200 rounded animate-pulse" />
+        <div className="h-4 w-20 bg-slate-200 rounded animate-pulse" />
+      </div>
     </div>
   </div>
 );
@@ -90,219 +92,240 @@ const SkeletonCard = () => (
 // ─── Page ────────────────────────────────────────────────────────────────────
 const DisciplinasPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const urlPage = Number(searchParams.get('page')) || 0;
+  const urlQuery = searchParams.get('q') || '';
 
   const [disciplinas, setDisciplinas] = useState<Types.DisciplinaSummaryDto[]>([]);
-  const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
 
-  const [loadingInitial, setLoadingInitial] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Local input value — only committed to URL on submit
+  const [inputValue, setInputValue] = useState(urlQuery);
+
+  // Sync input when URL query changes (e.g. browser back/forward)
   useEffect(() => {
-    loadInitial();
-  }, []);
+    setInputValue(urlQuery);
+  }, [urlQuery]);
 
-  const loadInitial = async () => {
-    setLoadingInitial(true);
-    setError(null);
-    try {
-      const res = await disciplinaService.getAll({ page: 0, size: 15 });
-      setDisciplinas(res.content);
-      setTotalPages(res.totalPages);
-      setTotalElements(res.totalElements);
-      setPage(0);
-    } catch (err: unknown) {
-      setError(err instanceof ApiError ? err.message : 'Verifique sua conexão e tente novamente.');
-    } finally {
-      setLoadingInitial(false);
+  const submitSearch = () => {
+    const next = new URLSearchParams(searchParams);
+    if (inputValue) {
+      next.set('q', inputValue);
+    } else {
+      next.delete('q');
     }
+    next.set('page', '0');
+    setSearchParams(next);
   };
 
-  const loadMore = async () => {
-    if (page >= totalPages - 1 || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const nextPage = page + 1;
-      const res = await disciplinaService.getAll({ page: nextPage, size: 15 });
-      setDisciplinas(prev => [...prev, ...res.content]);
-      setPage(nextPage);
-    } catch (err) {
-      console.error('Failed to load more disciplines', err);
-    } finally {
-      setLoadingMore(false);
-    }
+  const clearSearch = () => {
+    setInputValue('');
+    const next = new URLSearchParams(searchParams);
+    next.delete('q');
+    next.set('page', '0');
+    setSearchParams(next);
   };
 
-  const hasMore = page < totalPages - 1;
+  // Fetch whenever URL page or query changes
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetch = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await disciplinaService.getAll({
+          page: urlPage,
+          size: 15,
+          nome: urlQuery || undefined,
+        });
+        if (cancelled) return;
+        setDisciplinas(res.content);
+        setTotalPages(res.totalPages);
+        setTotalElements(res.totalElements);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setError(err instanceof ApiError ? err.message : 'Erro ao carregar disciplinas.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetch();
+    return () => { cancelled = true; };
+  }, [urlPage, urlQuery]);
+
+  const currentPage = urlPage;
+  const hasResults = disciplinas.length > 0;
+  const isSearching = urlQuery.length > 0;
+  const showToolbar = !loading && (hasResults || isSearching);
+
+  const goToPage = (p: number) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('page', String(p));
+    setSearchParams(next);
+  };
+
+  const retry = () => {
+    setSearchParams(searchParams);
+  };
 
   return (
-    <div className="min-h-screen pb-24 bg-slate-50 font-sans text-slate-900 antialiased">
-      <Header
-        title="Disciplinas"
-        actions={
-          !loadingInitial && totalElements > 0 && (
-            <span className="text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-100/50 px-2.5 py-0.5 rounded-full">
-              {totalElements} cadastradas
+    <div className="min-h-screen pb-24 bg-slate-50 font-sans text-slate-800 antialiased">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
+
+        {/* Toolbar */}
+        {showToolbar && (
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <form onSubmit={(e) => { e.preventDefault(); submitSearch(); }} className="relative w-full max-w-sm">
+              <input
+                type="text"
+                placeholder="Buscar disciplina..."
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                className="w-full pl-4 pr-16 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors placeholder:text-slate-400 text-slate-800"
+              />
+              {inputValue && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="absolute right-9 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button
+                type="submit"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-indigo-500 transition-colors cursor-pointer"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </form>
+            <span className="text-sm font-medium text-slate-500 whitespace-nowrap">
+              {totalElements} {totalElements === 1 ? 'disciplina' : 'disciplinas'}
             </span>
-          )
-        }
-      />
+          </div>
+        )}
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-12">
-        {/* ── Page Headline ──────────────────────────────────────────────── */}
-        <div className="mb-10 max-w-2xl">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 mb-3">
-            Suas disciplinas
-          </h1>
-          <p className="text-base text-slate-500 leading-relaxed">
-            Selecione uma disciplina para gerenciar seus tópicos, registrar sessões de estudo e acompanhar seu desempenho nas questões.
-          </p>
-        </div>
-
-        {/* ── Error Banner ───────────────────────────────────────────────── */}
+        {/* Error Banner */}
         {error && (
           <div className="mb-8 flex items-start gap-3 bg-rose-50 border border-rose-200 rounded-xl p-4 text-sm text-rose-800">
             <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-600" />
             <div className="flex-1">
-              <p className="font-medium text-rose-900 mb-1">Não foi possível carregar as disciplinas</p>
+              <p className="font-medium text-rose-900 mb-1">Erro de conexão</p>
               <p className="text-rose-700 opacity-90">{error}</p>
             </div>
-            <button
-              onClick={loadInitial}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-700 bg-rose-100/50 hover:bg-rose-100 rounded-md transition-colors"
-            >
+            <button onClick={retry} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-700 bg-rose-100/50 hover:bg-rose-100 rounded-md transition-colors">
               <RotateCcw className="w-3.5 h-3.5" />
               Tentar novamente
             </button>
           </div>
         )}
 
-        {/* ── Empty State ────────────────────────────────────────────────── */}
-        {!loadingInitial && !error && disciplinas.length === 0 && (
+        {/* Empty State */}
+        {!loading && !error && !hasResults && (
           <div className="py-20 px-6 text-center border border-slate-200 rounded-xl bg-white shadow-sm">
             <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <BookOpen className="w-8 h-8 text-indigo-400" />
             </div>
-            <p className="text-base font-medium text-slate-900 mb-1">Sem disciplinas</p>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto">
-              As disciplinas que você está estudando aparecerão aqui.
-            </p>
+            {isSearching ? (
+              <>
+                <p className="text-base font-medium text-slate-900 mb-1">Nenhuma disciplina encontrada</p>
+                <p className="text-sm text-slate-500 max-w-sm mx-auto">
+                  Nenhuma disciplina corresponde a "<span className="font-medium">{urlQuery}</span>". Tente outro termo.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-base font-medium text-slate-900 mb-1">Sem disciplinas</p>
+                <p className="text-sm text-slate-500 max-w-sm mx-auto">Sua lista de matérias aparecerá aqui.</p>
+              </>
+            )}
           </div>
         )}
 
-        {/* ── Cards Grid ─────────────────────────────────────────────────── */}
+        {/* Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loadingInitial ? (
+          {loading ? (
             Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
           ) : (
             disciplinas.map(d => {
               const hue = getHue(d.id);
-              const respondidas = d.questoesRespondidas;
-              const acertadas = d.questoesAcertadas;
-              const accuracy = respondidas > 0 ? Math.round((acertadas / respondidas) * 100) : 0;
               const progress = d.totalSubtemas > 0 ? Math.round((d.subtemasEstudados / d.totalSubtemas) * 100) : 0;
-              
+
+              const accuracy = d.questoesRespondidas > 0 ? (d.questoesAcertadas / d.questoesRespondidas) * 100 : 0;
+              const performanceColor = d.questoesRespondidas > 0
+                ? (accuracy >= 70 ? 'text-emerald-600' : accuracy >= 50 ? 'text-amber-500' : 'text-rose-600')
+                : 'text-slate-300';
+
               return (
                 <button
                   key={d.id}
                   onClick={() => navigate(`/disciplinas/${d.id}`)}
-                  className="group flex flex-col text-left bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-300 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  className="group flex flex-col text-left cursor-pointer bg-white border border-slate-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300 outline-none"
                 >
-                  {/* Cabeçalho do Card */}
+                  {/* Card Header */}
                   <div className="flex items-start gap-4 mb-6">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-bold flex-shrink-0 shadow-sm ${hue.iconBg} ${hue.iconFg}`}>
                       {getInitials(d.nome)}
                     </div>
-                    <div>
-                      <h3 className="text-base font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-2 leading-snug mb-1">
-                        {d.nome}
-                      </h3>
-                      <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                        {d.ultimoEstudo ? (
-                          <>
-                            <Clock className="w-3.5 h-3.5 text-slate-400" />
-                            <span>Último estudo: {formatRelativeTime(d.ultimoEstudo)}</span>
-                          </>
-                        ) : (
-                          <span className="text-slate-400 italic">Nenhum estudo registrado</span>
-                        )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-2 leading-tight mb-1">
+                          {d.nome}
+                        </h3>
+                        <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
                       </div>
                     </div>
                   </div>
 
-                  {/* Barra de Progresso de Tópicos */}
+                  {/* Topic Progress Bar */}
                   <div className="mb-5">
                     <div className="flex justify-between items-end mb-2">
-                      <span className="text-xs font-medium text-slate-600">
-                        Tópicos estudados
-                        <span className="text-slate-400 font-normal ml-1">({d.subtemasEstudados}/{d.totalSubtemas})</span>
-                      </span>
-                      {progress === 100 ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      ) : (
-                        <span className="text-sm font-bold text-slate-900">{progress}%</span>
-                      )}
+                      <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Progresso do Edital</span>
+                      <span className="text-sm font-bold text-slate-900 font-mono tracking-tight">{progress}%</span>
                     </div>
-                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-500 ${hue.bar}`} 
-                        style={{ width: `${progress}%` }} 
-                      />
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full transition-all duration-700 ${hue.bar}`} style={{ width: `${progress}%` }} />
                     </div>
                   </div>
 
-                  {/* Bloco Unificado e Informativo de Desempenho */}
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-5 group-hover:bg-indigo-50/30 group-hover:border-indigo-100/60 transition-colors">
-                    <div className="flex items-center gap-1.5 mb-3">
-                      <Target className="w-4 h-4 text-indigo-400" />
-                      <span className="text-xs font-semibold text-slate-700">Desempenho nas questões</span>
-                    </div>
-                    
-                    {respondidas > 0 ? (
-                      <div className="grid grid-cols-2 gap-4 divide-x divide-slate-200/80">
-                        {/* Coluna 1: Precisão */}
-                        <div>
-                          <div className="text-[11px] font-medium text-slate-500 mb-0.5">Taxa de acertos</div>
-                          <div className="flex items-baseline mb-1">
-                            <span className={`text-xl font-bold tracking-tight ${accuracy >= 70 ? 'text-emerald-600' : accuracy >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>
-                              {accuracy}%
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 leading-snug">
-                            <strong className="font-semibold text-slate-700">{acertadas}</strong> corretas de <strong className="font-semibold text-slate-700">{respondidas}</strong> respondidas
-                          </p>
-                        </div>
+                  {/* Performance Block */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 mt-auto group-hover:bg-white group-hover:border-indigo-100 transition-colors">
+                    <div className="grid grid-cols-[0.9fr_1.1fr] gap-0 divide-x divide-slate-200">
 
-                        {/* Coluna 2: Velocidade */}
-                        <div className="pl-4">
-                          <div className="text-[11px] font-medium text-slate-500 mb-0.5">Ritmo de resolução</div>
-                          <div className="flex items-baseline mb-1">
-                            <span className="text-xl font-bold tracking-tight text-slate-900">
-                              {d.mediaTempoResposta ? `${Math.round(d.mediaTempoResposta)}s` : '—'}
-                            </span>
+                      {/* Column 1: Questões */}
+                      <div className="flex flex-col items-center text-center pr-4">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Questões</span>
+                        {d.questoesRespondidas > 0 ? (
+                          <div className={`text-sm font-bold font-mono tracking-tighter ${performanceColor}`}>
+                            {d.questoesAcertadas}<span className="text-[10px] text-slate-400 mx-0.5">/</span>{d.questoesRespondidas}
                           </div>
-                          <p className="text-[10px] text-slate-500 leading-snug">
-                            Tempo médio gasto por questão
-                          </p>
+                        ) : (
+                          <span className="text-sm font-bold text-slate-300 font-mono">—</span>
+                        )}
+                      </div>
+
+                      {/* Column 2: Último Estudo */}
+                      <div className="flex flex-col items-center text-center pl-4">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Último Estudo</span>
+                        <div className="flex items-center">
+                          {d.ultimoEstudo ? (
+                            <span className="text-xs font-bold text-slate-700 leading-tight">
+                              {formatRelativeTime(d.ultimoEstudo)}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-medium text-slate-400 italic leading-tight">Não estudado</span>
+                          )}
                         </div>
                       </div>
-                    ) : (
-                      <div className="py-2.5 text-center bg-white/60 rounded-lg border border-slate-100 border-dashed">
-                        <p className="text-xs font-medium text-slate-600 mb-0.5">Sem histórico de questões</p>
-                        <p className="text-[10px] text-slate-400">Pratique para visualizar suas métricas</p>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Rodapé de Ação Invisível que surge/escurece no hover */}
-                  <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between opacity-70 group-hover:opacity-100 transition-opacity">
-                    <span className="text-[11px] font-medium text-slate-500">
-                      Ver painel completo
-                    </span>
-                    <div className="flex items-center text-[11px] font-bold text-indigo-600 uppercase tracking-wide">
-                      Acessar <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
                     </div>
                   </div>
                 </button>
@@ -311,24 +334,48 @@ const DisciplinasPage = () => {
           )}
         </div>
 
-        {/* ── Pagination ─────────────────────────────────────────────────── */}
-        {!loadingInitial && hasMore && (
-          <div className="mt-10 flex justify-center">
+        {/* Pagination */}
+        {!loading && totalPages > 1 && (
+          <nav className="mt-10 flex items-center justify-center gap-1">
+            {/* Prev */}
             <button
-              onClick={loadMore}
-              disabled={loadingMore}
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-medium text-indigo-700 bg-white border border-slate-200 rounded-full hover:bg-indigo-50 hover:border-indigo-200 transition-colors disabled:opacity-50 shadow-sm"
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 0}
+              className="flex items-center justify-center w-9 h-9 rounded-lg text-sm font-medium text-slate-600 hover:bg-white hover:border-slate-200 border border-transparent transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              {loadingMore ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-                  Carregando...
-                </>
-              ) : (
-                'Carregar mais disciplinas'
-              )}
+              <ChevronLeft className="w-4 h-4" />
             </button>
-          </div>
+
+            {/* Page Numbers */}
+            {buildPages(currentPage, totalPages).map((item, i) =>
+              item === '...' ? (
+                <span key={`ellipsis-${i}`} className="w-9 h-9 flex items-center justify-center text-sm text-slate-400">
+                  …
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  onClick={() => goToPage(item)}
+                  className={`flex items-center justify-center w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                    item === currentPage
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:bg-white hover:border-slate-200 border border-transparent'
+                  }`}
+                >
+                  {item + 1}
+                </button>
+              )
+            )}
+
+            {/* Next */}
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage >= totalPages - 1}
+              className="flex items-center justify-center w-9 h-9 rounded-lg text-sm font-medium text-slate-600 hover:bg-white hover:border-slate-200 border border-transparent transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </nav>
         )}
       </div>
     </div>

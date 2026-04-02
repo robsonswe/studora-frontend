@@ -27,7 +27,7 @@ const Layout = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-slate-50">
       {/* Mobile sidebar */}
       {sidebarOpen && (
         <div 
@@ -118,22 +118,22 @@ const Layout = () => {
       {/* Main content */}
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Top navigation bar */}
-        <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 shadow-sm z-10">
+        <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 shadow-sm z-10">
           <div className="flex items-center">
             <button 
-              className="mr-4 text-gray-500 lg:hidden hover:bg-gray-100 p-1 rounded-md transition-colors"
+              className="mr-4 text-slate-500 lg:hidden hover:bg-slate-100 p-1 rounded-md transition-colors"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu className="h-6 w-6" />
             </button>
-            <h2 className="text-lg font-bold text-gray-800">
-              {navItems.find(i => i.path === location.pathname)?.label || 'App'}
+            <h2 className="text-lg font-bold text-slate-800">
+              {navItems.find(i => location.pathname === i.path || (i.path !== '/' && location.pathname.startsWith(i.path)))?.label || 'Studora'}
             </h2>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-gray-50">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-slate-50">
           <Outlet />
         </main>
       </div>

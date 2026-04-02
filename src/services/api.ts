@@ -115,7 +115,7 @@ export const disciplinaService = {
    * Obter todas as disciplinas.
    * Retorna uma página com todas as disciplinas cadastradas.
    */
-  getAll: (params?: Types.PaginationParams): Promise<Types.PageResponse<Types.DisciplinaSummaryDto>> => 
+  getAll: (params?: Types.PaginationParams & { nome?: string }): Promise<Types.PageResponse<Types.DisciplinaSummaryDto>> => 
     apiCall(`/disciplinas${buildQueryString(params)}`),
   
   /**
