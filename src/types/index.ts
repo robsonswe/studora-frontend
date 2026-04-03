@@ -35,6 +35,8 @@ export interface DisciplinaSummaryDto {
   totalEstudos: number;
   /** Data e hora do último estudo realizado entre todos os subtemas desta disciplina (ISO string). */
   ultimoEstudo?: string;
+  /** Data e hora da última questão respondida entre todos os subtemas desta disciplina (ISO string). */
+  ultimaQuestao?: string;
   /** Total de temas nesta disciplina. */
   totalTemas: number;
   /** Total de subtemas nesta disciplina. */
@@ -79,6 +81,8 @@ export interface TemaSummaryDto {
   totalEstudos: number;
   /** Data e hora do último estudo realizado entre todos os subtemas deste tema (ISO string). */
   ultimoEstudo?: string;
+  /** Data e hora da última questão respondida entre todos os subtemas deste tema (ISO string). */
+  ultimaQuestao?: string;
   /** Total de subtemas neste tema. */
   totalSubtemas: number;
   /** Número de subtemas que possuem pelo menos uma sessão de estudo. */
@@ -111,6 +115,8 @@ export interface TemaDetailDto {
   totalEstudos: number;
   /** Data e hora do último estudo realizado entre todos os subtemas deste tema (ISO string). */
   ultimoEstudo?: string;
+  /** Data e hora da última questão respondida entre todos os subtemas deste tema (ISO string). */
+  ultimaQuestao?: string;
   /** Total de subtemas neste tema. */
   totalSubtemas: number;
   /** Número de subtemas que possuem pelo menos uma sessão de estudo. */
@@ -147,6 +153,8 @@ export interface SubtemaSummaryDto {
   totalEstudos: number;
   /** Data e hora do último estudo realizado (ISO string). */
   ultimoEstudo?: string;
+  /** Data e hora da última questão respondida (ISO string). */
+  ultimaQuestao?: string;
   /** Total de questões associadas a este subtema. */
   totalQuestoes: number;
   /** Total de questões que possuem pelo menos uma resposta. */
@@ -173,6 +181,8 @@ export interface SubtemaDetailDto {
   totalEstudos: number;
   /** Data e hora do último estudo realizado (ISO string). */
   ultimoEstudo?: string;
+  /** Data e hora da última questão respondida (ISO string). */
+  ultimaQuestao?: string;
   /** Total de questões associadas a este subtema. */
   totalQuestoes: number;
   /** Total de questões que possuem pelo menos uma resposta. */
@@ -208,6 +218,11 @@ export interface BancaSummaryDto {
 }
 
 /**
+ * DTO detalhado para visualização de uma banca.
+ */
+export interface BancaDetailDto extends BancaSummaryDto {}
+
+/**
  * DTO simplificado para listagem de instituições.
  */
 export interface InstituicaoSummaryDto {
@@ -218,6 +233,11 @@ export interface InstituicaoSummaryDto {
   /** Área de atuação da instituição. Example: "Judiciária" */
   area: string;
 }
+
+/**
+ * DTO detalhado para visualização de uma instituição.
+ */
+export interface InstituicaoDetailDto extends InstituicaoSummaryDto {}
 
 /**
  * DTO simplificado para listagem de cargos.
@@ -447,7 +467,7 @@ export interface QuestaoSummaryDto {
   cargos: CargoSummaryDto[];
   /** Alternativas da questão. */
   alternativas: AlternativaDto[];
-  /** Histórico recente de respostas para esta questão. */
+  /** Histórico recente de respostas para esta questão. (Visível apenas se respondida recentemente ou admin). */
   respostas?: RespostaSummaryDto[];
 }
 
@@ -479,9 +499,9 @@ export interface QuestaoDetailDto {
   cargoIds?: number[];
   /** Alternativas da questão. */
   alternativas: AlternativaDto[];
-  /** Resumo da resposta mais recente do usuário para esta questão. */
+  /** Resumo da resposta mais recente do usuário para esta questão. (Visível apenas se respondida recentemente ou admin). */
   resposta?: RespostaSummaryDto;
-  /** Histórico completo de respostas recentes. */
+  /** Histórico completo de respostas recentes. (Visível apenas se respondida recentemente ou admin). */
   respostas?: RespostaSummaryDto[];
 }
 

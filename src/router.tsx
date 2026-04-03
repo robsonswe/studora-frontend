@@ -12,6 +12,7 @@ import DisciplinasPage from '@/pages/DisciplinasPage';
 import DisciplinaDetailPage from '@/pages/DisciplinaDetailPage';
 import AdminLayout from '@/components/AdminLayout';
 import ConcursosPage from '@/pages/ConcursosPage';
+import ConcursoCargoDetailPage from '@/pages/ConcursoCargoDetailPage';
 import DisciplinasAdminPage from '@/pages/admin/DisciplinasPage';
 import ConcursosAdminPage from '@/pages/admin/ConcursosPage';
 import TemasPage from '@/pages/admin/TemasPage';
@@ -56,6 +57,10 @@ export const router = createBrowserRouter([
         element: <ConcursosPage />,
       },
       {
+        path: '/concursos/:concursoId/cargos/:cargoId',
+        element: <ConcursoCargoDetailPage />,
+      },
+      {
         path: '/provas/executar',
         element: <ProvaDetailPage />,
       },
@@ -79,7 +84,7 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <QuestoesPage />, // Default admin page
+        element: <QuestoesPage />,
       },
       {
         path: 'disciplinas',

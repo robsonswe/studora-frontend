@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import { useForm } from 'react-hook-form';
@@ -21,149 +21,17 @@ import {
   AlertCircle,
   SlidersHorizontal,
   ChevronRight,
-  Clock,
-  BookMarked,
+  Calendar,
   X
 } from 'lucide-react';
 
 type ConcursoDto = Types.ConcursoSummaryDto;
-type TopicoDto = Types.SubtemaSummaryDto;
-
 
 interface Toast {
   id: number;
   type: 'success' | 'error';
   message: string;
 }
-
-const TopicsModal = ({ 
-  isOpen, 
-  onClose, 
-  cargoNome, 
-  topicos 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  cargoNome: string; 
-  topicos: TopicoDto[];
-}) => {
-  const groupedTopicos = useMemo(() => {
-    const grouped: Record<string, Record<string, TopicoDto[]>> = {};
-    
-    topicos.forEach(topico => {
-      const disc = topico.disciplinaNome || 'Outras Disciplinas';
-      const tema = topico.temaNome || 'Geral';
-      
-      if (!grouped[disc]) grouped[disc] = {};
-      if (!grouped[disc][tema]) grouped[disc][tema] = [];
-      
-      grouped[disc][tema].push(topico);
-    });
-    
-    return grouped;
-  }, [topicos]);
-
-  if (!isOpen) return null;
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Nunca estudado';
-    return new Intl.DateTimeFormat('pt-BR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(dateStr));
-  };
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
-      <div 
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
-        onClick={onClose}
-      />
-      <div className="relative bg-white w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-sm overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
-          <div className="space-y-1">
-            <h3 className="text-lg font-bold text-slate-900 tracking-tight">Conteúdo Programático</h3>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">{cargoNome}</p>
-          </div>
-          <button 
-            onClick={onClose}
-            className="p-2 -mr-2 rounded-xl hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition-all active:scale-90"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
-          {Object.entries(groupedTopicos).length > 0 ? (
-            Object.entries(groupedTopicos).map(([disciplina, temas]) => (
-              <div key={disciplina} className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-px flex-1 bg-slate-100" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 bg-indigo-50/50 px-3 py-1 rounded-full border border-indigo-100/50">
-                    {disciplina}
-                  </span>
-                  <div className="h-px flex-1 bg-slate-100" />
-                </div>
-
-                <div className="space-y-6">
-                  {Object.entries(temas).map(([tema, subtopicos]) => (
-                    <div key={tema} className="space-y-3">
-                      <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                        <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-                        {tema}
-                      </h4>
-                      <div className="grid grid-cols-1 gap-2 pl-5">
-                        {subtopicos.map(topico => (
-                          <div 
-                            key={topico.id} 
-                            className="group p-3 rounded-xl border border-slate-100 bg-slate-50/30 hover:border-indigo-100 hover:bg-white transition-all duration-200"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <p className="text-sm font-semibold text-slate-600 group-hover:text-slate-900 transition-colors">
-                                {topico.nome}
-                              </p>
-                              <div className="flex items-center gap-1 text-emerald-600">
-                                <span className="text-[10px] font-bold">{topico.totalEstudos}</span>
-                                <BookMarked className="w-3 h-3" />
-                              </div>
-                            </div>
-                            <div className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
-                              <Clock className="w-2.5 h-2.5" />
-                              <span>Último estudo: {formatDate(topico.ultimoEstudo)}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="py-12 text-center space-y-3">
-              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
-                <BookOpen className="w-6 h-6" />
-              </div>
-              <p className="text-sm font-medium text-slate-400">Nenhum tópico cadastrado para este cargo.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30 text-center shrink-0">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            {topicos.length} tópicos identificados
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const ConcursosPage = () => {
   const navigate = useNavigate();
@@ -183,7 +51,6 @@ const ConcursosPage = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [selectedCargoTopicos, setSelectedCargoTopicos] = useState<{ nome: string; topicos: TopicoDto[] } | null>(null);
 
   const { setValue, watch, reset } = useForm({
     defaultValues: {
@@ -349,13 +216,13 @@ const ConcursosPage = () => {
 
   return (
     <div className="space-y-8 pb-20">
-      <Header 
-        title="Explorar Concursos" 
+      <Header
+        title="Explorar Concursos"
         actions={
           <div className="text-sm font-medium text-slate-500 max-w-xs text-right hidden sm:block leading-relaxed">
             Encontre editais, organize suas inscrições e pratique com provas anteriores.
           </div>
-        } 
+        }
       />
 
       {/* Toast Notifications */}
@@ -500,7 +367,7 @@ const ConcursosPage = () => {
 
           <div
             className={`grid transition-all duration-300 ease-in-out ${
-              showAdvancedFilters ? 'grid-rows-[1fr] opacity-100 mt-4 sm:mt-8 pt-4 sm:pt-8 border-t border-slate-100' : 'grid-rows-[0fr] opacity-0'
+              showAdvancedFilters ? 'grid-rows-[1fr] opacity-100 mt-6' : 'grid-rows-[0fr] opacity-0 mt-0'
             }`}
           >
             <div className="overflow-hidden">
@@ -539,11 +406,11 @@ const ConcursosPage = () => {
         </div>
       </div>
 
-      {/* Mobile filter bottom sheet */}
+      {/* Mobile filter drawer */}
       {showMobileFilters && (
-        <div className="fixed inset-0 z-55 sm:hidden">
+        <div className="sm:hidden fixed inset-0 z-50">
           <div
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             onClick={() => setShowMobileFilters(false)}
           />
           <div className="fixed bottom-0 inset-x-0 bg-white rounded-t-2xl max-h-[85vh] flex flex-col animate-slide-up" style={{ margin: 0 }}>
@@ -660,187 +527,189 @@ const ConcursosPage = () => {
         </div>
       )}
 
-        {/* Results */}
-        <div className="space-y-6">
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-24 space-y-4 animate-in fade-in duration-500">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent"></div>
-              <p className="text-sm font-semibold text-slate-500 tracking-tight">Localizando concursos disponíveis...</p>
-            </div>
-          )}
-
-          {loadError && !loading && (
-            <div className="bg-white border border-red-100 rounded-xl p-6 sm:p-10 text-center shadow-sm animate-in zoom-in-95 duration-300">
-              <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-4" />
-              <h3 className="text-base font-bold text-slate-900 mb-2 tracking-tight">Erro ao carregar dados.</h3>
-              <p className="text-slate-500 mb-6 text-sm font-medium leading-relaxed max-w-sm mx-auto">{loadError}</p>
-              <button
-                onClick={() => loadConcursos(currentPage)}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-bold transition-all shadow-sm active:scale-95"
-              >
-                Tentar novamente
-              </button>
-            </div>
-          )}
-
-          {!loading && !loadError && concursos.length === 0 && (
-            <div className="bg-white border border-gray-100 rounded-xl p-8 sm:p-16 text-center shadow-sm animate-in fade-in zoom-in-95 duration-500">
-              <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-                <BookOpen className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2 tracking-tight">Nenhum concurso corresponde à sua busca</h3>
-              <p className="text-slate-500 mb-8 text-sm font-medium leading-relaxed max-w-xs mx-auto">Experimente remover alguns filtros ou utilizar termos mais genéricos.</p>
-              <button
-                onClick={() => { reset(); setShowAdvancedFilters(false); setShowMobileFilters(false); }}
-                className="text-indigo-600 hover:text-indigo-700 text-sm font-bold transition-colors inline-flex items-center gap-2 active:scale-95"
-              >
-                Limpar todos os filtros
-              </button>
-            </div>
-          )}
-
-          {!loading && concursos.map((concurso, concursoIndex) => (
-            <div 
-              key={concurso.id} 
-              className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:border-indigo-100/80 animate-fade-in-up group"
-              style={{ animationDelay: `${concursoIndex * 50}ms` }}
-            >
-          <div className="p-4 sm:p-6 lg:p-8">
-                <div className="flex flex-wrap items-center gap-4 mb-6">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest bg-indigo-50/50 text-indigo-600 border border-indigo-100/40">
-                    {concurso.banca.nome}
-                  </span>
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-400 tracking-tight">
-                    <span>{concurso.ano}</span>
-                    <span className="w-1 h-1 rounded-full bg-slate-200" />
-                    <span>{concurso.instituicao.area}</span>
-                  </div>
-                  {concurso.edital && isValidUrl(concurso.edital) && (
-                    <a
-                      href={concurso.edital}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-indigo-500 hover:text-indigo-700 font-bold inline-flex items-center gap-1.5 transition-all sm:ml-auto active:scale-95 tracking-tight group/link"
-                    >
-                      <LinkIcon className="w-3.5 h-3.5 text-indigo-400 group-hover/link:text-indigo-600 transition-colors" />
-                      Visualizar Edital
-                    </a>
-                  )}
-                </div>
-
-                <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 mb-4 sm:mb-6 lg:mb-8 tracking-tight group-hover:text-indigo-900 transition-colors leading-tight">{concurso.instituicao.nome}</h3>
-
-                <div className="space-y-0 border-t border-gray-100 -mx-4 sm:-mx-6 lg:-mx-8">
-                  {concurso.cargos.map((cargo, index) => {
-                    const isInscribedInAny = concurso.cargos.some(c => c.inscrito);
-                    
-                    return (
-                      <div
-                        key={cargo.id}
-                        className={`px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 hover:bg-indigo-50/10 transition-colors ${
-                          index !== concurso.cargos.length - 1 ? 'border-b border-slate-50' : ''
-                        }`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center flex-wrap gap-2.5 mb-1.5">
-                            <p className="text-base font-bold text-slate-800 tracking-tight leading-snug">{cargo.cargoNome}</p>
-                            {cargo.inscrito ? (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter text-emerald-600 bg-emerald-50/50 px-1.5 py-0.5 rounded border border-emerald-100/50 animate-in zoom-in-95 duration-300">
-                                <CheckCircle className="w-2.5 h-2.5" />
-                                Inscrito
-                              </span>
-                            ) : null}
-                          </div>
-                          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 tracking-tight">
-                            <span className="text-slate-400/70">{cargo.area}</span>
-                            <span className="w-1 h-1 rounded-full bg-slate-200" />
-                            <span>{formatNivel(cargo.nivel)}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                          {cargo.topicos && cargo.topicos.length > 0 && (
-                            <button
-                              onClick={() => setSelectedCargoTopicos({ nome: cargo.cargoNome, topicos: cargo.topicos })}
-                              className="text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/50 text-center active:scale-95 inline-flex items-center justify-center gap-1.5"
-                            >
-                              <BookOpen className="w-3.5 h-3.5" />
-                              Ver Tópicos
-                            </button>
-                          )}
-                          {/* Only show button if: 
-                              1. This cargo is already inscribed (to allow removal)
-                              2. NO cargo in this concurso is inscribed (to allow new inscription)
-                          */}
-                          {(cargo.inscrito || !isInscribedInAny) && (
-                            <button
-                              onClick={() => handleToggleInscricao(cargo.id, cargo.cargoId)}
-                              disabled={toggleLoading === cargo.cargoId}
-                              className={`text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border text-center ${
-                                cargo.inscrito
-                                  ? 'text-slate-400 border-slate-200 hover:bg-slate-50 hover:text-red-500 hover:border-red-100'
-                                  : 'text-indigo-500 border-indigo-100/60 hover:bg-indigo-50 hover:text-indigo-700'
-                              } disabled:opacity-50 disabled:cursor-not-allowed active:scale-95`}
-                            >
-                              {toggleLoading === cargo.cargoId ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : cargo.inscrito ? (
-                                'Remover Inscrição'
-                              ) : (
-                                'Marcar Inscrição'
-                              )}
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => handleStartProva(concurso.id, cargo.cargoId, concurso.instituicao.id)}
-                            className="inline-flex items-center justify-center w-full sm:w-auto px-6 py-2.5 sm:py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm hover:shadow-indigo-200/50 active:scale-95 border border-indigo-700/10"
-                          >
-                            Resolver Prova
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Pagination */}
-        {!loading && !loadError && pagination.totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-10 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 hidden sm:block">
-              <span className="font-medium">{(currentPage * pagination.pageSize) + 1}</span>–
-              <span className="font-medium">{Math.min((currentPage + 1) * pagination.pageSize, pagination.totalElements)}</span> de{' '}
-              <span className="font-medium">{pagination.totalElements}</span> concursos
-            </p>
-            <nav className="flex gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => loadConcursos(currentPage - 1)}
-                disabled={currentPage === 0}
-                className="flex-1 sm:flex-none px-4 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50 hover:border-gray-300 font-medium text-gray-700 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => loadConcursos(currentPage + 1)}
-                disabled={currentPage === pagination.totalPages - 1}
-                className="flex-1 sm:flex-none px-4 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50 hover:border-gray-300 font-medium text-gray-700 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
-              >
-                Próxima
-              </button>
-            </nav>
+      {/* Results */}
+      <div className="space-y-6">
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-24 space-y-4 animate-in fade-in duration-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent"></div>
+            <p className="text-sm font-semibold text-slate-500 tracking-tight">Localizando concursos disponíveis...</p>
           </div>
         )}
 
-      <TopicsModal
-        isOpen={selectedCargoTopicos !== null}
-        onClose={() => setSelectedCargoTopicos(null)}
-        cargoNome={selectedCargoTopicos?.nome || ''}
-        topicos={selectedCargoTopicos?.topicos || []}
-      />
+        {loadError && !loading && (
+          <div className="bg-white border border-red-100 rounded-xl p-6 sm:p-10 text-center shadow-sm animate-in zoom-in-95 duration-300">
+            <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-4" />
+            <h3 className="text-base font-bold text-slate-900 mb-2 tracking-tight">Erro ao carregar dados.</h3>
+            <p className="text-slate-500 mb-6 text-sm font-medium leading-relaxed max-w-sm mx-auto">{loadError}</p>
+            <button
+              onClick={() => loadConcursos(currentPage)}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-bold transition-all shadow-sm active:scale-95"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
+        {!loading && !loadError && concursos.length === 0 && (
+          <div className="bg-white border border-gray-100 rounded-xl p-8 sm:p-16 text-center shadow-sm animate-in fade-in zoom-in-95 duration-500">
+            <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+              <BookOpen className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-2 tracking-tight">Nenhum concurso corresponde à sua busca</h3>
+            <p className="text-slate-500 mb-8 text-sm font-medium leading-relaxed max-w-xs mx-auto">Experimente remover alguns filtros ou utilizar termos mais genéricos.</p>
+            <button
+              onClick={() => { reset(); setShowAdvancedFilters(false); setShowMobileFilters(false); }}
+              className="text-indigo-600 hover:text-indigo-700 text-sm font-bold transition-colors inline-flex items-center gap-2 active:scale-95"
+            >
+              Limpar todos os filtros
+            </button>
+          </div>
+        )}
+
+        {!loading && concursos.map((concurso, concursoIndex) => (
+          <div
+            key={concurso.id}
+            className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:border-indigo-100/80 animate-fade-in-up group"
+            style={{ animationDelay: `${concursoIndex * 50}ms` }}
+          >
+            <div className="p-4 sm:p-6 lg:p-8">
+              <div className="flex flex-wrap items-center gap-4 mb-6">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest bg-indigo-50/50 text-indigo-600 border border-indigo-100/40">
+                  {concurso.banca.nome}
+                </span>
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-400 tracking-tight">
+                  <span>{concurso.ano}</span>
+                  <span className="w-1 h-1 rounded-full bg-slate-200" />
+                  <span>{concurso.instituicao.area}</span>
+                </div>
+                {concurso.edital && isValidUrl(concurso.edital) && (
+                  <a
+                    href={concurso.edital}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-indigo-500 hover:text-indigo-700 font-bold inline-flex items-center gap-1.5 transition-all sm:ml-auto active:scale-95 tracking-tight group/link"
+                  >
+                    <LinkIcon className="w-3.5 h-3.5 text-indigo-400 group-hover/link:text-indigo-600 transition-colors" />
+                    Visualizar Edital
+                  </a>
+                )}
+              </div>
+
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 mb-4 sm:mb-6 lg:mb-8 tracking-tight group-hover:text-indigo-900 transition-colors leading-tight">{concurso.instituicao.nome}</h3>
+
+              <div className="space-y-0 border-t border-gray-100 -mx-4 sm:-mx-6 lg:-mx-8">
+                {concurso.cargos.map((cargo, index) => {
+                  const isInscribedInAny = concurso.cargos.some(c => c.inscrito);
+
+                  return (
+                    <div
+                      key={cargo.id}
+                      className={`px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 transition-colors ${
+                        index !== concurso.cargos.length - 1 ? 'border-b border-slate-50' : ''
+                      }`}
+                    >
+                      {/* Left: cargo info — clickable, navigates to detail */}
+                      <button
+                        onClick={() => navigate(`/concursos/${concurso.id}/cargos/${cargo.cargoId}`)}
+                        className="min-w-0 flex-1 text-left group/cargo hover:text-indigo-900 transition-colors"
+                      >
+                        <div className="flex items-center flex-wrap gap-2.5 mb-1.5">
+                          <p className="text-base font-bold text-slate-800 group-hover/cargo:text-indigo-700 tracking-tight leading-snug transition-colors">
+                            {cargo.cargoNome}
+                          </p>
+                          {cargo.inscrito ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter text-emerald-600 bg-emerald-50/50 px-1.5 py-0.5 rounded border border-emerald-100/50 animate-in zoom-in-95 duration-300">
+                              <CheckCircle className="w-2.5 h-2.5" />
+                              Inscrito
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="flex items-center flex-wrap gap-2 text-xs font-semibold text-slate-400 tracking-tight">
+                          <span className="text-slate-400/70">{cargo.area}</span>
+                          <span className="w-1 h-1 rounded-full bg-slate-200" />
+                          <span>{formatNivel(cargo.nivel)}</span>
+                          <span className="w-1 h-1 rounded-full bg-slate-200" />
+                          <span className="inline-flex items-center gap-1 text-slate-300">
+                            <Calendar className="w-3 h-3" />
+                            <span className="text-slate-400/60 italic">Data a definir</span>
+                          </span>
+                        </div>
+                      </button>
+
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                        {/* View edital detail */}
+                        {cargo.topicos && cargo.topicos.length > 0 && (
+                          <button
+                            onClick={() => navigate(`/concursos/${concurso.id}/cargos/${cargo.cargoId}`)}
+                            className="text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/50 text-center active:scale-95 inline-flex items-center justify-center gap-1.5"
+                          >
+                            Detalhes
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {(cargo.inscrito || !isInscribedInAny) && (
+                          <button
+                            onClick={() => handleToggleInscricao(cargo.id, cargo.cargoId)}
+                            disabled={toggleLoading === cargo.cargoId}
+                            className={`text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border text-center ${
+                              cargo.inscrito
+                                ? 'text-slate-400 border-slate-200 hover:bg-slate-50 hover:text-red-500 hover:border-red-100'
+                                : 'text-indigo-500 border-indigo-100/60 hover:bg-indigo-50 hover:text-indigo-700'
+                            } disabled:opacity-50 disabled:cursor-not-allowed active:scale-95`}
+                          >
+                            {toggleLoading === cargo.cargoId ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : cargo.inscrito ? (
+                              'Remover Inscrição'
+                            ) : (
+                              'Marcar Inscrição'
+                            )}
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleStartProva(concurso.id, cargo.cargoId, concurso.instituicao.id)}
+                          className="inline-flex items-center justify-center w-full sm:w-auto px-6 py-2.5 sm:py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm hover:shadow-indigo-200/50 active:scale-95 border border-indigo-700/10"
+                        >
+                          Resolver Prova
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Pagination */}
+      {!loading && !loadError && pagination.totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-10 pt-6 border-t border-gray-200">
+          <p className="text-sm text-gray-600 hidden sm:block">
+            <span className="font-medium">{(currentPage * pagination.pageSize) + 1}</span>–
+            <span className="font-medium">{Math.min((currentPage + 1) * pagination.pageSize, pagination.totalElements)}</span> de{' '}
+            <span className="font-medium">{pagination.totalElements}</span> concursos
+          </p>
+          <nav className="flex gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => loadConcursos(currentPage - 1)}
+              disabled={currentPage === 0}
+              className="flex-1 sm:flex-none px-4 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50 hover:border-gray-300 font-medium text-gray-700 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => loadConcursos(currentPage + 1)}
+              disabled={currentPage === pagination.totalPages - 1}
+              className="flex-1 sm:flex-none px-4 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50 hover:border-gray-300 font-medium text-gray-700 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+            >
+              Próxima
+            </button>
+          </nav>
+        </div>
+      )}
     </div>
   );
 };

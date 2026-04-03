@@ -128,7 +128,7 @@ export const disciplinaService = {
   /**
    * Criar nova disciplina.
    */
-  create: (data: { nome: string }): Promise<Types.DisciplinaSummaryDto> => 
+  create: (data: { nome: string }): Promise<Types.DisciplinaDetailDto> => 
     apiCall('/disciplinas', { method: 'POST', body: JSON.stringify(data) }),
   
   /**
@@ -170,7 +170,7 @@ export const temaService = {
   /**
    * Criar novo tema.
    */
-  create: (data: { nome: string, disciplinaId: number }): Promise<Types.TemaSummaryDto> => 
+  create: (data: { nome: string, disciplinaId: number }): Promise<Types.TemaDetailDto> => 
     apiCall('/temas', { method: 'POST', body: JSON.stringify(data) }),
   
   /**
@@ -211,7 +211,7 @@ export const subtemaService = {
   /**
    * Criar novo subtema.
    */
-  create: (data: { nome: string, temaId: number }): Promise<Types.SubtemaSummaryDto> => 
+  create: (data: { nome: string, temaId: number }): Promise<Types.SubtemaDetailDto> => 
     apiCall('/subtemas', { method: 'POST', body: JSON.stringify(data) }),
   
   /**
@@ -307,19 +307,19 @@ export const bancaService = {
   /**
    * Obter banca por ID.
    */
-  getById: (id: number): Promise<Types.BancaSummaryDto> => 
+  getById: (id: number): Promise<Types.BancaDetailDto> => 
     apiCall(`/bancas/${id}`),
   
   /**
    * Criar nova banca.
    */
-  create: (data: { nome: string }): Promise<Types.BancaSummaryDto> => 
+  create: (data: { nome: string }): Promise<Types.BancaDetailDto> => 
     apiCall('/bancas', { method: 'POST', body: JSON.stringify(data) }),
   
   /**
    * Atualizar banca.
    */
-  update: (id: number, data: { nome: string }): Promise<Types.BancaSummaryDto> => 
+  update: (id: number, data: { nome: string }): Promise<Types.BancaDetailDto> => 
     apiCall(`/bancas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   
   /**
@@ -342,7 +342,7 @@ export const instituicaoService = {
   /**
    * Obter instituição por ID.
    */
-  getById: (id: number): Promise<Types.InstituicaoSummaryDto> => 
+  getById: (id: number): Promise<Types.InstituicaoDetailDto> => 
     apiCall(`/instituicoes/${id}`),
   
   /**
@@ -354,13 +354,13 @@ export const instituicaoService = {
   /**
    * Criar nova instituição.
    */
-  create: (data: { nome: string, area: string }): Promise<Types.InstituicaoSummaryDto> => 
+  create: (data: { nome: string, area: string }): Promise<Types.InstituicaoDetailDto> => 
     apiCall('/instituicoes', { method: 'POST', body: JSON.stringify(data) }),
   
   /**
    * Atualizar instituição.
    */
-  update: (id: number, data: { nome: string, area: string }): Promise<Types.InstituicaoSummaryDto> => 
+  update: (id: number, data: { nome: string, area: string }): Promise<Types.InstituicaoDetailDto> => 
     apiCall(`/instituicoes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   
   /**
@@ -504,7 +504,7 @@ export const respostaService = {
   /**
    * Obter resposta por ID.
    */
-  getById: (id: number): Promise<Types.RespostaSummaryDto> => 
+  getById: (id: number): Promise<Types.RespostaDetailDto> => 
     apiCall(`/respostas/${id}`),
   
   /**
@@ -590,7 +590,7 @@ export const analyticsService = {
   /**
    * Obter detalhes de domínio de uma disciplina (incluindo temas e subtemas).
    */
-  getDisciplinaMasteryDetail: (id: number): Promise<Types.AnalyticsTopicMasteryDetailDto> => 
+  getDisciplinaMasteryDetail: (id: number): Promise<Types.AnalyticsTopicMasteryDto> => 
     apiCall(`/analytics/disciplinas/${id}`),
 
   /**

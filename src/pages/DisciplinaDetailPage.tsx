@@ -193,7 +193,16 @@ const SubtemaRow = ({
               <span className={`font-semibold ${subtema.ultimoEstudo ? 'text-slate-700' : 'text-slate-400'}`}>
                 {subtema.ultimoEstudo 
                   ? new Date(subtema.ultimoEstudo).toLocaleDateString('pt-BR')
-                  : 'Não estudado'}
+                  : '—'}
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-slate-400 font-medium block">Última Questão</span>
+              <span className={`font-semibold ${subtema.ultimaQuestao ? 'text-slate-700' : 'text-slate-400'}`}>
+                {subtema.ultimaQuestao 
+                  ? new Date(subtema.ultimaQuestao).toLocaleDateString('pt-BR')
+                  : '—'}
               </span>
             </div>
 
