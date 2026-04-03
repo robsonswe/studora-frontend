@@ -225,7 +225,7 @@ const ProvaDetailPage = () => {
     <div className="max-w-4xl mx-auto py-12 px-4">
       <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-lg shadow-sm">
         <div className="flex"><AlertTriangle className="h-6 w-6 text-red-500 mr-3" /><p className="text-red-700 font-medium">{error || 'Prova não encontrada'}</p></div>
-        <button onClick={() => navigate('/provas')} className="mt-4 text-sm text-red-600 font-semibold hover:underline">Voltar para lista</button>
+        <button onClick={() => navigate('/concursos')} className="mt-4 text-sm text-red-600 font-semibold hover:underline cursor-pointer">Voltar para lista</button>
       </div>
     </div>
   );
