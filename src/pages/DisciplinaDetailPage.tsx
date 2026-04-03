@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import { disciplinaService, subtemaService, ApiError } from '@/services/api';
@@ -15,7 +15,8 @@ import {
   X,
   AlertCircle,
   ChevronDown,
-  Info
+  Info,
+  Search,
 } from 'lucide-react';
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
@@ -266,10 +267,33 @@ const DisciplinaDetailPage = () => {
   const [actionError, setActionError] = useState<string | null>(null);
   const [historyModal, setHistoryModal] = useState<SubtemaWithEstudos | null>(null);
   const [loadingHistory, setLoadingHistory] = useState<number | null>(null);
+  const [searchFilter, setSearchFilter] = useState('');
 
   useEffect(() => {
     if (id) loadDisciplina(parseInt(id));
   }, [id]);
+
+  // Client-side filter: show temas/subtemas that match the search
+  const filteredTemas = useMemo(() => {
+    if (!searchFilter.trim()) return temas;
+    const filter = searchFilter.toLowerCase();
+    return temas
+      .map(tema => {
+        const temaMatches = tema.nome.toLowerCase().includes(filter);
+        const matchingSubtemas = tema.subtemas.filter(s =>
+          s.nome.toLowerCase().includes(filter)
+        );
+        // Include tema if it matches OR if any subtema matches
+        if (temaMatches || matchingSubtemas.length > 0) {
+          return {
+            ...tema,
+            subtemas: temaMatches ? tema.subtemas : matchingSubtemas,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as TemaWithSubtemas[];
+  }, [temas, searchFilter]);
 
   const loadDisciplina = async (disciplinaId: number, showSpinner = true) => {
     if (showSpinner) setLoading(true);
@@ -510,63 +534,92 @@ const DisciplinaDetailPage = () => {
         {/* ACCORDION CONTAINER */}
         {hasTemas && (
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            {/* Search Bar */}
+            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/30">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Filtrar temas e subtemas..."
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  className="w-full pl-10 pr-8 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors placeholder:text-slate-400 text-slate-800"
+                />
+                {searchFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchFilter('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="divide-y divide-slate-100">
-              {temas.map((tema) => {
-                const isExpanded = expandedTemas.includes(tema.id);
-                const hasSubtemas = tema.subtemas.length > 0;
-                const temaAcc = calculateAccuracy(tema.questoesRespondidas, tema.questoesAcertadas);
-                const temaProgress = tema.totalSubtemas > 0 ? Math.round((tema.subtemasEstudados / tema.totalSubtemas) * 100) : 0;
+              {filteredTemas.length === 0 ? (
+                <div className="px-5 py-12 text-center">
+                  <p className="text-sm text-slate-500">Nenhum tema ou subtema corresponde ao filtro.</p>
+                </div>
+              ) : (
+                filteredTemas.map((tema) => {
+                  const isExpanded = expandedTemas.includes(tema.id);
+                  const hasSubtemas = tema.subtemas.length > 0;
+                  const temaAcc = calculateAccuracy(tema.questoesRespondidas, tema.questoesAcertadas);
+                  const temaProgress = tema.totalSubtemas > 0 ? Math.round((tema.subtemasEstudados / tema.totalSubtemas) * 100) : 0;
 
-                return (
-                  <div key={tema.id} className="bg-white">
-                    <button onClick={() => toggleTema(tema.id)} className="w-full px-5 py-4 bg-slate-50/50 hover:bg-slate-50 transition-colors flex items-center justify-between group outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
-                      <div className="flex items-center gap-3 pr-4">
-                        <Folder className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
-                        <span className="text-sm font-bold text-slate-800 text-left">{tema.nome}</span>
-                      </div>
-                      <div className="flex items-center gap-4 flex-shrink-0">
-                        {hasSubtemas && (
-                          <div className="flex items-center gap-2 hidden sm:flex">
-                            <span className="text-xs font-mono font-semibold text-slate-600 tabular-nums">{tema.subtemasEstudados}/{tema.totalSubtemas}</span>
-                            <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                              <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${temaProgress}%` }} />
-                            </div>
-                          </div>
-                        )}
-                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-                      </div>
-                    </button>
-
-                    {isExpanded && (
-                      <div className="animate-in slide-in-from-top-1 fade-in duration-200">
-                        {hasSubtemas ? (
-                          <>
-                            <div className="px-5 py-3 bg-slate-50/30 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                              <div className="flex items-center gap-4 text-xs text-slate-500">
-                                <div className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-slate-400" /><span><strong className="text-slate-700">{tema.questoesAcertadas}</strong>/{tema.questoesRespondidas} questões</span></div>
-                                {tema.mediaTempoResposta && <div className="flex items-center gap-1.5 hidden sm:flex"><Clock className="w-3.5 h-3.5 text-slate-400" /><span>{Math.round(tema.mediaTempoResposta)}s média</span></div>}
+                  return (
+                    <div key={tema.id} className="bg-white">
+                      <button onClick={() => toggleTema(tema.id)} className="w-full px-5 py-4 bg-slate-50/50 hover:bg-slate-50 transition-colors flex items-center justify-between group outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500">
+                        <div className="flex items-center gap-3 pr-4">
+                          <Folder className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
+                          <span className="text-sm font-bold text-slate-800 text-left">{tema.nome}</span>
+                        </div>
+                        <div className="flex items-center gap-4 flex-shrink-0">
+                          {hasSubtemas && (
+                            <div className="flex items-center gap-2 hidden sm:flex">
+                              <span className="text-xs font-mono font-semibold text-slate-600 tabular-nums">{tema.subtemasEstudados}/{tema.totalSubtemas}</span>
+                              <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${temaProgress}%` }} />
                               </div>
-                              <DifficultyMiniBadges stats={tema.dificuldadeRespostas} />
                             </div>
-                            <div className="divide-y divide-slate-50">
-                              {tema.subtemas.map((subtema) => (
-                                <SubtemaRow key={subtema.id} subtema={subtema} onAddEstudo={handleAddEstudo} onOpenHistory={handleOpenHistory} isAdding={addingEstudo === subtema.id} isLoadingHistory={loadingHistory === subtema.id} />
-                              ))}
+                          )}
+                          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="animate-in slide-in-from-top-1 fade-in duration-200">
+                          {hasSubtemas ? (
+                            <>
+                              <div className="px-5 py-3 bg-slate-50/30 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                                <div className="flex items-center gap-4 text-xs text-slate-500">
+                                  <div className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-slate-400" /><span><strong className="text-slate-700">{tema.questoesAcertadas}</strong>/{tema.questoesRespondidas} questões</span></div>
+                                  {tema.mediaTempoResposta && <div className="flex items-center gap-1.5 hidden sm:flex"><Clock className="w-3.5 h-3.5 text-slate-400" /><span>{Math.round(tema.mediaTempoResposta)}s média</span></div>}
+                                </div>
+                                <DifficultyMiniBadges stats={tema.dificuldadeRespostas} />
+                              </div>
+                              <div className="divide-y divide-slate-50">
+                                {tema.subtemas.map((subtema) => (
+                                  <SubtemaRow key={subtema.id} subtema={subtema} onAddEstudo={handleAddEstudo} onOpenHistory={handleOpenHistory} isAdding={addingEstudo === subtema.id} isLoadingHistory={loadingHistory === subtema.id} />
+                                ))}
+                              </div>
+                            </>
+                          ) : (
+                            /* NO SUBTEMAS EMPTY STATE */
+                            <div className="px-5 py-10 text-center bg-slate-50/20">
+                              <p className="text-sm text-slate-500 italic max-w-sm mx-auto">
+                                O tema <strong className="text-slate-700">{tema.nome}</strong> ainda não possui tópicos associados. Volte mais tarde para conferir novas atualizações.
+                              </p>
                             </div>
-                          </>
-                        ) : (
-                          /* NO SUBTEMAS EMPTY STATE */
-                          <div className="px-5 py-10 text-center bg-slate-50/20">
-                            <p className="text-sm text-slate-500 italic max-w-sm mx-auto">
-                              O tema <strong className="text-slate-700">{tema.nome}</strong> ainda não possui tópicos associados. Volte mais tarde para conferir novas atualizações.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
