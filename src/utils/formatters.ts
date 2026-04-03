@@ -40,13 +40,13 @@ export const formatDificuldade = (dificuldade: string | undefined | null): strin
  */
 export const formatDateTime = (dateStr: string | Date | undefined | null): string => {
   if (!dateStr) return 'N/A';
-  
+
   const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
-  
+
   if (isNaN(date.getTime())) return 'N/A';
 
   const pad = (n: number) => n.toString().padStart(2, '0');
-  
+
   const day = pad(date.getDate());
   const month = pad(date.getMonth() + 1);
   const year = date.getFullYear();
@@ -55,4 +55,32 @@ export const formatDateTime = (dateStr: string | Date | undefined | null): strin
   const seconds = pad(date.getSeconds());
 
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+};
+
+/**
+ * Converte uma string ISO UTC (do backend) para o valor de um input datetime-local (timezone local).
+ * Ex: "2024-09-15T16:00:00" (UTC) → "2024-09-15T13:00" (para usuário GMT-3)
+ * @param utcIso String ISO vinda do backend
+ * @returns Valor formatado para input datetime-local, ou string vazia
+ */
+export const utcToLocalInputValue = (utcIso: string | undefined | null): string => {
+  if (!utcIso) return '';
+  const date = new Date(utcIso);
+  if (isNaN(date.getTime())) return '';
+
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+/**
+ * Converte o valor de um input datetime-local (timezone local) para string ISO UTC (para o backend).
+ * Ex: "2024-09-15T13:00" (local GMT-3) → "2024-09-15T16:00:00.000Z" (UTC)
+ * @param localValue Valor do input datetime-local
+ * @returns String ISO UTC, ou null
+ */
+export const localInputValueToUtc = (localValue: string | undefined | null): string | null => {
+  if (!localValue) return null;
+  const date = new Date(localValue); // browser interpreta como horário local
+  if (isNaN(date.getTime())) return null;
+  return date.toISOString();
 };

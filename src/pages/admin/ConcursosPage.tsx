@@ -3,7 +3,7 @@ import Header from '@/components/Header';
 import { concursoService, bancaService, instituicaoService, cargoService, subtemaService } from '@/services/api';
 import * as Types from '@/types';
 import AsyncSelect from 'react-select/async';
-import { formatNivel } from '@/utils/formatters';
+import { formatNivel, formatDateTime, utcToLocalInputValue, localInputValueToUtc } from '@/utils/formatters';
 
 type ConcursoDto = Types.ConcursoSummaryDto;
 
@@ -65,6 +65,7 @@ const ConcursosPage = () => {
     ano: new Date().getFullYear(),
     mes: new Date().getMonth() + 1,
     edital: '',
+    dataProva: '',
     cargos: [] as { value: number, label: string }[],
     topicos: [] as TopicoEntry[]
   });
@@ -190,13 +191,23 @@ const ConcursosPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationErrors([]);
-    
+
+    const isValidUrl = (url: string): boolean => {
+      try {
+        const u = new URL(url);
+        return u.protocol === 'http:' || u.protocol === 'https:';
+      } catch {
+        return false;
+      }
+    };
+
     const errors: string[] = [];
     if (!formData.instituicao) errors.push('Selecione uma instituição');
     if (!formData.banca) errors.push('Selecione uma banca');
     if (formData.ano < 1900 || formData.ano > 2100) errors.push('Ano deve ser entre 1900 e 2100');
     if (formData.mes < 1 || formData.mes > 12) errors.push('Mês deve ser entre 1 e 12');
     if (formData.cargos.length === 0) errors.push('Selecione pelo menos um cargo');
+    if (formData.edital && !isValidUrl(formData.edital)) errors.push('O edital deve ser um link válido (http:// ou https://)');
 
     formData.topicos.forEach((t: TopicoEntry) => {
       if (t.cargoIds.length === 0) errors.push(`O tópico "${t.subtemaLabel}" deve estar vinculado a pelo menos um cargo`);
@@ -215,6 +226,7 @@ const ConcursosPage = () => {
         ano: formData.ano,
         mes: formData.mes,
         edital: formData.edital,
+        dataProva: localInputValueToUtc(formData.dataProva) ?? undefined,
         cargos: formData.cargos.map((c: any) => c.value),
         topicos: formData.topicos.reduce((acc: Record<number, number[]>, t: TopicoEntry) => {
           acc[t.subtemaId] = t.cargoIds;
@@ -271,6 +283,7 @@ const ConcursosPage = () => {
         ano: detail.ano,
         mes: detail.mes,
         edital: detail.edital || '',
+        dataProva: utcToLocalInputValue(detail.dataProva),
         cargos: detail.cargos.map(c => ({ value: c.cargoId, label: `${c.cargoNome} - ${c.area} (${formatNivel(c.nivel)})` })),
         topicos: Array.from(topicoMap.values()),
       });
@@ -304,6 +317,7 @@ const ConcursosPage = () => {
       ano: new Date().getFullYear(),
       mes: new Date().getMonth() + 1,
       edital: '',
+      dataProva: '',
       cargos: [],
       topicos: []
     });
@@ -409,10 +423,23 @@ const ConcursosPage = () => {
                   Edital (Link ou Identificação)
                 </label>
                 <input
-                  type="text"
+                  type="url"
                   id="edital"
                   value={formData.edital}
                   onChange={(e) => setFormData({...formData, edital: e.target.value})}
+                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label htmlFor="dataProva" className="block text-sm font-medium text-gray-700 mb-1">
+                  Data da Prova
+                </label>
+                <input
+                  type="datetime-local"
+                  id="dataProva"
+                  value={formData.dataProva}
+                  onChange={(e) => setFormData({...formData, dataProva: e.target.value})}
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
                 />
               </div>
@@ -568,6 +595,11 @@ const ConcursosPage = () => {
                     {concurso.edital && (
                       <div className="text-xs text-gray-400">
                         Edital: {concurso.edital}
+                      </div>
+                    )}
+                    {concurso.dataProva && (
+                      <div className="text-xs text-gray-400">
+                        Data da Prova: {formatDateTime(concurso.dataProva)}
                       </div>
                     )}
                     <div className="text-xs text-indigo-400 mt-1">

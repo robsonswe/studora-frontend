@@ -11,7 +11,7 @@ import {
   cargoService,
   ApiError
 } from '@/services/api';
-import { formatNivel } from '@/utils/formatters';
+import { formatNivel, formatDateTime } from '@/utils/formatters';
 import * as Types from '@/types';
 import {
   BookOpen,
@@ -631,7 +631,11 @@ const ConcursosPage = () => {
                           <span className="w-1 h-1 rounded-full bg-slate-200" />
                           <span className="inline-flex items-center gap-1 text-slate-300">
                             <Calendar className="w-3 h-3" />
-                            <span className="text-slate-400/60 italic">Data a definir</span>
+                            {concurso.dataProva ? (
+                              <span className="text-slate-500">{formatDateTime(concurso.dataProva)}</span>
+                            ) : (
+                              <span className="text-slate-400/60 italic">Data a definir</span>
+                            )}
                           </span>
                         </div>
                       </button>

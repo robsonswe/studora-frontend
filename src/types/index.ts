@@ -314,6 +314,8 @@ export interface ConcursoSummaryDto {
   mes: number;
   /** Identificação do edital do concurso (opcional). */
   edital?: string;
+  /** Data e hora da prova do concurso (ISO string, UTC). */
+  dataProva?: string;
   /** Lista de cargos associados ao concurso com status de inscrição. */
   cargos: ConcursoCargoSummaryDto[];
 }
@@ -337,6 +339,8 @@ export interface ConcursoCreateRequest {
   mes: number;
   /** Identificação do edital do concurso. */
   edital?: string;
+  /** Data e hora da prova do concurso (ISO string, UTC). */
+  dataProva?: string;
   /** Lista de IDs dos cargos associados ao concurso. */
   cargos: number[];
   /**
@@ -361,6 +365,8 @@ export interface ConcursoUpdateRequest {
   mes: number;
   /** Identificação do edital do concurso. */
   edital?: string;
+  /** Data e hora da prova do concurso (ISO string, UTC). */
+  dataProva?: string;
   /** Lista de IDs dos cargos associados ao concurso. */
   cargos: number[];
   /**

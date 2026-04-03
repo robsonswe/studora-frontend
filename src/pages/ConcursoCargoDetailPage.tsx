@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import { concursoService, ApiError } from '@/services/api';
-import { formatNivel } from '@/utils/formatters';
+import { formatNivel, formatDateTime } from '@/utils/formatters';
 import * as Types from '@/types';
 import {
   ArrowLeft,
@@ -855,9 +855,15 @@ const ConcursoCargoDetailPage = () => {
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Data da Prova</p>
-            <p className="text-sm font-semibold text-slate-400 italic inline-flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-slate-300" /> A definir
-            </p>
+            {concurso?.dataProva ? (
+              <p className="text-sm font-semibold text-slate-700 inline-flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" /> {formatDateTime(concurso.dataProva)}
+              </p>
+            ) : (
+              <p className="text-sm font-semibold text-slate-400 italic inline-flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-slate-300" /> A definir
+              </p>
+            )}
           </div>
         </div>
       </div>
