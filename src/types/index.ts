@@ -25,82 +25,129 @@ export interface DificuldadeStatDto {
 
 /**
  * DTO simplificado para listagem de disciplinas.
+ *
+ * Fields are nullable (`number | null`) when controlled by the `metrics` query param.
+ * - **lean** (default): only `id` and `nome` are populated; all metric fields are `null`/`undefined`.
+ * - **summary**: + `totalEstudos`, `totalSubtemas`, `subtemasEstudados`, `questoesRespondidas`,
+ *   `questoesAcertadas`, `ultimoEstudo`.
+ * - **full**: + `totalTemas`, `temasEstudados`, `totalQuestoes`, `ultimaQuestao`,
+ *   `mediaTempoResposta`, `dificuldadeRespostas`.
  */
 export interface DisciplinaSummaryDto {
   /** ID único da disciplina. Example: 1 */
   id: number;
   /** Nome da disciplina. Example: "Direito Constitucional" */
   nome: string;
-  /** Total de sessões de estudo realizadas para todos os subtemas desta disciplina. */
-  totalEstudos: number;
-  /** Data e hora do último estudo realizado entre todos os subtemas desta disciplina (ISO string). */
-  ultimoEstudo?: string;
-  /** Data e hora da última questão respondida entre todos os subtemas desta disciplina (ISO string). */
-  ultimaQuestao?: string;
-  /** Total de temas nesta disciplina. */
-  totalTemas: number;
-  /** Total de subtemas nesta disciplina. */
-  totalSubtemas: number;
-  /** Número de temas onde todos os subtemas possuem pelo menos uma sessão de estudo. */
-  temasEstudados: number;
-  /** Número de subtemas que possuem pelo menos uma sessão de estudo. */
-  subtemasEstudados: number;
-  /** Total de questões associadas a esta disciplina (somando temas/subtemas). */
-  totalQuestoes: number;
-  /** Total de questões que possuem pelo menos uma resposta. */
-  questoesRespondidas: number;
-  /** Total de questões que possuem pelo menos uma resposta correta. */
-  questoesAcertadas: number;
-  /** Tempo médio de resposta em segundos. */
+  /** Total de sessões de estudo realizadas para todos os subtemas desta disciplina. (summary+) */
+  totalEstudos?: number | null;
+  /** Data e hora do último estudo realizado entre todos os subtemas desta disciplina (ISO string). (summary+) */
+  ultimoEstudo?: string | null;
+  /** Data e hora da última questão respondida entre todos os subtemas desta disciplina (ISO string). (full) */
+  ultimaQuestao?: string | null;
+  /** Total de temas nesta disciplina. (full) */
+  totalTemas?: number | null;
+  /** Total de subtemas nesta disciplina. (summary+) */
+  totalSubtemas?: number | null;
+  /** Número de temas onde todos os subtemas possuem pelo menos uma sessão de estudo. (full) */
+  temasEstudados?: number | null;
+  /** Número de subtemas que possuem pelo menos uma sessão de estudo. (summary+) */
+  subtemasEstudados?: number | null;
+  /** Total de questões associadas a esta disciplina (somando temas/subtemas). (full) */
+  totalQuestoes?: number | null;
+  /** Total de questões que possuem pelo menos uma resposta. (summary+) */
+  questoesRespondidas?: number | null;
+  /** Total de questões que possuem pelo menos uma resposta correta. (summary+) */
+  questoesAcertadas?: number | null;
+  /** Tempo médio de resposta em segundos. (full) */
   mediaTempoResposta?: number | null;
-  /** Estatísticas de respostas por nível de dificuldade (considerando apenas a resposta mais recente por questão). */
-  dificuldadeRespostas: Record<string, DificuldadeStatDto>;
+  /** Estatísticas de respostas por nível de dificuldade. (full) */
+  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
 }
 
 /**
  * DTO detalhado de Disciplina, incluindo seus temas.
+ *
+ * Metrics fields are nullable unless `metrics=full` is passed.
+ * Nested `temas` are always present but their metric fields follow the same tier rules.
  */
-export interface DisciplinaDetailDto extends DisciplinaSummaryDto {
+export interface DisciplinaDetailDto {
+  /** ID único da disciplina. Example: 1 */
+  id: number;
+  /** Nome da disciplina. Example: "Direito Constitucional" */
+  nome: string;
   /** Lista de temas associados a esta disciplina. */
   temas: TemaSummaryDto[];
+  /** Total de sessões de estudo. (full) */
+  totalEstudos?: number | null;
+  /** Data e hora do último estudo (ISO string). (full) */
+  ultimoEstudo?: string | null;
+  /** Data e hora da última questão respondida (ISO string). (full) */
+  ultimaQuestao?: string | null;
+  /** Total de temas nesta disciplina. (full) */
+  totalTemas?: number | null;
+  /** Total de subtemas nesta disciplina. (full) */
+  totalSubtemas?: number | null;
+  /** Número de temas estudados. (full) */
+  temasEstudados?: number | null;
+  /** Número de subtemas estudados. (full) */
+  subtemasEstudados?: number | null;
+  /** Total de questões associadas. (full) */
+  totalQuestoes?: number | null;
+  /** Total de questões respondidas. (full) */
+  questoesRespondidas?: number | null;
+  /** Total de questões acertadas. (full) */
+  questoesAcertadas?: number | null;
+  /** Tempo médio de resposta em segundos. (full) */
+  mediaTempoResposta?: number | null;
+  /** Estatísticas de respostas por nível de dificuldade. (full) */
+  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
 }
 
 /**
  * DTO simplificado para listagem de temas.
+ *
+ * Metric fields are controlled via the `metrics` query param:
+ * - **lean** (default): only `id`, `nome`, `disciplinaId`, `disciplinaNome`.
+ * - **summary**: + `totalSubtemas`, `subtemasEstudados`, `questoesRespondidas`, `questoesAcertadas`, `totalEstudos`, `ultimoEstudo`.
+ * - **full**: + `mediaTempoResposta`, `dificuldadeRespostas`.
  */
 export interface TemaSummaryDto {
   /** ID único do tema. Example: 1 */
   id: number;
   /** ID da disciplina à qual o tema pertence. Example: 1 */
-  disciplinaId: number;
+  disciplinaId?: number;
   /** Nome do tema. Example: "Direitos Fundamentais" */
   nome: string;
-  /** Nome da disciplina (para evitar lookups). */
+  /** Nome da disciplina (para evitar lookups). (lean+) */
   disciplinaNome?: string;
-  /** Total de sessões de estudo realizadas para todos os subtemas deste tema. */
-  totalEstudos: number;
-  /** Data e hora do último estudo realizado entre todos os subtemas deste tema (ISO string). */
-  ultimoEstudo?: string;
-  /** Data e hora da última questão respondida entre todos os subtemas deste tema (ISO string). */
-  ultimaQuestao?: string;
-  /** Total de subtemas neste tema. */
-  totalSubtemas: number;
-  /** Número de subtemas que possuem pelo menos uma sessão de estudo. */
-  subtemasEstudados: number;
-  /** Total de questões associadas a este tema (somando subtemas). */
-  totalQuestoes: number;
-  /** Total de questões que possuem pelo menos uma resposta. */
-  questoesRespondidas: number;
-  /** Total de questões que possuem pelo menos uma resposta correta. */
-  questoesAcertadas: number;
-  /** Tempo médio de resposta em segundos. */
+  /** Total de sessões de estudo realizadas para todos os subtemas deste tema. (summary+) */
+  totalEstudos?: number | null;
+  /** Data e hora do último estudo realizado entre todos os subtemas deste tema (ISO string). (summary+) */
+  ultimoEstudo?: string | null;
+  /** Data e hora da última questão respondida entre todos os subtemas deste tema (ISO string). (full) */
+  ultimaQuestao?: string | null;
+  /** Total de subtemas neste tema. (summary+) */
+  totalSubtemas?: number | null;
+  /** Número de subtemas que possuem pelo menos uma sessão de estudo. (summary+) */
+  subtemasEstudados?: number | null;
+  /** Total de questões associadas a este tema (somando subtemas). (summary+) */
+  totalQuestoes?: number | null;
+  /** Total de questões que possuem pelo menos uma resposta. (summary+) */
+  questoesRespondidas?: number | null;
+  /** Total de questões que possuem pelo menos uma resposta correta. (summary+) */
+  questoesAcertadas?: number | null;
+  /** Tempo médio de resposta em segundos. (full) */
   mediaTempoResposta?: number | null;
-  /** Estatísticas de respostas por nível de dificuldade (considerando apenas a resposta mais recente por questão). */
-  dificuldadeRespostas: Record<string, DificuldadeStatDto>;
+  /** Estatísticas de respostas por nível de dificuldade. (full) */
+  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
+  /** Lista de subtemas (only populated in detail/hierarchy endpoints). */
+  subtemas?: SubtemaSummaryDto[];
 }
 
 /**
  * DTO detalhado para visualização de um tema, incluindo disciplina e subtemas.
+ *
+ * Metric fields are nullable unless `metrics=full` is passed.
  */
 export interface TemaDetailDto {
   /** ID único do tema. */
@@ -111,64 +158,71 @@ export interface TemaDetailDto {
   nome: string;
   /** Lista de subtemas associados a este tema. */
   subtemas: SubtemaSummaryDto[];
-  /** Total de sessões de estudo realizadas para todos os subtemas deste tema. */
-  totalEstudos: number;
-  /** Data e hora do último estudo realizado entre todos os subtemas deste tema (ISO string). */
-  ultimoEstudo?: string;
-  /** Data e hora da última questão respondida entre todos os subtemas deste tema (ISO string). */
-  ultimaQuestao?: string;
-  /** Total de subtemas neste tema. */
-  totalSubtemas: number;
-  /** Número de subtemas que possuem pelo menos uma sessão de estudo. */
-  subtemasEstudados: number;
-  /** Total de questões associadas a este tema (somando subtemas). */
-  totalQuestoes: number;
-  /** Total de questões que possuem pelo menos uma resposta. */
-  questoesRespondidas: number;
-  /** Total de questões que possuem pelo menos uma resposta correta. */
-  questoesAcertadas: number;
-  /** Tempo médio de resposta em segundos. */
+  /** Total de sessões de estudo realizadas para todos os subtemas deste tema. (full) */
+  totalEstudos?: number | null;
+  /** Data e hora do último estudo realizado entre todos os subtemas deste tema (ISO string). (full) */
+  ultimoEstudo?: string | null;
+  /** Data e hora da última questão respondida entre todos os subtemas deste tema (ISO string). (full) */
+  ultimaQuestao?: string | null;
+  /** Total de subtemas neste tema. (full) */
+  totalSubtemas?: number | null;
+  /** Número de subtemas que possuem pelo menos uma sessão de estudo. (full) */
+  subtemasEstudados?: number | null;
+  /** Total de questões associadas a este tema (somando subtemas). (full) */
+  totalQuestoes?: number | null;
+  /** Total de questões que possuem pelo menos uma resposta. (full) */
+  questoesRespondidas?: number | null;
+  /** Total de questões que possuem pelo menos uma resposta correta. (full) */
+  questoesAcertadas?: number | null;
+  /** Tempo médio de resposta em segundos. (full) */
   mediaTempoResposta?: number | null;
-  /** Estatísticas de respostas por nível de dificuldade (considerando apenas a resposta mais recente por questão). */
-  dificuldadeRespostas: Record<string, DificuldadeStatDto>;
+  /** Estatísticas de respostas por nível de dificuldade. (full) */
+  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
 }
 
 /**
  * DTO simplificado para listagem de subtemas.
+ *
+ * Metric fields are controlled via the `metrics` query param:
+ * - **lean** (default): only `id`, `nome`, `temaId`, `temaNome`, `disciplinaId`, `disciplinaNome`.
+ * - **summary**: + `totalEstudos`, `questoesRespondidas`, `questoesAcertadas`.
+ * - **full**: + `ultimoEstudo`, `ultimaQuestao`, `totalQuestoes`, `mediaTempoResposta`, `dificuldadeRespostas`.
  */
 export interface SubtemaSummaryDto {
   /** ID único do subtema. Example: 1 */
   id: number;
   /** ID do tema ao qual o subtema pertence. Example: 1 */
-  temaId: number;
-  /** Nome do tema ao qual o subtema pertence. */
+  temaId?: number;
+  /** Nome do tema ao qual o subtema pertence. (lean+) */
   temaNome?: string;
-  /** ID da disciplina à qual o subtema pertence. */
+  /** ID da disciplina à qual o subtema pertence. (lean+) */
   disciplinaId?: number;
-  /** Nome da disciplina à qual o subtema pertence. */
+  /** Nome da disciplina à qual o subtema pertence. (lean+) */
   disciplinaNome?: string;
   /** Nome do subtema. Example: "Atos Administrativos" */
   nome: string;
-  /** Total de sessões de estudo realizadas para este subtema. */
-  totalEstudos: number;
-  /** Data e hora do último estudo realizado (ISO string). */
-  ultimoEstudo?: string;
-  /** Data e hora da última questão respondida (ISO string). */
-  ultimaQuestao?: string;
-  /** Total de questões associadas a este subtema. */
-  totalQuestoes: number;
-  /** Total de questões que possuem pelo menos uma resposta. */
-  questoesRespondidas: number;
-  /** Total de questões que possuem pelo menos uma resposta correta. */
-  questoesAcertadas: number;
-  /** Tempo médio de resposta em segundos. */
+  /** Total de sessões de estudo realizadas para este subtema. (summary+) */
+  totalEstudos?: number | null;
+  /** Data e hora do último estudo realizado (ISO string). (full) */
+  ultimoEstudo?: string | null;
+  /** Data e hora da última questão respondida (ISO string). (full) */
+  ultimaQuestao?: string | null;
+  /** Total de questões associadas a este subtema. (full) */
+  totalQuestoes?: number | null;
+  /** Total de questões que possuem pelo menos uma resposta. (summary+) */
+  questoesRespondidas?: number | null;
+  /** Total de questões que possuem pelo menos uma resposta correta. (summary+) */
+  questoesAcertadas?: number | null;
+  /** Tempo médio de resposta em segundos. (full) */
   mediaTempoResposta?: number | null;
-  /** Estatísticas de respostas por nível de dificuldade (considerando apenas a resposta mais recente por questão). */
-  dificuldadeRespostas: Record<string, DificuldadeStatDto>;
+  /** Estatísticas de respostas por nível de dificuldade. (full) */
+  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
 }
 
 /**
  * DTO detalhado para visualização de um subtema, incluindo o tema pai.
+ *
+ * Metric fields are nullable unless `metrics=full` is passed.
  */
 export interface SubtemaDetailDto {
   /** ID único do subtema. */
@@ -177,22 +231,22 @@ export interface SubtemaDetailDto {
   tema: TemaSummaryDto;
   /** Nome do subtema. */
   nome: string;
-  /** Total de sessões de estudo realizadas para este subtema. */
-  totalEstudos: number;
-  /** Data e hora do último estudo realizado (ISO string). */
-  ultimoEstudo?: string;
-  /** Data e hora da última questão respondida (ISO string). */
-  ultimaQuestao?: string;
-  /** Total de questões associadas a este subtema. */
-  totalQuestoes: number;
-  /** Total de questões que possuem pelo menos uma resposta. */
-  questoesRespondidas: number;
-  /** Total de questões que possuem pelo menos uma resposta correta. */
-  questoesAcertadas: number;
-  /** Tempo médio de resposta em segundos. */
+  /** Total de sessões de estudo realizadas para este subtema. (full) */
+  totalEstudos?: number | null;
+  /** Data e hora do último estudo realizado (ISO string). (full) */
+  ultimoEstudo?: string | null;
+  /** Data e hora da última questão respondida (ISO string). (full) */
+  ultimaQuestao?: string | null;
+  /** Total de questões associadas a este subtema. (full) */
+  totalQuestoes?: number | null;
+  /** Total de questões que possuem pelo menos uma resposta. (full) */
+  questoesRespondidas?: number | null;
+  /** Total de questões que possuem pelo menos uma resposta correta. (full) */
+  questoesAcertadas?: number | null;
+  /** Tempo médio de resposta em segundos. (full) */
   mediaTempoResposta?: number | null;
-  /** Estatísticas de respostas por nível de dificuldade (considerando apenas a resposta mais recente por questão). */
-  dificuldadeRespostas: Record<string, DificuldadeStatDto>;
+  /** Estatísticas de respostas por nível de dificuldade. (full) */
+  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
 }
 
 /**
@@ -280,6 +334,10 @@ export interface ConcursoQuestaoDto {
 
 /**
  * DTO que representa a associação de um cargo a um concurso com status de inscrição.
+ *
+ * When `metrics=full` is passed on `GET /concursos/{id}`, the `topicos` array
+ * includes metric fields. Otherwise, topicos only have structural fields
+ * (`id`, `nome`, `temaId`, `temaNome`, `disciplinaId`, `disciplinaNome`).
  */
 export interface ConcursoCargoSummaryDto {
   /** ID da associação concurso-cargo. */
@@ -294,7 +352,7 @@ export interface ConcursoCargoSummaryDto {
   area: string;
   /** Indica se o usuário está inscrito para este cargo neste concurso. */
   inscrito: boolean;
-  /** Subtemas associados a este cargo neste concurso. */
+  /** Subtemas associados a este cargo neste concurso. Metric fields depend on `metrics` param. */
   topicos: SubtemaSummaryDto[];
 }
 

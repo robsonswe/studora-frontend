@@ -143,6 +143,7 @@ const DisciplinasPage = () => {
           page: urlPage,
           size: 15,
           nome: urlQuery || undefined,
+          metrics: 'summary',
         });
         if (cancelled) return;
         setDisciplinas(res.content);
@@ -257,10 +258,10 @@ const DisciplinasPage = () => {
           ) : (
             disciplinas.map(d => {
               const hue = getHue(d.id);
-              const progress = d.totalSubtemas > 0 ? Math.round((d.subtemasEstudados / d.totalSubtemas) * 100) : 0;
+              const progress = (d.totalSubtemas ?? 0) > 0 ? Math.round(((d.subtemasEstudados ?? 0) / (d.totalSubtemas ?? 0)) * 100) : 0;
 
-              const accuracy = d.questoesRespondidas > 0 ? (d.questoesAcertadas / d.questoesRespondidas) * 100 : 0;
-              const performanceColor = d.questoesRespondidas > 0
+              const accuracy = (d.questoesRespondidas ?? 0) > 0 ? (((d.questoesAcertadas ?? 0) / (d.questoesRespondidas ?? 0)) * 100) : 0;
+              const performanceColor = (d.questoesRespondidas ?? 0) > 0
                 ? (accuracy >= 70 ? 'text-emerald-600' : accuracy >= 50 ? 'text-amber-500' : 'text-rose-600')
                 : 'text-slate-300';
 
@@ -303,7 +304,7 @@ const DisciplinasPage = () => {
                       {/* Column 1: Questões */}
                       <div className="flex flex-col items-center text-center pr-4">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Questões</span>
-                        {d.questoesRespondidas > 0 ? (
+                        {(d.questoesRespondidas ?? 0) > 0 ? (
                           <div className={`text-sm font-bold font-mono tracking-tighter ${performanceColor}`}>
                             {d.questoesAcertadas}<span className="text-[10px] text-slate-400 mx-0.5">/</span>{d.questoesRespondidas}
                           </div>

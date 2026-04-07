@@ -142,13 +142,13 @@ const SubtemaRow = ({
   isLoadingHistory: boolean;
 }) => {
   const accuracy =
-    subtema.questoesRespondidas > 0
+    (subtema.questoesRespondidas ?? 0) > 0
       ? Math.round(
-          (subtema.questoesAcertadas / subtema.questoesRespondidas) * 100
+          ((subtema.questoesAcertadas ?? 0) / (subtema.questoesRespondidas ?? 0)) * 100
         )
       : 0;
-  const hasStats = subtema.questoesRespondidas > 0;
-  const isStudied = subtema.totalEstudos > 0;
+  const hasStats = (subtema.questoesRespondidas ?? 0) > 0;
+  const isStudied = (subtema.totalEstudos ?? 0) > 0;
   const hasHistory = isStudied;
 
   return (
@@ -185,14 +185,14 @@ const SubtemaRow = ({
             <div className="space-y-1">
               <span className="text-slate-400 font-medium block">Questões - Tempo Médio</span>
               <span className="font-semibold text-slate-700 tabular-nums">
-                {subtema.mediaTempoResposta ? `${Math.round(subtema.mediaTempoResposta)}s` : '—'}
+                {(subtema.mediaTempoResposta ?? 0) > 0 ? `${Math.round(subtema.mediaTempoResposta!)}s` : '—'}
               </span>
             </div>
 
             <div className="space-y-1">
               <span className="text-slate-400 font-medium block">Último Estudo</span>
               <span className={`font-semibold ${subtema.ultimoEstudo ? 'text-slate-700' : 'text-slate-400'}`}>
-                {subtema.ultimoEstudo 
+                {subtema.ultimoEstudo
                   ? new Date(subtema.ultimoEstudo).toLocaleDateString('pt-BR')
                   : '—'}
               </span>
@@ -201,7 +201,7 @@ const SubtemaRow = ({
             <div className="space-y-1">
               <span className="text-slate-400 font-medium block">Última Questão</span>
               <span className={`font-semibold ${subtema.ultimaQuestao ? 'text-slate-700' : 'text-slate-400'}`}>
-                {subtema.ultimaQuestao 
+                {subtema.ultimaQuestao
                   ? new Date(subtema.ultimaQuestao).toLocaleDateString('pt-BR')
                   : '—'}
               </span>
@@ -209,7 +209,7 @@ const SubtemaRow = ({
 
             <div className="space-y-1">
               <span className="text-slate-400 font-medium block">Questões - Dificuldade</span>
-              {hasStats && Object.keys(subtema.dificuldadeRespostas || {}).length > 0 ? (
+              {hasStats && subtema.dificuldadeRespostas && Object.keys(subtema.dificuldadeRespostas).length > 0 ? (
                 <DifficultyMiniBadges stats={subtema.dificuldadeRespostas} />
               ) : (
                 <span className="font-semibold text-slate-400">—</span>
@@ -243,7 +243,7 @@ const SubtemaRow = ({
               ) : (
                 <Calendar className="w-3.5 h-3.5" />
               )}
-              Ver histórico ({subtema.totalEstudos})
+              Ver histórico ({subtema.totalEstudos ?? 0})
             </button>
           )}
         </div>
@@ -299,19 +299,14 @@ const DisciplinaDetailPage = () => {
     if (showSpinner) setLoading(true);
     setError(null);
     try {
-      const disciplinaData = await disciplinaService.getById(disciplinaId);
+      const disciplinaData = await disciplinaService.getCompleto(disciplinaId, 'full');
       setDisciplina(disciplinaData);
-      
-      const temasWithSubtemas = await Promise.all(
-        disciplinaData.temas.map(async (t) => {
-          const subtemas = await subtemaService.getByTema(t.id);
-          return {
-            ...t,
-            subtemas: subtemas.map(s => ({ ...s })),
-            subtemasLoaded: true,
-          };
-        })
-      );
+
+      const temasWithSubtemas: TemaWithSubtemas[] = (disciplinaData.temas || []).map(t => ({
+        ...t,
+        subtemas: (t.subtemas || []).map(s => ({ ...s })),
+        subtemasLoaded: true,
+      }));
       setTemas(temasWithSubtemas);
 
       if (showSpinner && temasWithSubtemas.length > 0) {
@@ -410,9 +405,9 @@ const DisciplinaDetailPage = () => {
   if (error || !disciplina) return null;
 
   const hasTemas = temas.length > 0;
-  const accuracy = calculateAccuracy(disciplina.questoesRespondidas, disciplina.questoesAcertadas);
-  const studyProgress = disciplina.totalSubtemas > 0 
-    ? Math.round((disciplina.subtemasEstudados / disciplina.totalSubtemas) * 100) 
+  const accuracy = calculateAccuracy(disciplina.questoesRespondidas ?? 0, disciplina.questoesAcertadas ?? 0);
+  const studyProgress = (disciplina.totalSubtemas ?? 0) > 0
+    ? Math.round(((disciplina.subtemasEstudados ?? 0) / (disciplina.totalSubtemas ?? 0)) * 100)
     : 0;
 
   return (
@@ -501,12 +496,14 @@ const DisciplinaDetailPage = () => {
                 <div className="flex items-baseline gap-3">
                   <AccuracyPill accuracy={accuracy} size="lg" />
                   <span className="text-xs text-slate-500 flex items-center gap-2">
-                    <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded tabular-nums">{disciplina.questoesRespondidas}</span> respondidas
+                    <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded tabular-nums">{disciplina.questoesRespondidas ?? 0}</span> respondidas
                     <span className="w-1 h-1 rounded-full bg-slate-300" />
-                    <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded tabular-nums">{disciplina.mediaTempoResposta ? `${Math.round(disciplina.mediaTempoResposta)}s` : '—'}</span> por questão
+                    <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded tabular-nums">{(disciplina.mediaTempoResposta ?? 0) > 0 ? `${Math.round(disciplina.mediaTempoResposta!)}s` : '—'}</span> por questão
                   </span>
                 </div>
-                <DifficultyMiniBadges stats={disciplina.dificuldadeRespostas} />
+                {disciplina.dificuldadeRespostas && Object.keys(disciplina.dificuldadeRespostas).length > 0 && (
+                  <DifficultyMiniBadges stats={disciplina.dificuldadeRespostas} />
+                )}
               </div>
             </div>
 
@@ -566,8 +563,8 @@ const DisciplinaDetailPage = () => {
                 filteredTemas.map((tema) => {
                   const isExpanded = expandedTemas.includes(tema.id);
                   const hasSubtemas = tema.subtemas.length > 0;
-                  const temaAcc = calculateAccuracy(tema.questoesRespondidas, tema.questoesAcertadas);
-                  const temaProgress = tema.totalSubtemas > 0 ? Math.round((tema.subtemasEstudados / tema.totalSubtemas) * 100) : 0;
+                  const temaAcc = calculateAccuracy(tema.questoesRespondidas ?? 0, tema.questoesAcertadas ?? 0);
+                  const temaProgress = (tema.totalSubtemas ?? 0) > 0 ? Math.round(((tema.subtemasEstudados ?? 0) / (tema.totalSubtemas ?? 0)) * 100) : 0;
 
                   return (
                     <div key={tema.id} className="bg-white">
@@ -579,7 +576,7 @@ const DisciplinaDetailPage = () => {
                         <div className="flex items-center gap-4 flex-shrink-0">
                           {hasSubtemas && (
                             <div className="flex items-center gap-2 hidden sm:flex">
-                              <span className="text-xs font-mono font-semibold text-slate-600 tabular-nums">{tema.subtemasEstudados}/{tema.totalSubtemas}</span>
+                              <span className="text-xs font-mono font-semibold text-slate-600 tabular-nums">{tema.subtemasEstudados ?? 0}/{tema.totalSubtemas ?? 0}</span>
                               <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                                 <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${temaProgress}%` }} />
                               </div>
@@ -595,10 +592,12 @@ const DisciplinaDetailPage = () => {
                             <>
                               <div className="px-5 py-3 bg-slate-50/30 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
                                 <div className="flex items-center gap-4 text-xs text-slate-500">
-                                  <div className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-slate-400" /><span><strong className="text-slate-700">{tema.questoesAcertadas}</strong>/{tema.questoesRespondidas} questões</span></div>
-                                  {tema.mediaTempoResposta && <div className="flex items-center gap-1.5 hidden sm:flex"><Clock className="w-3.5 h-3.5 text-slate-400" /><span>{Math.round(tema.mediaTempoResposta)}s média</span></div>}
+                                  <div className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-slate-400" /><span><strong className="text-slate-700">{tema.questoesAcertadas ?? 0}</strong>/{tema.questoesRespondidas ?? 0} questões</span></div>
+                                  {(tema.mediaTempoResposta ?? 0) > 0 && <div className="flex items-center gap-1.5 hidden sm:flex"><Clock className="w-3.5 h-3.5 text-slate-400" /><span>{Math.round(tema.mediaTempoResposta!)}s média</span></div>}
                                 </div>
-                                <DifficultyMiniBadges stats={tema.dificuldadeRespostas} />
+                                {tema.dificuldadeRespostas && Object.keys(tema.dificuldadeRespostas).length > 0 && (
+                                  <DifficultyMiniBadges stats={tema.dificuldadeRespostas} />
+                                )}
                               </div>
                               <div className="divide-y divide-slate-50">
                                 {tema.subtemas.map((subtema) => (

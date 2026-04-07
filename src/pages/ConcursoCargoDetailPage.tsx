@@ -68,7 +68,7 @@ const ConcursoCargoDetailPage = () => {
       if (!concursoId || !cargoId) return;
       setLoading(true); setError(null);
       try {
-        const data = await concursoService.getById(Number(concursoId));
+        const data = await concursoService.getById(Number(concursoId), 'full');
         setConcurso(data);
         const found = data.cargos.find(c => c.cargoId === Number(cargoId));
         if (!found) setError('Cargo não encontrado neste concurso.');
@@ -203,9 +203,9 @@ const ConcursoCargoDetailPage = () => {
                       </h4>
                       <div className="space-y-2 pl-4">
                         {subtopicos.map(topico => {
-                          const studied = topico.totalEstudos > 0;
-                          const hasQ = topico.questoesRespondidas > 0;
-                          const perfRate = hasQ ? topico.questoesAcertadas / topico.questoesRespondidas : null;
+                          const studied = (topico.totalEstudos ?? 0) > 0;
+                          const hasQ = (topico.questoesRespondidas ?? 0) > 0;
+                          const perfRate = hasQ ? (topico.questoesAcertadas ?? 0) / (topico.questoesRespondidas ?? 0) : null;
                           return (
                             <div key={topico.id} className="group rounded-lg border border-slate-100 bg-slate-50/20 hover:border-indigo-100 hover:bg-white transition-all duration-200 p-3">
                               <div className="flex items-start gap-2.5">
@@ -223,13 +223,13 @@ const ConcursoCargoDetailPage = () => {
                                         <Target className="w-2.5 h-2.5" /> Sem questões respondidas
                                       </span>
                                     )}
-                                    {topico.ultimaQuestao && (
+                                    {(topico.ultimaQuestao ?? null) && (
                                       <span className="text-[10px] font-medium text-slate-400 inline-flex items-center gap-1">
-                                        <BarChart2 className="w-2.5 h-2.5" /> Questão: {formatDateShort(topico.ultimaQuestao)}
+                                        <BarChart2 className="w-2.5 h-2.5" /> Questão: {formatDateShort(topico.ultimaQuestao!)}
                                       </span>
                                     )}
                                     <span className={`text-[10px] font-medium inline-flex items-center gap-1 ${studied ? 'text-slate-400' : 'text-slate-300'}`}>
-                                      <Clock className="w-2.5 h-2.5" /> Estudo: {formatDateShort(topico.ultimoEstudo)}
+                                      <Clock className="w-2.5 h-2.5" /> Estudo: {formatDateShort(topico.ultimoEstudo ?? undefined)}
                                     </span>
                                   </div>
                                 </div>
