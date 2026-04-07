@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import { simuladoService, disciplinaService, temaService, subtemaService, bancaService, cargoService } from '@/services/api';
 import { formatNivel } from '@/utils/formatters';
 import * as Types from '@/types';
-import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { 
   Plus, 
@@ -18,20 +17,43 @@ import {
   Tag,
   Tags,
   AlertCircle,
-  ClipboardList
+  ClipboardList,
+  ChevronLeft,
+  Settings2,
+  Info
 } from 'lucide-react';
 
-type SimuladoSummaryDto = Types.SimuladoSummaryDto;
+// Extended type to accommodate possible performance fields
+interface SimuladoSummaryWithStats extends Types.SimuladoSummaryDto {
+  questoesRespondidas?: number;
+  questoesAcertadas?: number;
+}
+
+const AccuracyPill = ({ accuracy, size = 'md' }: { accuracy: number, size?: 'sm' | 'md' | 'lg' }) => {
+  const colorClass = accuracy >= 70 ? 'text-sage-700' : accuracy >= 50 ? 'text-amber-800' : 'text-terracotta-700';
+  const bgClass = accuracy >= 70 ? 'bg-sage-50' : accuracy >= 50 ? 'bg-amber-50' : 'bg-terracotta-50';
+  const sizeClasses = { sm: 'text-xs', md: 'text-sm', lg: 'text-lg' };
+  
+  return (
+    <div className={`inline-flex items-center px-2 py-0.5 rounded-lg border border-current/10 ${bgClass} ${colorClass}`}>
+      <span className={`font-mono font-bold tracking-tight tabular-nums ${sizeClasses[size]}`}>
+        {accuracy}%
+      </span>
+    </div>
+  );
+};
 
 const SimuladosPage = () => {
   const navigate = useNavigate();
-  const [simulados, setSimulados] = useState<SimuladoSummaryDto[]>([]);
+  const [simulados, setSimulados] = useState<SimuladoSummaryWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [formStep, setFormStep] = useState(1);
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  // Filter and Options data (loaded lazily via AsyncSelect)
+  // Filter and Options data
   const [cachedBancas, setCachedBancas] = useState<Types.BancaSummaryDto[]>([]);
   const [cachedCargos, setCachedCargos] = useState<Types.CargoDetailDto[]>([]);
 
@@ -48,7 +70,7 @@ const SimuladosPage = () => {
     subtemas: []
   });
 
-  const [pagination, setPagination] = useState<Types.PageResponse<SimuladoSummaryDto>>({
+  const [pagination, setPagination] = useState<Types.PageResponse<SimuladoSummaryWithStats>>({
     content: [],
     pageNumber: 0,
     pageSize: 20,
@@ -68,7 +90,9 @@ const SimuladosPage = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     try {
-      const simuladosRes = await simuladoService.getAll({ page, size: 20 }).catch(() => ({ content: [], totalPages: 0, totalElements: 0, pageNumber: 0, pageSize: 20, last: true }));
+      const simuladosRes = await simuladoService.getAll({ page, size: 20 }).catch(() => ({ 
+        content: [], totalPages: 0, totalElements: 0, pageNumber: 0, pageSize: 20, last: true 
+      }));
 
       setSimulados(simuladosRes.content);
       setPagination(simuladosRes);
@@ -80,17 +104,31 @@ const SimuladosPage = () => {
     }
   };
 
+  const totalQuestionsPreview = useMemo(() => {
+    const dCount = (formData.disciplinas || []).reduce((acc, d) => acc + d.quantidade, 0);
+    const tCount = (formData.temas || []).reduce((acc, t) => acc + t.quantidade, 0);
+    const sCount = (formData.subtemas || []).reduce((acc, s) => acc + s.quantidade, 0);
+    return dCount + tCount + sCount;
+  }, [formData.disciplinas, formData.temas, formData.subtemas]);
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLocalLoading(true);
-    setSubmissionError(null);
-
-    // Basic validation
-    if (formData.disciplinas?.length === 0 && formData.temas?.length === 0 && formData.subtemas?.length === 0) {
-      setSubmissionError('Selecione pelo menos uma disciplina, tema ou subtema');
-      setLocalLoading(false);
+    if (formStep === 1) {
+      if (!formData.nome.trim()) {
+        setSubmissionError('O nome do simulado é obrigatório para registro.');
+        return;
+      }
+      if (totalQuestionsPreview === 0) {
+        setSubmissionError('Selecione ao menos um conteúdo programático.');
+        return;
+      }
+      setFormStep(2);
+      setSubmissionError(null);
       return;
     }
+
+    setLocalLoading(true);
+    setSubmissionError(null);
 
     try {
       await simuladoService.gerar(formData);
@@ -99,21 +137,21 @@ const SimuladosPage = () => {
       resetForm();
     } catch (error: any) {
       console.error('Erro ao gerar simulado:', error);
-      setSubmissionError(error.message || 'Erro inesperado ao gerar simulado');
+      setSubmissionError(error.message || 'Falha na geração do simulado. Verifique os parâmetros.');
     } finally {
       setLocalLoading(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Tem certeza que deseja excluir este simulado? As respostas serão preservadas.')) {
-      try {
-        await simuladoService.delete(id);
-        await loadData(currentPage);
-      } catch (error: any) {
-        console.error('Erro ao excluir simulado:', error);
-        alert(error.message || 'Erro ao excluir simulado');
-      }
+  const confirmDelete = async (id: number) => {
+    try {
+      await simuladoService.delete(id);
+      setDeletingId(null);
+      await loadData(currentPage);
+    } catch (error: any) {
+      console.error('Erro ao excluir simulado:', error);
+      alert('Erro na exclusão do registro.');
+      setDeletingId(null);
     }
   };
 
@@ -129,6 +167,7 @@ const SimuladosPage = () => {
       temas: [],
       subtemas: []
     });
+    setFormStep(1);
     setSubmissionError(null);
   };
 
@@ -146,8 +185,9 @@ const SimuladosPage = () => {
   };
 
   const updateQuantity = (type: 'disciplinas' | 'temas' | 'subtemas', id: number, qty: number) => {
+    const sanitizedQty = Math.min(Math.max(1, qty), 50);
     const list = (formData[type] || []).map(item => 
-      item.id === id ? { ...item, quantidade: qty } : item
+      item.id === id ? { ...item, quantidade: sanitizedQty } : item
     );
     setFormData({ ...formData, [type]: list });
   };
@@ -173,7 +213,6 @@ const SimuladosPage = () => {
     } catch { return []; }
   };
 
-  // Sets for filterOption exclusion
   const selectedDisciplinaIds = new Set((formData.disciplinas || []).map(d => d.id));
   const selectedTemaIds = new Set((formData.temas || []).map(t => t.id));
   const selectedSubtemaIds = new Set((formData.subtemas || []).map(s => s.id));
@@ -195,19 +234,27 @@ const SimuladosPage = () => {
   };
 
   const selectStyles = {
-    control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.5rem' }),
+    control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.75rem', padding: '2px' }),
     singleValue: (base: any) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
     placeholder: (base: any) => ({ ...base, fontSize: '0.875rem', color: '#9ca3af' })
   };
 
-  // Cache lookups for selected items
-  const bancaLabelMap = new Map(cachedBancas.map(b => [b.id, b.nome]));
-  const cargoLabelMap = new Map(cachedCargos.map(c => [c.id, `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`]));
+  const buildPages = (current: number, total: number) => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i);
+    const pages: (number | string)[] = [0];
+    if (current > 2) pages.push('...');
+    const start = Math.max(1, current - 1);
+    const end = Math.min(total - 2, current + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (current < total - 3) pages.push('...');
+    pages.push(total - 1);
+    return pages;
+  };
 
   if (loading && !showForm) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
@@ -225,344 +272,444 @@ const SimuladosPage = () => {
             className="inline-flex items-center px-4 py-2.5 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Gerar Novo Simulado
+            Gerar Simulado
           </button>
         }
       />
 
       {showForm && (
-        <div className="bg-white shadow-sm rounded-2xl border border-gray-200 overflow-hidden animate-fade-in">
-          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-900 flex items-center">
-              <Plus className="w-5 h-5 mr-2 text-indigo-600" />
-              Novo Simulado Personalizado
-            </h3>
-            <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+        <div className="bg-white shadow-xl rounded-2xl border border-slate-200 overflow-hidden animate-enter-1">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 flex items-center">
+                <Plus className="w-5 h-5 mr-2 text-indigo-600" />
+                Novo Simulado
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">Passo {formStep} de 2: {formStep === 1 ? 'Definição do Conteúdo' : 'Filtros Avançados'}</p>
+            </div>
+            <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-lg transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
           <form onSubmit={handleGenerate} className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              <div className="md:col-span-2 lg:col-span-1">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nome do Simulado</label>
-                <input
-                  type="text"
-                  value={formData.nome}
-                  onChange={e => setFormData({ ...formData, nome: e.target.value })}
-                  className="shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-lg p-3 border transition-all"
-                  required
-                  placeholder="Ex: Simulado PC-SP 2024"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Banca de Preferência</label>
-                <AsyncSelect
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadBancaOptions}
-                  onChange={opt => setFormData({ ...formData, bancaId: opt?.value })}
-                  isClearable
-                  placeholder="Qualquer banca..."
-                  styles={selectStyles}
-                  className="react-select-container"
-                  classNamePrefix="react-select"
-                  loadingMessage={() => "Carregando..."}
-                  noOptionsMessage={() => "Nenhuma banca encontrada"}
-                  menuPortalTarget={document.body}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cargo de Preferência</label>
-                <AsyncSelect
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadCargoOptions}
-                  onChange={opt => setFormData({ ...formData, cargoId: opt?.value })}
-                  isClearable
-                  placeholder="Qualquer cargo..."
-                  styles={selectStyles}
-                  className="react-select-container"
-                  classNamePrefix="react-select"
-                  loadingMessage={() => "Carregando..."}
-                  noOptionsMessage={() => "Nenhum cargo encontrado"}
-                  menuPortalTarget={document.body}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nível</label>
-                <select
-                  value={formData.nivel || ''}
-                  onChange={e => setFormData({ ...formData, nivel: e.target.value as Types.NivelCargo || undefined })}
-                  className="shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-lg p-2.5 border transition-all"
-                >
-                  <option value="">Todos os níveis</option>
-                  <option value="FUNDAMENTAL">Fundamental</option>
-                  <option value="MEDIO">Médio</option>
-                  <option value="SUPERIOR">Superior</option>
-                </select>
-              </div>
-              <div className="flex items-center pt-6">
-                <label className="relative inline-flex items-center cursor-pointer">
+            {formStep === 1 ? (
+              <div className="space-y-8">
+                <div className="max-w-xl">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nome do Simulado</label>
                   <input
-                    type="checkbox"
-                    checked={formData.ignorarRespondidas}
-                    onChange={e => setFormData({ ...formData, ignorarRespondidas: e.target.checked })}
-                    className="sr-only peer"
+                    type="text"
+                    value={formData.nome}
+                    onChange={e => setFormData({ ...formData, nome: e.target.value })}
+                    className="shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-slate-200 rounded-xl p-3 border transition-all"
+                    required
+                    placeholder="Ex: Simulado PC-SP 2024"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                  <span className="ml-3 text-sm font-medium text-gray-700">Ignorar respondidas</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-              {/* Disciplinas */}
-              <div className="space-y-4">
-                <div className="flex items-center text-sm font-bold text-gray-700 border-b border-gray-100 pb-2">
-                  <BookOpen className="w-4 h-4 mr-2 text-indigo-500" /> Disciplinas
                 </div>
-                <AsyncSelect
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadDisciplinaOptions}
-                  filterOption={(opt) => !selectedDisciplinaIds.has(opt.value)}
-                  onChange={opt => opt && addItem('disciplinas', opt.value, opt.label)}
-                  placeholder="Adicionar..."
-                  value={null}
-                  styles={selectStyles}
-                  className="react-select-container"
-                  classNamePrefix="react-select"
-                  loadingMessage={() => "Carregando..."}
-                  noOptionsMessage={() => "Nenhuma disciplina encontrada"}
-                  menuPortalTarget={document.body}
-                />
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {formData.disciplinas?.map(item => (
-                    <div key={item.id} className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
-                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{(item as any)._label || `Disc. #${item.id}`}</span>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.quantidade}
-                          onChange={e => updateQuantity('disciplinas', item.id, parseInt(e.target.value) || 1)}
-                          className="w-12 p-1 border border-indigo-200 rounded text-xs focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                        />
-                        <button type="button" onClick={() => removeItem('disciplinas', item.id)} className="text-indigo-400 hover:text-red-500 transition-colors">
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {/* Disciplinas */}
+                  <div className="space-y-4">
+                    <div className="flex items-center text-sm font-bold text-slate-700 border-b border-slate-100 pb-2">
+                      <BookOpen className="w-4 h-4 mr-2 text-indigo-500" /> Disciplinas
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Temas */}
-              <div className="space-y-4">
-                <div className="flex items-center text-sm font-bold text-gray-700 border-b border-gray-100 pb-2">
-                  <Tag className="w-4 h-4 mr-2 text-indigo-500" /> Temas
-                </div>
-                <AsyncSelect
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadTemaOptions}
-                  filterOption={(opt) => !selectedTemaIds.has(opt.value)}
-                  onChange={opt => opt && addItem('temas', opt.value, opt.label)}
-                  placeholder="Adicionar..."
-                  value={null}
-                  styles={selectStyles}
-                  className="react-select-container"
-                  classNamePrefix="react-select"
-                  loadingMessage={() => "Carregando..."}
-                  noOptionsMessage={() => "Nenhum tema encontrado"}
-                  menuPortalTarget={document.body}
-                />
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {formData.temas?.map(item => (
-                    <div key={item.id} className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
-                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{(item as any)._label || `Tema #${item.id}`}</span>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.quantidade}
-                          onChange={e => updateQuantity('temas', item.id, parseInt(e.target.value) || 1)}
-                          className="w-12 p-1 border border-indigo-200 rounded text-xs focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                        />
-                        <button type="button" onClick={() => removeItem('temas', item.id)} className="text-indigo-400 hover:text-red-500 transition-colors">
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                    <AsyncSelect
+                      cacheOptions
+                      defaultOptions
+                      loadOptions={loadDisciplinaOptions}
+                      filterOption={(opt) => !selectedDisciplinaIds.has(opt.value)}
+                      onChange={opt => opt && addItem('disciplinas', opt.value, opt.label)}
+                      placeholder="Adicionar..."
+                      value={null}
+                      styles={selectStyles}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      loadingMessage={() => "Carregando..."}
+                      noOptionsMessage={() => "Nenhuma encontrada"}
+                    />
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1 no-scrollbar">
+                      {formData.disciplinas?.map(item => (
+                        <div key={item.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200 group">
+                          <span className="text-xs font-bold text-slate-700 truncate flex-1 pr-2">{(item as any)._label || `Disc. #${item.id}`}</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              max="50"
+                              value={item.quantidade}
+                              onChange={e => updateQuantity('disciplinas', item.id, parseInt(e.target.value) || 1)}
+                              className="w-12 p-1 border border-slate-200 rounded-lg text-xs font-mono font-bold tabular-nums focus:ring-indigo-500 focus:border-indigo-500 bg-white text-center"
+                            />
+                            <button type="button" onClick={() => removeItem('disciplinas', item.id)} className="text-slate-400 hover:text-terracotta-500 transition-colors p-1">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
 
-              {/* Subtemas */}
-              <div className="space-y-4">
-                <div className="flex items-center text-sm font-bold text-gray-700 border-b border-gray-100 pb-2">
-                  <Tags className="w-4 h-4 mr-2 text-indigo-500" /> Subtemas
-                </div>
-                <AsyncSelect
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadSubtemaOptions}
-                  filterOption={(opt) => !selectedSubtemaIds.has(opt.value)}
-                  onChange={opt => opt && addItem('subtemas', opt.value, opt.label)}
-                  placeholder="Adicionar..."
-                  value={null}
-                  styles={selectStyles}
-                  className="react-select-container"
-                  classNamePrefix="react-select"
-                  loadingMessage={() => "Carregando..."}
-                  noOptionsMessage={() => "Nenhum subtema encontrado"}
-                  menuPortalTarget={document.body}
-                />
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {formData.subtemas?.map(item => (
-                    <div key={item.id} className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
-                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{(item as any)._label || `Subtema #${item.id}`}</span>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.quantidade}
-                          onChange={e => updateQuantity('subtemas', item.id, parseInt(e.target.value) || 1)}
-                          className="w-12 p-1 border border-indigo-200 rounded text-xs focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                        />
-                        <button type="button" onClick={() => removeItem('subtemas', item.id)} className="text-indigo-400 hover:text-red-500 transition-colors">
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                  {/* Temas */}
+                  <div className="space-y-4">
+                    <div className="flex items-center text-sm font-bold text-slate-700 border-b border-slate-100 pb-2">
+                      <Tag className="w-4 h-4 mr-2 text-indigo-500" /> Temas
                     </div>
-                  ))}
+                    <AsyncSelect
+                      cacheOptions
+                      defaultOptions
+                      loadOptions={loadTemaOptions}
+                      filterOption={(opt) => !selectedTemaIds.has(opt.value)}
+                      onChange={opt => opt && addItem('temas', opt.value, opt.label)}
+                      placeholder="Adicionar..."
+                      value={null}
+                      styles={selectStyles}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      loadingMessage={() => "Carregando..."}
+                      noOptionsMessage={() => "Nenhum encontrado"}
+                    />
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1 no-scrollbar">
+                      {formData.temas?.map(item => (
+                        <div key={item.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                          <span className="text-xs font-bold text-slate-700 truncate flex-1 pr-2">{(item as any)._label || `Tema #${item.id}`}</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              max="50"
+                              value={item.quantidade}
+                              onChange={e => updateQuantity('temas', item.id, parseInt(e.target.value) || 1)}
+                              className="w-12 p-1 border border-slate-200 rounded-lg text-xs font-mono font-bold tabular-nums focus:ring-indigo-500 focus:border-indigo-500 bg-white text-center"
+                            />
+                            <button type="button" onClick={() => removeItem('temas', item.id)} className="text-slate-400 hover:text-terracotta-500 transition-colors p-1">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Subtemas */}
+                  <div className="space-y-4">
+                    <div className="flex items-center text-sm font-bold text-slate-700 border-b border-slate-100 pb-2">
+                      <Tags className="w-4 h-4 mr-2 text-indigo-500" /> Subtemas
+                    </div>
+                    <AsyncSelect
+                      cacheOptions
+                      defaultOptions
+                      loadOptions={loadSubtemaOptions}
+                      filterOption={(opt) => !selectedSubtemaIds.has(opt.value)}
+                      onChange={opt => opt && addItem('subtemas', opt.value, opt.label)}
+                      placeholder="Adicionar..."
+                      value={null}
+                      styles={selectStyles}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      loadingMessage={() => "Carregando..."}
+                      noOptionsMessage={() => "Nenhum encontrado"}
+                    />
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1 no-scrollbar">
+                      {formData.subtemas?.map(item => (
+                        <div key={item.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                          <span className="text-xs font-bold text-slate-700 truncate flex-1 pr-2">{(item as any)._label || `Subtema #${item.id}`}</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              max="50"
+                              value={item.quantidade}
+                              onChange={e => updateQuantity('subtemas', item.id, parseInt(e.target.value) || 1)}
+                              className="w-12 p-1 border border-slate-200 rounded-lg text-xs font-mono font-bold tabular-nums focus:ring-indigo-500 focus:border-indigo-500 bg-white text-center"
+                            />
+                            <button type="button" onClick={() => removeItem('subtemas', item.id)} className="text-slate-400 hover:text-terracotta-500 transition-colors p-1">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                  <div className="bg-indigo-600 text-white p-2 rounded-xl shadow-sm">
+                    <ClipboardList className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-indigo-900">Total planejado: <span className="text-lg font-mono font-bold tabular-nums">{totalQuestionsPreview}</span> questões</p>
+                    <p className="text-xs text-indigo-600 font-medium">As quantidades podem ser ajustadas individualmente até o limite de 50 por tópico.</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-8 animate-enter-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Banca de Preferência</label>
+                    <AsyncSelect
+                      cacheOptions
+                      defaultOptions
+                      loadOptions={loadBancaOptions}
+                      onChange={opt => setFormData({ ...formData, bancaId: opt?.value })}
+                      isClearable
+                      placeholder="Qualquer banca..."
+                      styles={selectStyles}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      loadingMessage={() => "Carregando..."}
+                      noOptionsMessage={() => "Nenhuma encontrada"}
+                    />
+                    <p className="mt-1.5 text-[10px] text-slate-400 font-medium flex items-center"><Info className="w-3 h-3 mr-1" /> Priorização baseada na banca selecionada nos tópicos do simulado.</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Cargo de Preferência</label>
+                    <AsyncSelect
+                      cacheOptions
+                      defaultOptions
+                      loadOptions={loadCargoOptions}
+                      onChange={opt => setFormData({ ...formData, cargoId: opt?.value })}
+                      isClearable
+                      placeholder="Qualquer cargo..."
+                      styles={selectStyles}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      loadingMessage={() => "Carregando..."}
+                      noOptionsMessage={() => "Nenhum encontrado"}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nível de Escolaridade</label>
+                    <select
+                      value={formData.nivel || ''}
+                      onChange={e => setFormData({ ...formData, nivel: e.target.value as Types.NivelCargo || undefined })}
+                      className="shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-slate-200 rounded-xl p-3 border transition-all appearance-none bg-white"
+                    >
+                      <option value="">Todos os níveis</option>
+                      <option value="FUNDAMENTAL">Fundamental</option>
+                      <option value="MEDIO">Médio</option>
+                      <option value="SUPERIOR">Superior</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center pt-6">
+                    <label className="relative inline-flex items-center cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={formData.ignorarRespondidas}
+                        onChange={e => setFormData({ ...formData, ignorarRespondidas: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                      <span className="ml-3 text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">Ignorar questões já respondidas</span>
+                    </label>
+                  </div>
+                </div>
 
-            {submissionError && (
-              <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
-                <div className="flex items-center">
-                  <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
-                  <p className="text-sm text-red-700 font-medium">{submissionError}</p>
+                <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex gap-3">
+                  <Settings2 className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                  <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                    Estes filtros estratégicos são opcionais. Caso omitidos, o sistema priorizará a diversidade de questões nos tópicos selecionados.
+                  </p>
                 </div>
               </div>
             )}
 
-            <div className="flex justify-end space-x-4 border-t border-gray-100 pt-6">
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="px-6 py-2.5 border border-gray-300 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all"
-              >
-                Cancelar
-              </button>
+            {submissionError && (
+              <div className="mt-6 bg-terracotta-50 border-l-4 border-terracotta-500 p-4 rounded-r-xl">
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 text-terracotta-500 mr-3" />
+                  <p className="text-sm text-terracotta-700 font-bold">{submissionError}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between space-x-4 border-t border-slate-100 mt-8 pt-6">
+              {formStep === 2 ? (
+                <button
+                  type="button"
+                  onClick={() => setFormStep(1)}
+                  className="px-6 py-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all flex items-center"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Voltar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-6 py-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all"
+                >
+                  Cancelar
+                </button>
+              )}
+              
               <button
                 type="submit"
                 disabled={localLoading}
-                className="px-8 py-2.5 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all disabled:opacity-50"
+                className="px-8 py-2.5 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center"
               >
-                {localLoading ? 'Gerando...' : 'Criar Simulado'}
+                {formStep === 1 ? (
+                  <>Próximo: Filtros <ChevronRight className="w-4 h-4 ml-2" /></>
+                ) : (
+                  localLoading ? 'Gerando...' : 'Confirmar Geração'
+                )}
               </button>
             </div>
           </form>
         </div>
       )}
       
-      <div className="bg-white shadow-sm overflow-hidden sm:rounded-2xl border border-gray-200">
-        <ul className="divide-y divide-gray-100">
+      <div className="bg-white shadow-sm overflow-hidden sm:rounded-3xl border border-slate-200">
+        <ul className="divide-y divide-slate-100">
           {simulados.length === 0 ? (
-            <li className="px-4 py-16 text-center text-gray-500">
-              <ClipboardList className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Nenhum simulado ainda</h3>
-              <p className="text-gray-500 max-w-md mx-auto mb-8">
-                Você ainda não gerou simulados personalizados. Comece criando um para testar seus conhecimentos!
+            <li className="px-4 py-20 text-center text-slate-500 animate-enter-1">
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">Histórico de simulados vazio</h3>
+              <p className="text-slate-500 max-w-sm mx-auto mb-8 font-medium">
+                Gere seu primeiro simulado personalizado para iniciar a medição de desempenho estratégico.
               </p>
               {!showForm && (
-                <button onClick={() => setShowForm(true)} className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-md">
-                  <Plus className="w-5 h-5 mr-2" /> Gerar Meu Primeiro Simulado
+                <button onClick={() => setShowForm(true)} className="inline-flex items-center px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-100">
+                  <Plus className="w-5 h-5 mr-2" /> Iniciar Primeiro Simulado
                 </button>
               )}
             </li>
           ) : (
-            simulados.map((s) => (
-              <li key={s.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50/50 transition-colors">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center mb-1">
-                      <div className={`p-1.5 rounded-md mr-3 ${s.finishedAt ? 'bg-green-100 text-green-600' : s.startedAt ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-400'}`}>
-                        {s.finishedAt ? <CheckCircle className="w-4 h-4" /> : s.startedAt ? <Clock className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            simulados.map((s, idx) => {
+              const isFinished = !!s.finishedAt;
+              const isStarted = !!s.startedAt && !isFinished;
+              const totalPlanned = [...(s.disciplinas || []), ...(s.temas || []), ...(s.subtemas || [])].reduce((acc, curr) => acc + curr.quantidade, 0);
+              const accuracy = (s.questoesRespondidas ?? 0) > 0 ? Math.round(((s.questoesAcertadas ?? 0) / (s.questoesRespondidas ?? 0)) * 100) : null;
+
+              return (
+                <li key={s.id} className={`group px-4 py-5 sm:px-6 transition-all border-l-[4px] animate-enter-${Math.min(idx + 1, 5)} ${
+                  isFinished ? 'border-sage-500 bg-sage-50/20' : 
+                  isStarted ? 'border-amber-500 bg-amber-50/20' : 
+                  'border-transparent hover:bg-slate-50/80'
+                }`}>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center mb-1.5">
+                        <h4 className="text-lg font-bold text-slate-800 truncate tracking-tight">{s.nome}</h4>
+                        {isFinished && accuracy !== null && (
+                          <div className="ml-4 flex items-center gap-2">
+                            <AccuracyPill accuracy={accuracy} size="sm" />
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Taxa de acerto</span>
+                          </div>
+                        )}
                       </div>
-                      <h4 className="text-base font-bold text-gray-800 truncate">{s.nome}</h4>
+                      <div className="text-[11px] text-slate-500 font-medium space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                          {isFinished ? (
+                            <span className="text-sage-700 font-bold bg-sage-100/50 px-2 py-0.5 rounded-full flex items-center border border-sage-200/50">
+                              <CheckCircle className="w-3 h-3 mr-1" /> Concluído
+                            </span>
+                          ) : isStarted ? (
+                            <span className="text-amber-800 font-bold bg-amber-100/50 px-2 py-0.5 rounded-full flex items-center border border-amber-200/50">
+                              <Clock className="w-3 h-3 mr-1" /> Em andamento
+                            </span>
+                          ) : (
+                            <span className="text-indigo-700 font-bold bg-indigo-100/50 px-2 py-0.5 rounded-full flex items-center border border-indigo-200/50">
+                              <Play className="w-3 h-3 mr-1" /> Não iniciado
+                            </span>
+                          )}
+                          
+                          {isFinished && (
+                            <span className="font-mono font-bold text-slate-700 flex items-center tabular-nums">
+                              <Info className="w-3 h-3 mr-1 text-slate-300" />
+                              {s.questoesAcertadas ?? 0}/{s.questoesRespondidas ?? totalPlanned} questões
+                            </span>
+                          )}
+                          
+                          {!isFinished && (
+                            <span className="font-mono font-bold text-slate-700 flex items-center tabular-nums">
+                              <ClipboardList className="w-3 h-3 mr-1 text-slate-300" />
+                              {totalPlanned} questões
+                            </span>
+                          )}
+
+                          {s.banca && <span className="text-slate-400">Banca: <span className="font-bold text-slate-700">{s.banca.nome}</span></span>}
+                          {s.cargo && <span className="text-slate-400">Cargo: <span className="font-bold text-slate-700">{s.cargo.nome}</span></span>}
+                        </div>
+                        
+                        {(s.disciplinas && s.disciplinas.length > 0) && (
+                          <p className="line-clamp-1 opacity-80 text-slate-400">
+                            <span className="font-bold text-slate-500">Disciplinas:</span> {s.disciplinas.map(d => d.nome).join(' · ')}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="pl-10 text-xs text-gray-500 space-y-1 mt-1">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        {s.banca && <span className="font-medium text-gray-600">Banca: <span className="font-bold text-gray-800">{s.banca.nome}</span></span>}
-                        {s.cargo && <span className="font-medium text-gray-600">Cargo: <span className="font-bold text-gray-800">{s.cargo.nome}</span></span>}
-                        {s.nivel && <span className="font-medium text-gray-600">Nível: <span className="font-bold text-gray-800">{s.nivel}</span></span>}
-                      </div>
-                      {s.disciplinas && s.disciplinas.length > 0 && (
-                        <p className="leading-tight">
-                          <span className="font-medium">Disciplinas:</span> {s.disciplinas.map(d => d.nome).join(', ')}
-                        </p>
+
+                    <div className="flex space-x-2 flex-shrink-0 self-end sm:self-center">
+                      {deletingId === s.id ? (
+                        <div className="flex items-center gap-2 bg-terracotta-50 p-1 rounded-xl border border-terracotta-100 animate-in slide-in-from-right-2">
+                          <span className="text-[10px] font-bold text-terracotta-700 px-2 uppercase">Excluir?</span>
+                          <button onClick={() => confirmDelete(s.id)} className="bg-terracotta-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-terracotta-600 shadow-sm transition-all">Sim</button>
+                          <button onClick={() => setDeletingId(null)} className="bg-white text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all">Não</button>
+                        </div>
+                      ) : (
+                        <>
+                          {isFinished ? (
+                            <button onClick={() => navigate(`/simulados/${s.id}`)} className="text-indigo-600 bg-white border border-slate-200 shadow-sm text-xs font-bold flex items-center hover:bg-indigo-50 hover:border-indigo-100 transition-all px-4 py-2.5 rounded-xl">
+                              Resultados <ChevronRight className="w-4 h-4 ml-1" />
+                            </button>
+                          ) : isStarted ? (
+                            <button onClick={() => navigate(`/simulados/${s.id}`)} className="text-amber-800 bg-amber-100 text-xs font-bold flex items-center hover:bg-amber-200 transition-all px-4 py-2.5 rounded-xl shadow-sm">
+                              Continuar <Play className="w-4 h-4 ml-1 fill-current" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={async () => {
+                                try { await simuladoService.iniciar(s.id); navigate(`/simulados/${s.id}`); } catch (error) { alert('Erro ao iniciar simulado: ' + (error as Error).message); }
+                              }}
+                              className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition-all flex items-center"
+                            >
+                              Iniciar <Play className="w-4 h-4 ml-2 fill-white" />
+                            </button>
+                          )}
+                          <button onClick={() => setDeletingId(s.id)} className="p-2.5 text-slate-400 hover:text-terracotta-500 hover:bg-terracotta-50 rounded-xl transition-all">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
-                  <div className="flex space-x-2 flex-shrink-0 self-end sm:self-center">
-                    {s.finishedAt ? (
-                      <button onClick={() => navigate(`/simulados/${s.id}`)} className="text-indigo-600 bg-indigo-50 text-sm font-bold flex items-center hover:bg-indigo-100 transition-all px-4 py-2 rounded-lg">
-                        Ver Resultados
-                      </button>
-                    ) : s.startedAt ? (
-                      <button onClick={() => navigate(`/simulados/${s.id}`)} className="text-yellow-700 bg-yellow-50 text-sm font-bold flex items-center hover:bg-yellow-100 transition-all px-4 py-2 rounded-lg">
-                        Continuar
-                      </button>
-                    ) : (
-                      <button
-                        onClick={async () => {
-                          try { await simuladoService.iniciar(s.id); navigate(`/simulados/${s.id}`); } catch (error) { alert('Erro ao iniciar simulado: ' + (error as Error).message); }
-                        }}
-                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-indigo-700 transition-all"
-                      >
-                        Iniciar
-                      </button>
-                    )}
-                    <button onClick={() => handleDelete(s.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))
+                </li>
+              );
+            })
           )}
         </ul>
 
         {/* Pagination Controls */}
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-center py-4 border-t border-gray-100">
-            <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm bg-white border border-gray-200 overflow-hidden" aria-label="Pagination">
+          <div className="flex items-center justify-center py-6 border-t border-slate-50 bg-slate-50/50">
+            <nav className="isolate inline-flex -space-x-px rounded-2xl shadow-sm bg-white border border-slate-200 overflow-hidden p-1 gap-1" aria-label="Pagination">
               <button
                 onClick={() => loadData(currentPage - 1)}
                 disabled={currentPage === 0}
-                className="relative inline-flex items-center px-3 py-2 text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+                className="relative inline-flex items-center p-2 rounded-xl text-slate-400 hover:bg-slate-50 disabled:opacity-30 transition-colors"
               >
-                <ChevronRight className="w-5 h-5 rotate-180" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
-              {[...Array(pagination.totalPages)].map((_, page) => (
-                <button
-                  key={page}
-                  onClick={() => loadData(page)}
-                  className={`relative inline-flex items-center px-4 py-2 text-sm font-bold transition-all ${
-                    currentPage === page ? 'z-10 bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {page + 1}
-                </button>
+              
+              {buildPages(currentPage, pagination.totalPages).map((page, idx) => (
+                typeof page === 'string' ? (
+                  <span key={`ell-${idx}`} className="px-3 py-2 text-slate-400 text-sm font-bold flex items-center">...</span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => loadData(page)}
+                    className={`relative inline-flex items-center px-4 py-2 rounded-xl text-sm font-mono font-bold tabular-nums transition-all ${
+                      currentPage === page ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {page + 1}
+                  </button>
+                )
               ))}
+
               <button
                 onClick={() => loadData(currentPage + 1)}
                 disabled={currentPage === pagination.totalPages - 1}
-                className="relative inline-flex items-center px-3 py-2 text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+                className="relative inline-flex items-center p-2 rounded-xl text-slate-400 hover:bg-slate-50 disabled:opacity-30 transition-colors"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
