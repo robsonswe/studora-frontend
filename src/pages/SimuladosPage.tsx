@@ -5,6 +5,7 @@ import { simuladoService, disciplinaService, temaService, subtemaService, bancaS
 import { formatNivel } from '@/utils/formatters';
 import * as Types from '@/types';
 import Select from 'react-select';
+import AsyncSelect from 'react-select/async';
 import { 
   Plus, 
   Trash2, 
@@ -30,12 +31,9 @@ const SimuladosPage = () => {
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
-  // Filter and Options data
-  const [disciplinas, setDisciplinas] = useState<Types.DisciplinaSummaryDto[]>([]);
-  const [temas, setTemas] = useState<Types.TemaSummaryDto[]>([]);
-  const [subtemas, setSubtemas] = useState<Types.SubtemaSummaryDto[]>([]);
-  const [bancas, setBancas] = useState<Types.BancaSummaryDto[]>([]);
-  const [cargos, setCargos] = useState<Types.CargoDetailDto[]>([]);
+  // Filter and Options data (loaded lazily via AsyncSelect)
+  const [cachedBancas, setCachedBancas] = useState<Types.BancaSummaryDto[]>([]);
+  const [cachedCargos, setCachedCargos] = useState<Types.CargoDetailDto[]>([]);
 
   // Form State
   const [formData, setFormData] = useState<Types.SimuladoGenerationRequest>({
@@ -134,10 +132,10 @@ const SimuladosPage = () => {
     setSubmissionError(null);
   };
 
-  const addItem = (type: 'disciplinas' | 'temas' | 'subtemas', id: number) => {
+  const addItem = (type: 'disciplinas' | 'temas' | 'subtemas', id: number, label?: string) => {
     const list = [...(formData[type] || [])];
     if (!list.find(item => item.id === id)) {
-      list.push({ id, quantidade: 10 });
+      list.push({ id, quantidade: 10, _label: label });
       setFormData({ ...formData, [type]: list });
     }
   };
@@ -154,11 +152,57 @@ const SimuladosPage = () => {
     setFormData({ ...formData, [type]: list });
   };
 
+  const loadDisciplinaOptions = async (inputValue: string) => {
+    try {
+      const data = await disciplinaService.getAll({ nome: inputValue || undefined, size: 20, metrics: 'lean' });
+      return data.content.map(d => ({ value: d.id, label: d.nome }));
+    } catch { return []; }
+  };
+
+  const loadTemaOptions = async (inputValue: string) => {
+    try {
+      const data = await temaService.getAll({ nome: inputValue || undefined, size: 20, metrics: 'lean' });
+      return data.content.map(t => ({ value: t.id, label: `${t.disciplinaNome || ''} - ${t.nome}` }));
+    } catch { return []; }
+  };
+
+  const loadSubtemaOptions = async (inputValue: string) => {
+    try {
+      const data = await subtemaService.getAll({ nome: inputValue || undefined, size: 20, metrics: 'lean' });
+      return data.content.map(s => ({ value: s.id, label: `${s.disciplinaNome || ''} - ${s.temaNome || ''} - ${s.nome}` }));
+    } catch { return []; }
+  };
+
+  // Sets for filterOption exclusion
+  const selectedDisciplinaIds = new Set((formData.disciplinas || []).map(d => d.id));
+  const selectedTemaIds = new Set((formData.temas || []).map(t => t.id));
+  const selectedSubtemaIds = new Set((formData.subtemas || []).map(s => s.id));
+
+  const loadBancaOptions = async (inputValue: string) => {
+    try {
+      const data = await bancaService.getAll({ nome: inputValue || undefined, size: 20 });
+      setCachedBancas(data.content);
+      return data.content.map(b => ({ value: b.id, label: b.nome }));
+    } catch { return []; }
+  };
+
+  const loadCargoOptions = async (inputValue: string) => {
+    try {
+      const data = await cargoService.getAll({ nome: inputValue || undefined, size: 20 });
+      setCachedCargos(data.content);
+      return data.content.map(c => ({ value: c.id, label: `${c.nome} - ${c.area} (${formatNivel(c.nivel)})` }));
+    } catch { return []; }
+  };
+
   const selectStyles = {
     control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.5rem' }),
     singleValue: (base: any) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
     placeholder: (base: any) => ({ ...base, fontSize: '0.875rem', color: '#9ca3af' })
   };
+
+  // Cache lookups for selected items
+  const bancaLabelMap = new Map(cachedBancas.map(b => [b.id, b.nome]));
+  const cargoLabelMap = new Map(cachedCargos.map(c => [c.id, `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`]));
 
   if (loading && !showForm) {
     return (
@@ -174,25 +218,9 @@ const SimuladosPage = () => {
         title="Meus Simulados"
         actions={
           <button
-            onClick={async () => {
+            onClick={() => {
               setShowForm(true);
-              try {
-                const [discRes, temasRes, subRes, bancaRes, cargoRes] = await Promise.all([
-                  disciplinaService.getAll({ size: 1000 }),
-                  temaService.getAll({ size: 1000 }),
-                  subtemaService.getAll({ size: 1000 }),
-                  bancaService.getAll({ size: 1000 }),
-                  cargoService.getAll({ size: 1000 })
-                ]);
-
-                setDisciplinas(discRes.content);
-                setTemas(temasRes.content);
-                setSubtemas(subRes.content);
-                setBancas(bancaRes.content);
-                setCargos(cargoRes.content);
-              } catch (error) {
-                console.error('Erro ao carregar opções do formulário:', error);
-              }
+              resetForm();
             }}
             className="inline-flex items-center px-4 py-2.5 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all"
           >
@@ -228,22 +256,36 @@ const SimuladosPage = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Banca de Preferência</label>
-                <Select
-                  options={bancas.map(b => ({ value: b.id, label: b.nome }))}
+                <AsyncSelect
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadBancaOptions}
                   onChange={opt => setFormData({ ...formData, bancaId: opt?.value })}
                   isClearable
                   placeholder="Qualquer banca..."
                   styles={selectStyles}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  loadingMessage={() => "Carregando..."}
+                  noOptionsMessage={() => "Nenhuma banca encontrada"}
+                  menuPortalTarget={document.body}
                 />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cargo de Preferência</label>
-                <Select
-                  options={cargos.map(c => ({ value: c.id, label: `${c.nome} - ${c.area} (${formatNivel(c.nivel)})` }))}
+                <AsyncSelect
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadCargoOptions}
                   onChange={opt => setFormData({ ...formData, cargoId: opt?.value })}
                   isClearable
                   placeholder="Qualquer cargo..."
                   styles={selectStyles}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  loadingMessage={() => "Carregando..."}
+                  noOptionsMessage={() => "Nenhum cargo encontrado"}
+                  menuPortalTarget={document.body}
                 />
               </div>
               <div>
@@ -279,17 +321,25 @@ const SimuladosPage = () => {
                 <div className="flex items-center text-sm font-bold text-gray-700 border-b border-gray-100 pb-2">
                   <BookOpen className="w-4 h-4 mr-2 text-indigo-500" /> Disciplinas
                 </div>
-                <Select
-                  options={disciplinas.map(d => ({ value: d.id, label: d.nome }))}
-                  onChange={opt => opt && addItem('disciplinas', opt.value)}
+                <AsyncSelect
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadDisciplinaOptions}
+                  filterOption={(opt) => !selectedDisciplinaIds.has(opt.value)}
+                  onChange={opt => opt && addItem('disciplinas', opt.value, opt.label)}
                   placeholder="Adicionar..."
                   value={null}
                   styles={selectStyles}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  loadingMessage={() => "Carregando..."}
+                  noOptionsMessage={() => "Nenhuma disciplina encontrada"}
+                  menuPortalTarget={document.body}
                 />
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {formData.disciplinas?.map(item => (
                     <div key={item.id} className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
-                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{disciplinas.find(d => d.id === item.id)?.nome}</span>
+                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{(item as any)._label || `Disc. #${item.id}`}</span>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
@@ -312,17 +362,25 @@ const SimuladosPage = () => {
                 <div className="flex items-center text-sm font-bold text-gray-700 border-b border-gray-100 pb-2">
                   <Tag className="w-4 h-4 mr-2 text-indigo-500" /> Temas
                 </div>
-                <Select
-                  options={temas.map(t => ({ value: t.id, label: `${t.disciplinaNome} - ${t.nome}` }))}
-                  onChange={opt => opt && addItem('temas', opt.value)}
+                <AsyncSelect
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadTemaOptions}
+                  filterOption={(opt) => !selectedTemaIds.has(opt.value)}
+                  onChange={opt => opt && addItem('temas', opt.value, opt.label)}
                   placeholder="Adicionar..."
                   value={null}
                   styles={selectStyles}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  loadingMessage={() => "Carregando..."}
+                  noOptionsMessage={() => "Nenhum tema encontrado"}
+                  menuPortalTarget={document.body}
                 />
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {formData.temas?.map(item => (
                     <div key={item.id} className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
-                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{temas.find(t => t.id === item.id)?.nome}</span>
+                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{(item as any)._label || `Tema #${item.id}`}</span>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
@@ -345,17 +403,25 @@ const SimuladosPage = () => {
                 <div className="flex items-center text-sm font-bold text-gray-700 border-b border-gray-100 pb-2">
                   <Tags className="w-4 h-4 mr-2 text-indigo-500" /> Subtemas
                 </div>
-                <Select
-                  options={subtemas.map(s => ({ value: s.id, label: `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}` }))}
-                  onChange={opt => opt && addItem('subtemas', opt.value)}
+                <AsyncSelect
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadSubtemaOptions}
+                  filterOption={(opt) => !selectedSubtemaIds.has(opt.value)}
+                  onChange={opt => opt && addItem('subtemas', opt.value, opt.label)}
                   placeholder="Adicionar..."
                   value={null}
                   styles={selectStyles}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  loadingMessage={() => "Carregando..."}
+                  noOptionsMessage={() => "Nenhum subtema encontrado"}
+                  menuPortalTarget={document.body}
                 />
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {formData.subtemas?.map(item => (
                     <div key={item.id} className="flex items-center justify-between bg-indigo-50/50 p-2 rounded-lg border border-indigo-100">
-                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{subtemas.find(s => s.id === item.id)?.nome}</span>
+                      <span className="text-xs font-bold text-indigo-900 truncate flex-1">{(item as any)._label || `Subtema #${item.id}`}</span>
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
