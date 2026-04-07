@@ -56,6 +56,7 @@ const groupTopicos = (topicos: TopicoEntry[]): TopicosByDisciplina[] => {
 const ConcursosPage = () => {
   const [concursos, setConcursos] = useState<ConcursoDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<ConcursoDto | null>(null);
   
@@ -85,14 +86,16 @@ const ConcursosPage = () => {
 
   const loadConcursos = useCallback(async (page: number = 0) => {
     setLoading(true);
+    setError(null);
     try {
       const data = await concursoService.getAll({ page, size: 20 });
       setConcursos(data.content);
       setPagination(data);
       setCurrentPage(page);
       window.scrollTo(0, 0);
-    } catch (error) {
-      console.error('Erro ao carregar concursos:', error);
+    } catch (err: any) {
+      console.error('Erro ao carregar concursos:', err);
+      setError(err.message || 'Não foi possível carregar os concursos. Por favor, tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -103,32 +106,52 @@ const ConcursosPage = () => {
   }, [loadConcursos]);
 
   const loadInstituicaoOptions = async (inputValue: string) => {
-    const data = await instituicaoService.getAll({ nome: inputValue, size: 20 });
-    return data.content.map(i => ({ value: i.id, label: i.nome }));
+    try {
+      const data = await instituicaoService.getAll({ nome: inputValue, size: 20 });
+      return data.content.map(i => ({ value: i.id, label: i.nome }));
+    } catch (err) {
+      console.error('Erro ao carregar instituições:', err);
+      return [];
+    }
   };
 
   const loadBancaOptions = async (inputValue: string) => {
-    const data = await bancaService.getAll({ nome: inputValue, size: 20 });
-    return data.content.map(b => ({ value: b.id, label: b.nome }));
+    try {
+      const data = await bancaService.getAll({ nome: inputValue, size: 20 });
+      return data.content.map(b => ({ value: b.id, label: b.nome }));
+    } catch (err) {
+      console.error('Erro ao carregar bancas:', err);
+      return [];
+    }
   };
 
   const loadCargoOptions = async (inputValue: string) => {
-    const data = await cargoService.getAll({ nome: inputValue, size: 20 });
-    return data.content.map(c => ({ value: c.id, label: `${c.nome} - ${c.area} (${formatNivel(c.nivel)})` }));
+    try {
+      const data = await cargoService.getAll({ nome: inputValue, size: 20 });
+      return data.content.map(c => ({ value: c.id, label: `${c.nome} - ${c.area} (${formatNivel(c.nivel)})` }));
+    } catch (err) {
+      console.error('Erro ao carregar cargos:', err);
+      return [];
+    }
   };
 
   // No filtering here — cacheOptions is restored; filterOption handles exclusion at render time
   const loadSubtemaOptions = async (inputValue: string) => {
-    const data = await subtemaService.getAll({ nome: inputValue, size: 20 });
-    return data.content.map(s => ({
-      value: s.id,
-      label: s.disciplinaNome ? `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}` : s.nome,
-      // carry grouping metadata so addTopico doesn't need a separate fetch
-      disciplinaId: s.disciplinaId ?? 0,
-      disciplinaNome: s.disciplinaNome ?? '',
-      temaId: s.temaId,
-      temaNome: s.temaNome ?? '',
-    }));
+    try {
+      const data = await subtemaService.getAll({ nome: inputValue, size: 20 });
+      return data.content.map(s => ({
+        value: s.id,
+        label: s.disciplinaNome ? `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}` : s.nome,
+        // carry grouping metadata so addTopico doesn't need a separate fetch
+        disciplinaId: s.disciplinaId ?? 0,
+        disciplinaNome: s.disciplinaNome ?? '',
+        temaId: s.temaId,
+        temaNome: s.temaNome ?? '',
+      }));
+    } catch (err) {
+      console.error('Erro ao carregar subtemas:', err);
+      return [];
+    }
   };
 
   const addTopico = (opt: any) => {
@@ -225,7 +248,7 @@ const ConcursosPage = () => {
         bancaId: formData.banca.value,
         ano: formData.ano,
         mes: formData.mes,
-        edital: formData.edital,
+        edital: formData.edital.trim(),
         dataProva: localInputValueToUtc(formData.dataProva) ?? undefined,
         cargos: formData.cargos.map((c: any) => c.value),
         topicos: formData.topicos.reduce((acc: Record<number, number[]>, t: TopicoEntry) => {
@@ -242,9 +265,9 @@ const ConcursosPage = () => {
       
       await loadConcursos(currentPage);
       resetForm();
-    } catch (error: any) {
-      console.error('Erro ao salvar concurso:', error);
-      setValidationErrors([error.message || 'Erro inesperado ao salvar concurso']);
+    } catch (err: any) {
+      console.error('Erro ao salvar concurso:', err);
+      setValidationErrors([err.message || 'Erro inesperado ao salvar concurso. Verifique sua conexão.']);
     } finally {
       setLocalLoading(false);
     }
@@ -252,6 +275,7 @@ const ConcursosPage = () => {
 
   const handleEdit = async (item: ConcursoDto) => {
     setLocalLoading(true);
+    setValidationErrors([]);
     try {
       const detail = await concursoService.getById(item.id);
       setEditingItem(item);
@@ -289,21 +313,24 @@ const ConcursosPage = () => {
       });
 
       setShowForm(true);
-    } catch (error) {
-      console.error('Erro ao carregar detalhes para edição:', error);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err: any) {
+      console.error('Erro ao carregar detalhes para edição:', err);
+      alert(err.message || 'Erro ao carregar detalhes para edição.');
     } finally {
       setLocalLoading(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Tem certeza que deseja excluir este concurso?')) {
+    if (window.confirm('Tem certeza que deseja excluir este concurso? Todas as questões e simulados associados serão afetados.')) {
       setLocalLoading(true);
       try {
         await concursoService.delete(id);
         await loadConcursos(currentPage);
-      } catch (error) {
-        console.error('Erro ao excluir concurso:', error);
+      } catch (err: any) {
+        console.error('Erro ao excluir concurso:', err);
+        alert(err.message || 'Erro ao excluir concurso. O item pode estar sendo usado por outras entidades.');
       } finally {
         setLocalLoading(false);
       }
@@ -326,33 +353,31 @@ const ConcursosPage = () => {
     setValidationErrors([]);
   };
 
-  if (loading && concursos.length === 0) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
-    );
-  }
-
   const selectedSubtemaIds = new Set(formData.topicos.map((t: TopicoEntry) => t.subtemaId));
   const groupedTopicos = groupTopicos(formData.topicos);
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto pb-12">
       <Header 
         title="Concursos" 
         actions={
-          <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Novo Concurso
-          </button>
+          (!loading && !error && concursos.length > 0) ? (
+            <button
+              onClick={() => {
+                resetForm();
+                setShowForm(true);
+              }}
+              disabled={localLoading}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            >
+              Novo Concurso
+            </button>
+          ) : null
         } 
       />
 
       {showForm && (
-        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+        <div className="bg-white shadow-md rounded-lg p-6 mb-6 border border-gray-100 animate-in fade-in slide-in-from-top-4 duration-200">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             {editingItem ? 'Editar Concurso' : 'Novo Concurso'}
           </h3>
@@ -369,7 +394,11 @@ const ConcursosPage = () => {
                   loadOptions={loadInstituicaoOptions}
                   value={formData.instituicao}
                   onChange={(val) => setFormData({...formData, instituicao: val})}
-                  placeholder="Busque..."
+                  placeholder="Busque por instituição..."
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  loadingMessage={() => "Carregando..."}
+                  noOptionsMessage={() => "Nenhuma instituição encontrada"}
                 />
               </div>
               
@@ -384,7 +413,11 @@ const ConcursosPage = () => {
                   loadOptions={loadBancaOptions}
                   value={formData.banca}
                   onChange={(val) => setFormData({...formData, banca: val})}
-                  placeholder="Busque..."
+                  placeholder="Busque por banca..."
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  loadingMessage={() => "Carregando..."}
+                  noOptionsMessage={() => "Nenhuma banca encontrada"}
                 />
               </div>
               
@@ -420,14 +453,16 @@ const ConcursosPage = () => {
               
               <div className="sm:col-span-2">
                 <label htmlFor="edital" className="block text-sm font-medium text-gray-700 mb-1">
-                  Edital (Link ou Identificação)
+                  Edital (Link)
                 </label>
                 <input
                   type="url"
                   id="edital"
+                  autoComplete="off"
                   value={formData.edital}
                   onChange={(e) => setFormData({...formData, edital: e.target.value})}
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+                  placeholder="https://..."
                 />
               </div>
 
@@ -457,6 +492,10 @@ const ConcursosPage = () => {
                   value={formData.cargos}
                   onChange={handleCargoChange}
                   placeholder="Busque por cargos..."
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  loadingMessage={() => "Carregando..."}
+                  noOptionsMessage={() => "Nenhum cargo encontrado"}
                 />
               </div>
             </div>
@@ -476,12 +515,16 @@ const ConcursosPage = () => {
                   value={null}
                   onChange={(opt: any) => { if (opt) addTopico(opt); }}
                   placeholder="Busque um subtema para adicionar..."
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  loadingMessage={() => "Carregando..."}
+                  noOptionsMessage={() => "Nenhum subtema encontrado"}
                 />
 
                 {formData.topicos.length > 0 && (
                   <div className="mt-4 space-y-4">
                     {groupedTopicos.map((disciplinaGroup) => (
-                      <div key={disciplinaGroup.disciplinaId} className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div key={disciplinaGroup.disciplinaId} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
 
                         {/* Disciplina header */}
                         <div className="bg-indigo-50 px-4 py-2 border-b border-indigo-100">
@@ -495,7 +538,7 @@ const ConcursosPage = () => {
                             <div key={temaGroup.temaId}>
 
                               {/* Tema sub-header */}
-                              <div className="bg-gray-50 px-4 py-1.5">
+                              <div className="bg-gray-50 px-4 py-1.5 border-b border-gray-100">
                                 <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                                   {temaGroup.temaNome || 'Sem tema'}
                                 </span>
@@ -504,7 +547,7 @@ const ConcursosPage = () => {
                               {/* Subtemas */}
                               <div className="divide-y divide-gray-50">
                                 {temaGroup.topicos.map((topico) => (
-                                  <div key={topico.subtemaId} className="px-4 py-3">
+                                  <div key={topico.subtemaId} className="px-4 py-3 hover:bg-gray-50 transition-colors duration-150">
                                     <div className="flex items-center justify-between mb-2">
                                       <span className="text-sm font-medium text-gray-900">
                                         {topico.subtemaLabel.split(' - ').pop()}
@@ -519,7 +562,7 @@ const ConcursosPage = () => {
                                     </div>
                                     <div className="flex flex-wrap gap-3">
                                       {formData.cargos.map((cargo: any) => (
-                                        <label key={cargo.value} className="inline-flex items-center text-sm text-gray-700">
+                                        <label key={cargo.value} className="inline-flex items-center text-sm text-gray-700 cursor-pointer">
                                           <input
                                             type="checkbox"
                                             checked={topico.cargoIds.includes(cargo.value)}
@@ -546,12 +589,17 @@ const ConcursosPage = () => {
             )}
 
             {validationErrors.length > 0 && (
-              <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4">
+              <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4 rounded">
                 <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
                   <div className="ml-3">
                     <div className="text-sm text-red-700">
                       <ul className="list-disc pl-5 space-y-1">
-                        {validationErrors.map((error, index) => <li key={index}>{error}</li>)}
+                        {validationErrors.map((error, index) => <li key={index} className="font-medium">{error}</li>)}
                       </ul>
                     </div>
                   </div>
@@ -563,69 +611,120 @@ const ConcursosPage = () => {
               <button
                 type="button"
                 onClick={resetForm}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                disabled={localLoading}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={localLoading}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
               >
-                {localLoading ? 'Salvando...' : 'Salvar'}
+                {localLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Salvando...
+                  </>
+                ) : 'Salvar'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        <ul className="divide-y divide-gray-200">
-          {concursos.map((concurso) => {
-            return (
-              <li key={concurso.id}>
-                <div className="px-4 py-4 sm:px-6 flex justify-between items-center">
-                  <div className="flex flex-col">
-                    <div className="text-sm font-medium text-indigo-600 truncate">
-                      {concurso.instituicao.nome}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {concurso.banca.nome} - {concurso.mes}/{concurso.ano}
-                    </div>
-                    {concurso.edital && (
-                      <div className="text-xs text-gray-400">
-                        Edital: {concurso.edital}
+      <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
+        {loading ? (
+          <div className="flex flex-col justify-center items-center h-64 space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+            <p className="text-gray-500 text-sm animate-pulse">Carregando concursos...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col justify-center items-center h-64 text-center px-4">
+            <svg className="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Erro ao carregar dados</h3>
+            <p className="mt-1 text-sm text-gray-500">{error}</p>
+            <div className="mt-6">
+              <button
+                onClick={() => loadConcursos(currentPage)}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        ) : concursos.length === 0 ? (
+          <div className="flex flex-col justify-center items-center h-64 text-center px-4">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum concurso encontrado</h3>
+            <p className="mt-1 text-sm text-gray-500">Comece criando um novo concurso para o sistema.</p>
+            {!showForm && (
+              <div className="mt-6">
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                >
+                  Novo Concurso
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-200">
+            {concursos.map((concurso) => {
+              return (
+                <li key={concurso.id} className="hover:bg-gray-50 transition-colors duration-150">
+                  <div className="px-4 py-4 sm:px-6 flex justify-between items-center gap-4">
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="text-sm font-medium text-indigo-600 truncate" title={concurso.instituicao.nome}>
+                        {concurso.instituicao.nome}
                       </div>
-                    )}
-                    {concurso.dataProva && (
-                      <div className="text-xs text-gray-400">
-                        Data da Prova: {formatDateTime(concurso.dataProva)}
+                      <div className="text-sm text-gray-500 truncate">
+                        {concurso.banca.nome} - {concurso.mes}/{concurso.ano}
                       </div>
-                    )}
-                    <div className="text-xs text-indigo-400 mt-1">
-                      Cargos: {(concurso.cargos || []).map(c => `${c.cargoNome} - ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
+                      {concurso.edital && (
+                        <div className="text-xs text-gray-400 truncate" title={concurso.edital}>
+                          Edital: {concurso.edital}
+                        </div>
+                      )}
+                      {concurso.dataProva && (
+                        <div className="text-xs text-gray-400">
+                          Data da Prova: {formatDateTime(concurso.dataProva)}
+                        </div>
+                      )}
+                      <div className="text-xs text-indigo-400 mt-1 truncate" title={(concurso.cargos || []).map(c => `${c.cargoNome} - ${c.area} (${formatNivel(c.nivel)})`).join(', ')}>
+                        Cargos: {(concurso.cargos || []).map(c => `${c.cargoNome} - ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
+                      </div>
+                    </div>
+                    <div className="flex space-x-2 flex-shrink-0">
+                      <button
+                        onClick={() => handleEdit(concurso)}
+                        disabled={localLoading}
+                        className="inline-flex items-center px-3 py-1 border border-indigo-600 text-sm font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(concurso.id!)}
+                        disabled={localLoading}
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                      >
+                        Excluir
+                      </button>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(concurso)}
-                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(concurso.id!)}
-                      disabled={localLoading}
-                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
         {/* Pagination Controls */}
         {pagination.totalPages > 1 && (
