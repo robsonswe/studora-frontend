@@ -62,8 +62,8 @@ export default function ConcursoCargoDetailPage() {
     if (!cargo?.topicos) return {};
     const g: Record<string, Record<string, Types.SubtemaSummaryDto[]>> = {};
     cargo.topicos.forEach(t => {
-      const disc = t.disciplinaNome || 'Outras Disciplinas';
-      const tema = t.temaNome || 'Geral';
+      const disc = t.disciplina?.nome || 'Outras Disciplinas';
+      const tema = t.tema?.nome || 'Geral';
       if (!g[disc]) g[disc] = {};
       if (!g[disc][tema]) g[disc][tema] = [];
       g[disc][tema].push(t);
@@ -99,6 +99,8 @@ export default function ConcursoCargoDetailPage() {
     };
     load();
   }, [concursoId, cargoId]);
+
+  const [activeTab, setActiveTab] = useState<'conteudo' | 'analise'>('conteudo');
 
   const isValidUrl = (s: string) => {
     try { return ['http:', 'https:'].includes(new URL(s).protocol); } catch { return false; }
@@ -187,22 +189,48 @@ export default function ConcursoCargoDetailPage() {
         </div>
       </div>
 
-      {/* Two-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Tabs navigation - Refined Segmented Control */}
+      <nav className="flex items-center gap-1 p-1 bg-slate-100/40 rounded-xl w-fit border border-slate-200/50 mb-6">
+        <button
+          onClick={() => setActiveTab('conteudo')}
+          className={`relative px-5 py-2 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-2 group ${
+            activeTab === 'conteudo'
+              ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/60'
+              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/60'
+          }`}
+        >
+          <BookOpen className={`w-3.5 h-3.5 transition-colors ${
+            activeTab === 'conteudo' ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-500'
+          }`} />
+          <span>Conteúdo Programático</span>
+          {cargo.topicos.length > 0 && (
+            <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-tight transition-colors ${
+              activeTab === 'conteudo' ? 'bg-indigo-50 text-indigo-500' : 'bg-slate-200 text-slate-500'
+            }`}>
+              {cargo.topicos.length}
+            </span>
+          )}
+        </button>
+        
+        <button
+          onClick={() => setActiveTab('analise')}
+          className={`relative px-5 py-2 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-2 group ${
+            activeTab === 'analise'
+              ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/60'
+              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/60'
+          }`}
+        >
+          <BarChart3 className={`w-3.5 h-3.5 transition-colors ${
+            activeTab === 'analise' ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-500'
+          }`} />
+          <span>Análise do Edital</span>
+        </button>
+      </nav>
 
-        {/* LEFT: Conteúdo Programático */}
-        <div className="lg:col-span-7">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 tracking-tight">Conteúdo Programático</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                  {cargo.topicos.length} tópico{cargo.topicos.length !== 1 ? 's' : ''} identificados
-                </p>
-              </div>
-              <BookOpen className="w-4 h-4 text-slate-300" />
-            </div>
-
+      {/* Tab Content */}
+      <div className="grid grid-cols-1 items-start gap-6">
+        {activeTab === 'conteudo' ? (
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden pt-4">
             <div className="divide-y divide-slate-50">
               {Object.keys(groupedTopicos).length === 0 ? (
                 <div className="py-16 text-center">
@@ -269,9 +297,7 @@ export default function ConcursoCargoDetailPage() {
               ))}
             </div>
           </div>
-        </div>
-
-        <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-6">
+        ) : (
           <EditalAnalysisReport 
             topicos={cargo.topicos || []}
             dataProva={concurso.dataProva}
@@ -284,8 +310,7 @@ export default function ConcursoCargoDetailPage() {
             areaCargo={cargo.area}
             nivel={cargo.nivel}
           />
-        </div>
-
+        )}
       </div>
     </div>
   );

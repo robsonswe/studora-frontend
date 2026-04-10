@@ -27,39 +27,36 @@ type ConcursoDto = Types.ConcursoSummaryDto;
 interface TopicoEntry {
   subtemaId: number;
   subtemaLabel: string;
-  disciplinaId: number;
-  disciplinaNome: string;
-  temaId: number;
-  temaNome: string;
+  disciplina?: Types.DisciplinaReferenceDto;
+  tema?: Types.TemaReferenceDto;
   cargoIds: number[];
 }
 
 interface TopicosByDisciplina {
-  disciplinaId: number;
-  disciplinaNome: string;
+  disciplina?: Types.DisciplinaReferenceDto;
   temas: {
-    temaId: number;
-    temaNome: string;
+    tema?: Types.TemaReferenceDto;
     topicos: TopicoEntry[];
   }[];
 }
 
 const groupTopicos = (topicos: TopicoEntry[]): TopicosByDisciplina[] => {
-  const disciplinaMap = new Map<number, TopicosByDisciplina>();
+  const disciplinaMap = new Map<string, TopicosByDisciplina>();
 
   for (const t of topicos) {
-    if (!disciplinaMap.has(t.disciplinaId)) {
-      disciplinaMap.set(t.disciplinaId, {
-        disciplinaId: t.disciplinaId,
-        disciplinaNome: t.disciplinaNome,
+    const discKey = String(t.disciplina?.id ?? 0);
+    if (!disciplinaMap.has(discKey)) {
+      disciplinaMap.set(discKey, {
+        disciplina: t.disciplina,
         temas: [],
       });
     }
-    const disciplinaGroup = disciplinaMap.get(t.disciplinaId)!;
+    const disciplinaGroup = disciplinaMap.get(discKey)!;
 
-    let temaGroup = disciplinaGroup.temas.find(tg => tg.temaId === t.temaId);
+    const temaKey = String(t.tema?.id ?? 0);
+    let temaGroup = disciplinaGroup.temas.find(tg => String(tg.tema?.id ?? 0) === temaKey);
     if (!temaGroup) {
-      temaGroup = { temaId: t.temaId, temaNome: t.temaNome, topicos: [] };
+      temaGroup = { tema: t.tema, topicos: [] };
       disciplinaGroup.temas.push(temaGroup);
     }
 
@@ -169,11 +166,9 @@ export default function ConcursosAdminPage() {
       const data = await subtemaService.getAll({ nome: inputValue, size: 20 });
       return data.content.map(s => ({
         value: s.id,
-        label: s.disciplinaNome ? `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}` : s.nome,
-        disciplinaId: s.disciplinaId ?? 0,
-        disciplinaNome: s.disciplinaNome ?? '',
-        temaId: s.temaId,
-        temaNome: s.temaNome ?? '',
+        label: s.disciplina?.nome ? `${s.disciplina.nome} - ${s.tema?.nome} - ${s.nome}` : s.nome,
+        disciplina: s.disciplina,
+        tema: s.tema,
       }));
     } catch (err) {
       console.error('Erro ao carregar subtemas:', err);
@@ -191,10 +186,8 @@ export default function ConcursosAdminPage() {
         {
           subtemaId: opt.value,
           subtemaLabel: opt.label,
-          disciplinaId: opt.disciplinaId,
-          disciplinaNome: opt.disciplinaNome,
-          temaId: opt.temaId,
-          temaNome: opt.temaNome,
+          disciplina: opt.disciplina,
+          tema: opt.tema,
           cargoIds,
         },
       ],
@@ -313,13 +306,11 @@ export default function ConcursosAdminPage() {
           if (!topicoMap.has(topico.id)) {
             topicoMap.set(topico.id, {
               subtemaId: topico.id,
-              subtemaLabel: topico.disciplinaNome
-                ? `${topico.disciplinaNome} - ${topico.temaNome} - ${topico.nome}`
+              subtemaLabel: topico.disciplina?.nome
+                ? `${topico.disciplina.nome} - ${topico.tema?.nome} - ${topico.nome}`
                 : topico.nome,
-              disciplinaId: topico.disciplinaId ?? 0,
-              disciplinaNome: topico.disciplinaNome ?? '',
-              temaId: topico.temaId ?? 0,
-              temaNome: topico.temaNome ?? '',
+              disciplina: topico.disciplina,
+              tema: topico.tema,
               cargoIds: [],
             });
           }
@@ -569,19 +560,19 @@ export default function ConcursosAdminPage() {
                 {formData.topicos.length > 0 && (
                   <div className="mt-6 grid grid-cols-1 gap-6">
                     {groupedTopicos.map((disciplinaGroup) => (
-                      <div key={disciplinaGroup.disciplinaId} className="bg-slate-50/50 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                      <div key={disciplinaGroup.disciplina?.id ?? 0} className="bg-slate-50/50 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                         <div className="bg-slate-100/80 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
                           <span className="text-xs font-black text-slate-600 uppercase tracking-widest">
-                            {disciplinaGroup.disciplinaNome || 'Sem disciplina'}
+                            {disciplinaGroup.disciplina?.nome || 'Sem disciplina'}
                           </span>
                         </div>
 
                         <div className="divide-y divide-slate-100">
                           {disciplinaGroup.temas.map((temaGroup) => (
-                            <div key={temaGroup.temaId}>
+                            <div key={temaGroup.tema?.id ?? 0}>
                               <div className="bg-white/40 px-5 py-2">
                                 <span className="text-[10px] font-black text-indigo-400 uppercase tracking-tighter">
-                                  Tema: {temaGroup.temaNome || 'Sem tema'}
+                                  Tema: {temaGroup.tema?.nome || 'Sem tema'}
                                 </span>
                               </div>
 

@@ -326,9 +326,11 @@ export default function SearchBrowsePage() {
                             {(() => {
                               const grouped: Record<string, Record<string, string[]>> = {};
                               (questao.subtemas || []).forEach(st => {
-                                if (!grouped[st.disciplinaNome]) grouped[st.disciplinaNome] = {};
-                                if (!grouped[st.disciplinaNome][st.temaNome]) grouped[st.disciplinaNome][st.temaNome] = [];
-                                grouped[st.disciplinaNome][st.temaNome].push(st.nome);
+                                const discNome = st.disciplina?.nome || 'Sem disciplina';
+                                const temaNome = st.tema?.nome || 'Sem tema';
+                                if (!grouped[discNome]) grouped[discNome] = {};
+                                if (!grouped[discNome][temaNome]) grouped[discNome][temaNome] = [];
+                                grouped[discNome][temaNome].push(st.nome);
                               });
                               return Object.entries(grouped).map(([disc, temasMap]) => (
                                 <span key={disc} className="block mb-0.5">

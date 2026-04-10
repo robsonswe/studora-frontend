@@ -215,9 +215,9 @@ export default function Dashboard() {
                         <div className="flex-1 min-w-0">
                           {r.questao ? (
                             <p className="text-sm text-gray-700 truncate">
-                              <span className="font-medium">{r.questao.subtemas[0]?.disciplinaNome}</span>
+                              <span className="font-medium">{r.questao.subtemas[0]?.disciplina?.nome}</span>
                               <span className="text-gray-400 mx-1.5">›</span>
-                              <span className="text-gray-500">{r.questao.subtemas[0]?.temaNome}</span>
+                              <span className="text-gray-500">{r.questao.subtemas[0]?.tema?.nome}</span>
                             </p>
                           ) : (
                             <p className="text-sm text-gray-500">Questão #{r.questaoId}</p>
@@ -245,7 +245,7 @@ export default function Dashboard() {
                               <div>
                                 <span className="text-[0.6875rem] font-medium font-mono text-indigo-500 uppercase tracking-[0.05em]">Assunto</span>
                                 <p className="text-xs text-gray-600 mt-0.5">
-                                  {r.questao.subtemas.map(s => `${s.disciplinaNome} › ${s.temaNome} › ${s.nome}`).join(' | ')}
+                                  {r.questao.subtemas.map(s => `${s.disciplina?.nome} › ${s.tema?.nome} › ${s.nome}`).join(' | ')}
                                 </p>
                               </div>
                             )}

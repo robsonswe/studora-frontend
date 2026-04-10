@@ -91,8 +91,8 @@ export default function SimuladoDetailPage() {
           // Sort questions by discipline name and then by ID
           if (updatedSimulado.questoes) {
             updatedSimulado.questoes.sort((a: any, b: any) => {
-              const discA = a.subtemas?.[0]?.disciplinaNome || 'Outros';
-              const discB = b.subtemas?.[0]?.disciplinaNome || 'Outros';
+              const discA = a.subtemas?.[0]?.disciplina?.nome || 'Outros';
+              const discB = b.subtemas?.[0]?.disciplina?.nome || 'Outros';
               if (discA !== discB) return discA.localeCompare(discB);
               return a.id - b.id;
             });
@@ -156,8 +156,8 @@ export default function SimuladoDetailPage() {
       // Sort questions by discipline name and then by ID
       if (data.questoes) {
         data.questoes.sort((a: any, b: any) => {
-          const discA = a.subtemas?.[0]?.disciplinaNome || 'Outros';
-          const discB = b.subtemas?.[0]?.disciplinaNome || 'Outros';
+          const discA = a.subtemas?.[0]?.disciplina?.nome || 'Outros';
+          const discB = b.subtemas?.[0]?.disciplina?.nome || 'Outros';
           if (discA !== discB) return discA.localeCompare(discB);
           return a.id - b.id;
         });
@@ -344,7 +344,7 @@ export default function SimuladoDetailPage() {
                 {(() => {
                   const groups: { name: string, indices: number[] }[] = [];
                   simulado.questoes.forEach((q, index) => {
-                    const discName = q.subtemas?.[0]?.disciplinaNome || 'Outros';
+                    const discName = q.subtemas?.[0]?.disciplina?.nome || 'Outros';
                     let group = groups.find(g => g.name === discName);
                     if (!group) {
                       group = { name: discName, indices: [] };

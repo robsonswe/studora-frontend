@@ -205,14 +205,14 @@ export default function SimuladosPage() {
   const loadTemaOptions = async (inputValue: string) => {
     try {
       const data = await temaService.getAll({ nome: inputValue || undefined, size: 20, metrics: 'summary' });
-      return data.content.map(t => ({ value: t.id, label: `${t.disciplinaNome || ''} - ${t.nome}` }));
+      return data.content.map(t => ({ value: t.id, label: `${t.disciplina?.nome || ''} - ${t.nome}` }));
     } catch { return []; }
   };
 
   const loadSubtemaOptions = async (inputValue: string) => {
     try {
       const data = await subtemaService.getAll({ nome: inputValue || undefined, size: 20, metrics: 'summary' });
-      return data.content.map(s => ({ value: s.id, label: `${s.disciplinaNome || ''} - ${s.temaNome || ''} - ${s.nome}` }));
+      return data.content.map(s => ({ value: s.id, label: `${s.disciplina?.nome || ''} - ${s.tema?.nome || ''} - ${s.nome}` }));
     } catch { return []; }
   };
 

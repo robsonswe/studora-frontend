@@ -155,12 +155,10 @@ export interface DisciplinaUpdateRequest {
 export interface TemaSummaryDto {
   /** ID único do tema. Example: 1 */
   id: number;
-  /** ID da disciplina à qual o tema pertence. Example: 1 */
-  disciplinaId?: number;
+  /** Disciplina à qual o tema pertence. */
+  disciplina?: DisciplinaReferenceDto;
   /** Nome do tema. Example: "Direitos Fundamentais" */
   nome: string;
-  /** Nome da disciplina (para evitar lookups). (lean+) */
-  disciplinaNome?: string;
   /** Data e hora do último estudo realizado. */
   ultimoEstudo?: string;
   /** Total de subtemas associados. */
@@ -217,14 +215,10 @@ export interface TemaUpdateRequest {
 export interface SubtemaSummaryDto {
   /** ID único do subtema. Example: 1 */
   id: number;
-  /** ID do tema ao qual o subtema pertence. Example: 1 */
-  temaId?: number;
-  /** Nome do tema ao qual o subtema pertence. (lean+) */
-  temaNome?: string;
-  /** ID da disciplina à qual o subtema pertence. (lean+) */
-  disciplinaId?: number;
-  /** Nome da disciplina à qual o subtema pertence. (lean+) */
-  disciplinaNome?: string;
+  /** Tema ao qual o subtema pertence. */
+  tema?: TemaReferenceDto;
+  /** Disciplina à qual o subtema pertence. */
+  disciplina?: DisciplinaReferenceDto;
   /** Nome do subtema. Example: "Atos Administrativos" */
   nome: string;
   /** Total de sessões de estudo realizadas. */
@@ -543,14 +537,10 @@ export interface SubtemaQuestaoDto {
   id: number;
   /** Nome do subtema. */
   nome: string;
-  /** ID do tema. */
-  temaId: number;
-  /** Nome do tema. */
-  temaNome: string;
-  /** ID da disciplina. */
-  disciplinaId: number;
-  /** Nome da disciplina. */
-  disciplinaNome: string;
+  /** Tema ao qual o subtema pertence. */
+  tema: TemaReferenceDto;
+  /** Disciplina à qual o subtema pertence. */
+  disciplina: DisciplinaReferenceDto;
 }
 
 /**
@@ -761,8 +751,8 @@ export interface TemaSimuladoDto {
   id: number;
   /** Nome do tema. */
   nome: string;
-  /** Nome da disciplina vinculada. */
-  disciplinaNome: string;
+  /** Disciplina à qual o tema pertence. */
+  disciplina?: DisciplinaReferenceDto;
   /** Quantidade de questões. */
   quantidade: number;
 }
@@ -775,10 +765,10 @@ export interface SubtemaSimuladoDto {
   id: number;
   /** Nome do subtema. */
   nome: string;
-  /** Nome do tema vinculado. */
-  temaNome: string;
-  /** Nome da disciplina vinculada. */
-  disciplinaNome: string;
+  /** Tema ao qual o subtema pertence. */
+  tema?: TemaReferenceDto;
+  /** Disciplina à qual o subtema pertence. */
+  disciplina?: DisciplinaReferenceDto;
   /** Quantidade de questões. */
   quantidade: number;
 }

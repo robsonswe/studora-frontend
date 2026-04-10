@@ -178,7 +178,7 @@ export default function QuestoesPage() {
 
       setValue('subtemas', (detail.subtemas || []).map(s => ({
         value: s.id,
-        label: s.disciplinaNome ? `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}` : s.nome
+        label: s.disciplina?.nome ? `${s.disciplina.nome} - ${s.tema?.nome} - ${s.nome}` : s.nome
       })));
 
       setValue('cargos', detail.cargoIds || detail.cargos.map(c => c.id));
@@ -244,12 +244,11 @@ export default function QuestoesPage() {
 
   const loadSubtemaOptions = async (inputValue: string) => {
     const data = await subtemaService.getAll({ nome: inputValue, size: 20 });
-    return data.content.map(s => ({ 
-      value: s.id, 
-      label: s.disciplinaNome ? `${s.disciplinaNome} - ${s.temaNome} - ${s.nome}` : s.nome 
+    return data.content.map(s => ({
+      value: s.id,
+      label: s.disciplina?.nome ? `${s.disciplina.nome} - ${s.tema?.nome} - ${s.nome}` : s.nome
     }));
   };
-
   const adicionarAlternativa = () => {
     if (!novaAlternativa.texto.trim()) {
       setAlternativeErrors('O campo texto da alternativa é obrigatório');

@@ -311,7 +311,7 @@ export default function TemasPage() {
                       {tema.nome}
                     </div>
                     <div className="text-xs text-gray-500 font-sans">
-                      {tema.disciplinaNome || 'N/A'}
+                      {tema.disciplina?.nome || 'N/A'}
                     </div>
                   </div>
                   <div className="flex space-x-2 flex-shrink-0">

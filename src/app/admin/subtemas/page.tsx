@@ -76,7 +76,7 @@ export default function SubtemasPage() {
       const data = await temaService.getAll({ nome: inputValue, size: 20 });
       return data.content.map(t => ({ 
         value: t.id, 
-        label: `${t.disciplinaNome} - ${t.nome}` 
+        label: `${t.disciplina?.nome || 'Sem Disciplina'} - ${t.nome}` 
       }));
     } catch (err) {
       console.error('Erro ao carregar temas:', err);
@@ -120,7 +120,10 @@ export default function SubtemasPage() {
     try {
       const detail = await subtemaService.getById(item.id);
       setEditingItem(item);
-      setValue('tema', { value: detail.tema.id, label: `${(detail.tema as any).disciplinaNome || detail.tema.nome}` });
+      setValue('tema', { 
+        value: detail.tema.id, 
+        label: `${detail.disciplina.nome} - ${detail.tema.nome}` 
+      });
       setValue('nome', detail.nome);
       setShowForm(true);
       if (typeof window !== 'undefined') {
@@ -314,7 +317,7 @@ export default function SubtemasPage() {
                       {subtema.nome}
                     </div>
                     <div className="text-xs text-gray-500 font-sans">
-                      {subtema.temaNome || 'N/A'} • {subtema.disciplinaNome || 'N/A'}
+                      {subtema.tema?.nome || 'N/A'} • {subtema.disciplina?.nome || 'N/A'}
                     </div>
                   </div>
                   <div className="flex space-x-2 flex-shrink-0">
