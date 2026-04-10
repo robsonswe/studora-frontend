@@ -142,24 +142,24 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
   byDisciplina.forEach((tops, nome) => {
     const estudados = tops.filter(t => (t.totalEstudos ?? 0) > 0).length;
     const totalEstudos = tops.reduce((s, t) => s + (t.totalEstudos ?? 0), 0);
-    const totalQuestoes = tops.reduce((s, t) => s + (t.totalQuestoes ?? 0), 0);
-    const questoesRespondidas = tops.reduce((s, t) => s + (t.questoesRespondidas ?? 0), 0);
-    const questoesAcertadas = tops.reduce((s, t) => s + (t.questoesAcertadas ?? 0), 0);
+    const totalQuestoes = tops.reduce((s, t) => s + (t.questaoStats?.total?.totalQuestoes ?? 0), 0);
+    const questoesRespondidas = tops.reduce((s, t) => s + (t.questaoStats?.total?.respondidas ?? 0), 0);
+    const questoesAcertadas = tops.reduce((s, t) => s + (t.questaoStats?.total?.acertadas ?? 0), 0);
 
     const daysStudyArr = tops.map(t => daysSince(t.ultimoEstudo ?? undefined)).filter(d => d !== Infinity);
-    const daysQuestArr = tops.map(t => daysSince(t.ultimaQuestao ?? undefined)).filter(d => d !== Infinity);
+    const daysQuestArr = tops.map(t => daysSince(t.questaoStats?.total.ultimaQuestao ?? undefined)).filter(d => d !== Infinity);
 
     const tempos = tops
-      .filter(t => t.mediaTempoResposta != null && t.mediaTempoResposta! > 0)
-      .map(t => t.mediaTempoResposta!);
+      .filter(t => t.questaoStats?.total?.mediaTempoResposta != null && t.questaoStats?.total?.mediaTempoResposta! > 0)
+      .map(t => t.questaoStats?.total?.mediaTempoResposta!);
     const avgTempoResposta = tempos.length > 0
       ? tempos.reduce((s, v) => s + v, 0) / tempos.length
       : null;
 
     const dificuldade: Record<string, DiffAgg> = {};
     tops.forEach(t => {
-      if (!t.dificuldadeRespostas) return;
-      Object.entries(t.dificuldadeRespostas).forEach(([key, val]) => {
+      if (!t.questaoStats?.total?.dificuldade) return;
+      Object.entries(t.questaoStats?.total?.dificuldade).forEach(([key, val]) => {
         if (!dificuldade[key]) dificuldade[key] = { total: 0, corretas: 0 };
         dificuldade[key].total += val.total;
         dificuldade[key].corretas += val.corretas;
@@ -467,9 +467,9 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
 
   const totalTopicos = topicos.length;
   const totalEstudados = topicos.filter(t => (t.totalEstudos ?? 0) > 0).length;
-  const totalQuestoes = topicos.reduce((s, t) => s + (t.totalQuestoes ?? 0), 0);
-  const totalRespondidas = topicos.reduce((s, t) => s + (t.questoesRespondidas ?? 0), 0);
-  const totalAcertadas = topicos.reduce((s, t) => s + (t.questoesAcertadas ?? 0), 0);
+  const totalQuestoes = topicos.reduce((s, t) => s + (t.questaoStats?.total?.totalQuestoes ?? 0), 0);
+  const totalRespondidas = topicos.reduce((s, t) => s + (t.questaoStats?.total?.respondidas ?? 0), 0);
+  const totalAcertadas = topicos.reduce((s, t) => s + (t.questaoStats?.total?.acertadas ?? 0), 0);
   const globalBankRate = totalQuestoes > 0 ? totalRespondidas / totalQuestoes : 0;
   const globalPerf = totalRespondidas > 0 ? totalAcertadas / totalRespondidas : null;
 
@@ -607,7 +607,7 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
   recommendations.sort((a, b) => b.urgency - a.urgency);
 
   // Global avg tempo
-  const temposGlobal = topicos.filter(t => t.mediaTempoResposta != null && t.mediaTempoResposta! > 0).map(t => t.mediaTempoResposta!);
+  const temposGlobal = topicos.filter(t => t.questaoStats?.total?.mediaTempoResposta != null && t.questaoStats?.total?.mediaTempoResposta! > 0).map(t => t.questaoStats?.total?.mediaTempoResposta!);
   const globalAvgTempo = temposGlobal.length > 0 ? temposGlobal.reduce((s, v) => s + v, 0) / temposGlobal.length : null;
 
   // ── Prova-specific logic ─────────────────────────────────────────────────
@@ -853,9 +853,25 @@ interface EditalAnalysisReportProps {
   inscrito?: boolean;
   banca?: Types.BancaSummaryDto;
   instituicao?: Types.InstituicaoSummaryDto;
+  areaInstituicao?: string;
+  cargoId?: number | string;
+  cargoNome?: string;
+  areaCargo?: string;
+  nivel?: Types.NivelCargo;
 }
 
-const EditalAnalysisReport: React.FC<EditalAnalysisReportProps> = ({ topicos, dataProva, inscrito, banca, instituicao }) => {
+const EditalAnalysisReport: React.FC<EditalAnalysisReportProps> = ({ 
+  topicos, 
+  dataProva, 
+  inscrito, 
+  banca, 
+  instituicao,
+  areaInstituicao,
+  cargoId,
+  cargoNome,
+  areaCargo,
+  nivel
+}) => {
   const analysis = useMemo<EditalAnalysis | null>(
     () => (!topicos || topicos.length === 0 ? null : analyzeEdital(topicos, dataProva, inscrito)),
     [topicos, dataProva, inscrito]

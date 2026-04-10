@@ -123,16 +123,16 @@ const apiCall = async <T>(endpoint: string, options: RequestInit = {}): Promise<
 export const disciplinaService = {
   /**
    * Obter todas as disciplinas.
-   * @param metrics Nível de métricas: 'summary' (progresso+acurácia), 'full' (+tempo+dificuldade). Padrão: lean.
+   * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
    */
-  getAll: (params?: Types.PaginationParams & { nome?: string; metrics?: 'summary' | 'full' }): Promise<Types.PageResponse<Types.DisciplinaSummaryDto>> =>
+  getAll: (params?: Types.PaginationParams & { nome?: string; metrics?: 'lean' | 'summary' | 'full' }): Promise<Types.PageResponse<Types.DisciplinaSummaryDto>> =>
     apiCall(`/disciplinas${buildQueryString(params)}`),
 
   /**
    * Obter disciplina por ID.
-   * @param metrics Nível de métricas: 'full' para todas as métricas. Padrão: lean.
+   * @param metrics Nível de métricas: 'lean', 'full'. Padrão: lean.
    */
-  getById: (id: number, metrics?: 'full'): Promise<Types.DisciplinaDetailDto> =>
+  getById: (id: number, metrics?: 'lean' | 'full'): Promise<Types.DisciplinaDetailDto> =>
     apiCall(`/disciplinas/${id}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**
@@ -145,16 +145,14 @@ export const disciplinaService = {
 
   /**
    * Criar nova disciplina.
-   * Retorna 201 sem body. Re-fetch via GET com metrics apropriado.
    */
-  create: (data: { nome: string }): Promise<void> =>
+  create: (data: Types.DisciplinaCreateRequest): Promise<void> =>
     apiCall('/disciplinas', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
    * Atualizar disciplina.
-   * Retorna 200 sem body. Re-fetch via GET com metrics apropriado.
    */
-  update: (id: number, data: { nome: string }): Promise<void> =>
+  update: (id: number, data: Types.DisciplinaUpdateRequest): Promise<void> =>
     apiCall(`/disciplinas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   /**
@@ -171,35 +169,35 @@ export const disciplinaService = {
 export const temaService = {
   /**
    * Obter todos os temas.
-   * @param metrics Nível de métricas: 'summary', 'full'. Padrão: lean.
+   * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
    */
-  getAll: (params?: Types.PaginationParams & { nome?: string; metrics?: 'summary' | 'full' }): Promise<Types.PageResponse<Types.TemaSummaryDto>> =>
+  getAll: (params?: Types.PaginationParams & { nome?: string; metrics?: 'lean' | 'summary' | 'full' }): Promise<Types.PageResponse<Types.TemaSummaryDto>> =>
     apiCall(`/temas${buildQueryString(params)}`),
 
   /**
    * Obter tema por ID.
-   * @param metrics Nível de métricas: 'full' para todas as métricas. Padrão: lean.
+   * @param metrics Nível de métricas: 'lean', 'full'. Padrão: lean.
    */
-  getById: (id: number, metrics?: 'full'): Promise<Types.TemaDetailDto> =>
+  getById: (id: number, metrics?: 'lean' | 'full'): Promise<Types.TemaDetailDto> =>
     apiCall(`/temas/${id}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**
    * Obter temas por disciplina.
-   * @param metrics Nível de métricas. Padrão: lean.
+   * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
    */
-  getByDisciplina: (disciplinaId: number, metrics?: 'summary' | 'full'): Promise<Types.TemaSummaryDto[]> =>
+  getByDisciplina: (disciplinaId: number, metrics?: 'lean' | 'summary' | 'full'): Promise<Types.TemaSummaryDto[]> =>
     apiCall(`/temas/disciplina/${disciplinaId}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**
-   * Criar novo tema. Retorna 201 sem body. Re-fetch via GET.
+   * Criar novo tema.
    */
-  create: (data: { nome: string, disciplinaId: number }): Promise<void> =>
+  create: (data: Types.TemaCreateRequest): Promise<void> =>
     apiCall('/temas', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
-   * Atualizar tema. Retorna 200 sem body. Re-fetch via GET.
+   * Atualizar tema.
    */
-  update: (id: number, data: { nome: string, disciplinaId: number }): Promise<void> =>
+  update: (id: number, data: Types.TemaUpdateRequest): Promise<void> =>
     apiCall(`/temas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   /**
@@ -215,35 +213,35 @@ export const temaService = {
 export const subtemaService = {
   /**
    * Obter todos os subtemas.
-   * @param metrics Nível de métricas: 'summary', 'full'. Padrão: lean.
+   * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
    */
-  getAll: (params?: Types.PaginationParams & { nome?: string; metrics?: 'summary' | 'full' }): Promise<Types.PageResponse<Types.SubtemaSummaryDto>> =>
+  getAll: (params?: Types.PaginationParams & { nome?: string; metrics?: 'lean' | 'summary' | 'full' }): Promise<Types.PageResponse<Types.SubtemaSummaryDto>> =>
     apiCall(`/subtemas${buildQueryString(params)}`),
 
   /**
    * Obter subtema por ID.
-   * @param metrics Nível de métricas: 'full' para todas as métricas. Padrão: lean.
+   * @param metrics Nível de métricas: 'lean', 'full'. Padrão: lean.
    */
-  getById: (id: number, metrics?: 'full'): Promise<Types.SubtemaDetailDto> =>
+  getById: (id: number, metrics?: 'lean' | 'full'): Promise<Types.SubtemaDetailDto> =>
     apiCall(`/subtemas/${id}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**
    * Obter subtemas por tema.
-   * @param metrics Nível de métricas. Padrão: lean.
+   * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
    */
-  getByTema: (temaId: number, metrics?: 'summary' | 'full'): Promise<Types.SubtemaSummaryDto[]> =>
+  getByTema: (temaId: number, metrics?: 'lean' | 'summary' | 'full'): Promise<Types.SubtemaSummaryDto[]> =>
     apiCall(`/subtemas/tema/${temaId}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**
-   * Criar novo subtema. Retorna 201 sem body. Re-fetch via GET.
+   * Criar novo subtema.
    */
-  create: (data: { nome: string, temaId: number }): Promise<void> =>
+  create: (data: Types.SubtemaCreateRequest): Promise<void> =>
     apiCall('/subtemas', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
-   * Atualizar subtema. Retorna 200 sem body. Re-fetch via GET.
+   * Atualizar subtema.
    */
-  update: (id: number, data: { nome: string, temaId: number }): Promise<void> =>
+  update: (id: number, data: Types.SubtemaUpdateRequest): Promise<void> =>
     apiCall(`/subtemas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   /**
@@ -291,19 +289,19 @@ export const concursoService = {
 
   /**
    * Obter concurso por ID.
-   * @param metrics Nível de métricas para os topicos nos cargos: 'full' para métricas. Padrão: lean.
+   * @param metrics Nível de métricas para os topicos nos cargos: 'lean', 'full'. Padrão: lean.
    */
-  getById: (id: number, metrics?: 'full'): Promise<Types.ConcursoDetailDto> =>
+  getById: (id: number, metrics?: 'lean' | 'full'): Promise<Types.ConcursoDetailDto> =>
     apiCall(`/concursos/${id}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**
-   * Criar novo concurso. Retorna 201 sem body. Re-fetch via GET.
+   * Criar novo concurso.
    */
   create: (data: Types.ConcursoCreateRequest): Promise<void> =>
     apiCall('/concursos', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
-   * Atualizar concurso. Retorna 200 sem body. Re-fetch via GET.
+   * Atualizar concurso.
    */
   update: (id: number, data: Types.ConcursoUpdateRequest): Promise<void> =>
     apiCall(`/concursos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -316,7 +314,6 @@ export const concursoService = {
 
   /**
    * Alternar status de inscrição em um cargo de um concurso.
-   * Retorna 200 sem body. Re-fetch via GET.
    */
   toggleInscricao: (concursoCargoId: number): Promise<void> =>
     apiCall(`/concursos/cargos/${concursoCargoId}/inscricao`, { method: 'PATCH' }),
@@ -328,26 +325,28 @@ export const concursoService = {
 export const bancaService = {
   /**
    * Obter todas as bancas.
+   * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
    */
-  getAll: (params?: Types.PaginationParams & { nome?: string }): Promise<Types.PageResponse<Types.BancaSummaryDto>> =>
+  getAll: (params?: Types.PaginationParams & { nome?: string; metrics?: 'lean' | 'summary' | 'full' }): Promise<Types.PageResponse<Types.BancaSummaryDto>> =>
     apiCall(`/bancas${buildQueryString(params)}`),
 
   /**
    * Obter banca por ID.
+   * @param metrics Nível de métricas: 'lean', 'full'. Padrão: lean.
    */
-  getById: (id: number): Promise<Types.BancaDetailDto> =>
-    apiCall(`/bancas/${id}`),
+  getById: (id: number, metrics?: 'lean' | 'full'): Promise<Types.BancaDetailDto> =>
+    apiCall(`/bancas/${id}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**
-   * Criar nova banca. Retorna 201 sem body. Re-fetch via GET.
+   * Criar nova banca.
    */
-  create: (data: { nome: string }): Promise<void> =>
+  create: (data: Types.BancaCreateRequest): Promise<void> =>
     apiCall('/bancas', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
-   * Atualizar banca. Retorna 200 sem body. Re-fetch via GET.
+   * Atualizar banca.
    */
-  update: (id: number, data: { nome: string }): Promise<void> =>
+  update: (id: number, data: Types.BancaUpdateRequest): Promise<void> =>
     apiCall(`/bancas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   /**
@@ -363,15 +362,17 @@ export const bancaService = {
 export const instituicaoService = {
   /**
    * Obter todas as instituições.
+   * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
    */
-  getAll: (params?: Types.PaginationParams & { nome?: string }): Promise<Types.PageResponse<Types.InstituicaoSummaryDto>> =>
+  getAll: (params?: Types.PaginationParams & { nome?: string; metrics?: 'lean' | 'summary' | 'full' }): Promise<Types.PageResponse<Types.InstituicaoSummaryDto>> =>
     apiCall(`/instituicoes${buildQueryString(params)}`),
 
   /**
    * Obter instituição por ID.
+   * @param metrics Nível de métricas: 'lean', 'full'. Padrão: lean.
    */
-  getById: (id: number): Promise<Types.InstituicaoDetailDto> =>
-    apiCall(`/instituicoes/${id}`),
+  getById: (id: number, metrics?: 'lean' | 'full'): Promise<Types.InstituicaoDetailDto> =>
+    apiCall(`/instituicoes/${id}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**
    * Obter todas as áreas de instituições.
@@ -380,15 +381,15 @@ export const instituicaoService = {
     apiCall(`/instituicoes/areas${buildQueryString({ search })}`),
 
   /**
-   * Criar nova instituição. Retorna 201 sem body. Re-fetch via GET.
+   * Criar nova instituição.
    */
-  create: (data: { nome: string, area: string }): Promise<void> =>
+  create: (data: Types.InstituicaoCreateRequest): Promise<void> =>
     apiCall('/instituicoes', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
-   * Atualizar instituição. Retorna 200 sem body. Re-fetch via GET.
+   * Atualizar instituição.
    */
-  update: (id: number, data: { nome: string, area: string }): Promise<void> =>
+  update: (id: number, data: Types.InstituicaoUpdateRequest): Promise<void> =>
     apiCall(`/instituicoes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   /**
@@ -404,15 +405,17 @@ export const instituicaoService = {
 export const cargoService = {
   /**
    * Obter todos os cargos.
+   * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
    */
-  getAll: (params?: Types.PaginationParams & { nome?: string }): Promise<Types.PageResponse<Types.CargoDetailDto>> =>
+  getAll: (params?: Types.PaginationParams & { nome?: string; metrics?: 'lean' | 'summary' | 'full' }): Promise<Types.PageResponse<Types.CargoSummaryDto>> =>
     apiCall(`/cargos${buildQueryString(params)}`),
 
   /**
    * Obter cargo por ID.
+   * @param metrics Nível de métricas: 'lean', 'full'. Padrão: lean.
    */
-  getById: (id: number): Promise<Types.CargoDetailDto> =>
-    apiCall(`/cargos/${id}`),
+  getById: (id: number, metrics?: 'lean' | 'full'): Promise<Types.CargoDetailDto> =>
+    apiCall(`/cargos/${id}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**
    * Obter todas as áreas de cargos.
@@ -421,15 +424,15 @@ export const cargoService = {
     apiCall(`/cargos/areas${buildQueryString({ search })}`),
 
   /**
-   * Criar novo cargo. Retorna 201 sem body. Re-fetch via GET.
+   * Criar novo cargo.
    */
-  create: (data: Omit<Types.CargoDetailDto, 'id'>): Promise<void> =>
+  create: (data: Types.CargoCreateRequest): Promise<void> =>
     apiCall('/cargos', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
-   * Atualizar cargo. Retorna 200 sem body. Re-fetch via GET.
+   * Atualizar cargo.
    */
-  update: (id: number, data: Omit<Types.CargoDetailDto, 'id'>): Promise<void> =>
+  update: (id: number, data: Types.CargoUpdateRequest): Promise<void> =>
     apiCall(`/cargos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   /**
@@ -445,7 +448,6 @@ export const cargoService = {
 export const questaoService = {
   /**
    * Obter questões com filtros.
-   * Retorna uma página de questões com gabaritos ocultos ou visíveis dependendo do histórico do usuário.
    */
   getAll: (params?: Types.PaginationParams & {
     bancaId?: number;
@@ -466,17 +468,12 @@ export const questaoService = {
   
   /**
    * Obter questão por ID.
-   * O gabarito é visível apenas se a questão tiver sido respondida nos últimos 30 dias,
-   * a menos que o parâmetro 'admin' seja verdadeiro.
-   * @param id ID da questão.
-   * @param admin Se verdadeiro, força a visibilidade de todos os campos (gabarito).
    */
   getById: (id: number, admin: boolean = false): Promise<Types.QuestaoDetailDto> => 
     apiCall(`/questoes/${id}${buildQueryString({ admin })}`),
   
   /**
    * Obter uma questão aleatória com base em filtros.
-   * Questões respondidas recentemente são excluídas da seleção.
    */
   getRandom: (params?: {
     bancaId?: number;
@@ -495,15 +492,14 @@ export const questaoService = {
   
   /**
    * Criar nova questão.
-   * Requer pelo menos 2 alternativas e 1 subtema. Retorna 201 sem body. Re-fetch via GET.
    */
-  create: (data: any): Promise<void> =>
+  create: (data: Types.QuestaoCreateRequest): Promise<void> =>
     apiCall('/questoes', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
-   * Atualizar questão. Retorna 200 sem body. Re-fetch via GET.
+   * Atualizar questão.
    */
-  update: (id: number, data: any): Promise<void> =>
+  update: (id: number, data: Types.QuestaoUpdateRequest): Promise<void> =>
     apiCall(`/questoes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   
   /**
@@ -542,9 +538,9 @@ export const respostaService = {
     apiCall(`/respostas/questao/${questaoId}`),
   
   /**
-   * Criar nova resposta (registrar tentativa). Retorna 201 sem body. Re-fetch via GET.
+   * Criar nova resposta (registrar tentativa).
    */
-  create: (data: Types.RespostaCreateRequest): Promise<void> =>
+  create: (data: Types.RespostaCreateRequest): Promise<Types.RespostaDetailDto> =>
     apiCall('/respostas', { method: 'POST', body: JSON.stringify(data) }),
   
   /**
@@ -571,26 +567,25 @@ export const simuladoService = {
     apiCall(`/simulados/${id}`),
   
   /**
-   * Gerar um novo simulado com base em preferências e pesos. Retorna 201 sem body. Re-fetch via GET.
+   * Gerar um novo simulado.
    */
   gerar: (data: Types.SimuladoGenerationRequest): Promise<void> =>
     apiCall('/simulados/gerar', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
-   * Registrar início do simulado (timestamp de início). Retorna 200 sem body. Re-fetch via GET.
+   * Registrar início do simulado.
    */
-  iniciar: (id: number): Promise<void> =>
+  iniciar: (id: number): Promise<Types.SimuladoDetailDto> =>
     apiCall(`/simulados/${id}/iniciar`, { method: 'PATCH' }),
 
   /**
-   * Registrar término do simulado. Retorna 200 sem body. Re-fetch via GET.
-   * @throws {ApiError} 422 if there are unanswered questions.
+   * Registrar término do simulado.
    */
-  finalizar: (id: number): Promise<void> =>
+  finalizar: (id: number): Promise<Types.SimuladoDetailDto> =>
     apiCall(`/simulados/${id}/finalizar`, { method: 'PATCH' }),
   
   /**
-   * Excluir um simulado. Respostas são preservadas mas desvinculadas.
+   * Excluir um simulado.
    */
   delete: (id: number): Promise<void> => 
     apiCall(`/simulados/${id}`, { method: 'DELETE' }),

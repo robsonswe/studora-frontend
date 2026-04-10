@@ -137,10 +137,12 @@ export default function QuestoesPage() {
         anulada: data.anulada,
         desatualizada: data.desatualizada,
         imageUrl: data.imageUrl,
-        subtemaIds: data.subtemas.map((s: any) => s.value),
+        subtemas: data.subtemas.map((s: any) => s.value),
         cargos: data.cargos,
         alternativas: currentAlternativas.map((alt, index) => ({
           ...alt,
+          correta: !!alt.correta,
+          justificativa: alt.justificativa || '',
           ordem: index + 1
         }))
       };

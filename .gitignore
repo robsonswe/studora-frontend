@@ -51,3 +51,6 @@ next-env.d.ts
 dist
 dist-ssr
 *.local
+
+.qwen/
+gha-creds-*.json

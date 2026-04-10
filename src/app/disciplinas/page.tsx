@@ -259,8 +259,8 @@ function DisciplinasContent() {
             const hue = getHue(d.id);
             const progress = (d.totalSubtemas ?? 0) > 0 ? Math.round(((d.subtemasEstudados ?? 0) / (d.totalSubtemas ?? 0)) * 100) : 0;
 
-            const accuracy = (d.questoesRespondidas ?? 0) > 0 ? (((d.questoesAcertadas ?? 0) / (d.questoesRespondidas ?? 0)) * 100) : 0;
-            const performanceColor = (d.questoesRespondidas ?? 0) > 0
+            const accuracy = (d.questaoStats?.total?.respondidas ?? 0) > 0 ? (((d.questaoStats?.total?.acertadas ?? 0) / (d.questaoStats?.total?.respondidas ?? 0)) * 100) : 0;
+            const performanceColor = (d.questaoStats?.total?.respondidas ?? 0) > 0
               ? (accuracy >= 70 ? 'text-emerald-600' : accuracy >= 50 ? 'text-amber-500' : 'text-rose-600')
               : 'text-slate-300';
 
@@ -302,9 +302,9 @@ function DisciplinasContent() {
                     {/* Column 1: Questões */}
                     <div className="flex flex-col items-center text-center pr-4">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Questões</span>
-                      {(d.questoesRespondidas ?? 0) > 0 ? (
+                      {(d.questaoStats?.total?.respondidas ?? 0) > 0 ? (
                         <div className={`text-sm font-bold font-mono tracking-tighter ${performanceColor}`}>
-                          {d.questoesAcertadas}<span className="text-[10px] text-slate-400 mx-0.5">/</span>{d.questoesRespondidas}
+                          {d.questaoStats?.total?.acertadas}<span className="text-[10px] text-slate-400 mx-0.5">/</span>{d.questaoStats?.total?.respondidas}
                         </div>
                       ) : (
                         <span className="text-sm font-bold text-slate-300 font-mono">—</span>

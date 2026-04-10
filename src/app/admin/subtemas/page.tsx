@@ -120,7 +120,7 @@ export default function SubtemasPage() {
     try {
       const detail = await subtemaService.getById(item.id);
       setEditingItem(item);
-      setValue('tema', { value: detail.tema.id, label: `${detail.tema.disciplinaNome} - ${detail.tema.nome}` });
+      setValue('tema', { value: detail.tema.id, label: `${(detail.tema as any).disciplinaNome || detail.tema.nome}` });
       setValue('nome', detail.nome);
       setShowForm(true);
       if (typeof window !== 'undefined') {

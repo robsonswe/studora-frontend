@@ -90,7 +90,7 @@ export default function SimuladoDetailPage() {
           
           // Sort questions by discipline name and then by ID
           if (updatedSimulado.questoes) {
-            updatedSimulado.questoes.sort((a, b) => {
+            updatedSimulado.questoes.sort((a: any, b: any) => {
               const discA = a.subtemas?.[0]?.disciplinaNome || 'Outros';
               const discB = b.subtemas?.[0]?.disciplinaNome || 'Outros';
               if (discA !== discB) return discA.localeCompare(discB);
@@ -155,7 +155,7 @@ export default function SimuladoDetailPage() {
       
       // Sort questions by discipline name and then by ID
       if (data.questoes) {
-        data.questoes.sort((a, b) => {
+        data.questoes.sort((a: any, b: any) => {
           const discA = a.subtemas?.[0]?.disciplinaNome || 'Outros';
           const discB = b.subtemas?.[0]?.disciplinaNome || 'Outros';
           if (discA !== discB) return discA.localeCompare(discB);

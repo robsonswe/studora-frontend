@@ -7,6 +7,7 @@ import { concursoService, ApiError } from '@/services/api';
 import { formatNivel, formatDateTime } from '@/utils/formatters';
 import * as Types from '@/types';
 import EditalAnalysisReport from '@/components/concursos/EditalAnalysisReport';
+import StatsBreakdownPanel, { type HighlightMap } from '@/components/ui/StatsBreakdownPanel';
 import {
   ArrowLeft,
   AlertCircle,
@@ -15,8 +16,10 @@ import {
   Target,
   BookOpen,
   BarChart2,
+  BarChart3,
   Calendar,
   ChevronRight,
+  ChevronDown,
   Link as LinkIcon,
   FileText,
 } from 'lucide-react';
@@ -67,6 +70,18 @@ export default function ConcursoCargoDetailPage() {
     });
     return g;
   }, [cargo]);
+
+  const highlights = useMemo<HighlightMap>(() => {
+    if (!concurso || !cargo) return {};
+    return {
+      porBanca: concurso.banca?.id?.toString(),
+      porInstituicao: concurso.instituicao?.id?.toString(),
+      porAreaInstituicao: concurso.instituicao?.area,
+      porCargo: cargo.cargoId?.toString(),
+      porAreaCargo: cargo.area,
+      porNivel: cargo.nivel,
+    };
+  }, [concurso, cargo]);
 
   useEffect(() => {
     const load = async () => {
@@ -209,8 +224,8 @@ export default function ConcursoCargoDetailPage() {
                       <div className="space-y-2 pl-4">
                         {subtopicos.map(topico => {
                           const studied = (topico.totalEstudos ?? 0) > 0;
-                          const hasQ = (topico.questoesRespondidas ?? 0) > 0;
-                          const perfRate = hasQ ? (topico.questoesAcertadas ?? 0) / (topico.questoesRespondidas ?? 0) : null;
+                          const hasQ = (topico.questaoStats?.total?.respondidas ?? 0) > 0;
+                          const perfRate = hasQ ? (topico.questaoStats?.total?.acertadas ?? 0) / (topico.questaoStats?.total?.respondidas ?? 0) : null;
                           return (
                             <div key={topico.id} className="group rounded-lg border border-slate-100 bg-slate-50/20 hover:border-indigo-100 hover:bg-white transition-all duration-200 p-3">
                               <div className="flex items-start gap-2.5">
@@ -221,16 +236,16 @@ export default function ConcursoCargoDetailPage() {
                                     {hasQ ? (
                                       <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${perfRate! >= 0.7 ? 'text-emerald-600' : perfRate! >= 0.5 ? 'text-amber-600' : 'text-red-500'}`}>
                                         <Target className="w-2.5 h-2.5" />
-                                        {topico.questoesAcertadas}/{topico.questoesRespondidas} acertos ({Math.round(perfRate! * 100)}%)
+                                        {topico.questaoStats?.total?.acertadas}/{topico.questaoStats?.total?.respondidas} acertos ({Math.round(perfRate! * 100)}%)
                                       </span>
                                     ) : (
                                       <span className="text-[10px] font-medium text-slate-300 inline-flex items-center gap-1">
                                         <Target className="w-2.5 h-2.5" /> Sem questões respondidas
                                       </span>
                                     )}
-                                    {(topico.ultimaQuestao ?? null) && (
+                                    {(topico.questaoStats?.total?.ultimaQuestao ?? null) && (
                                       <span className="text-[10px] font-medium text-slate-400 inline-flex items-center gap-1">
-                                        <BarChart2 className="w-2.5 h-2.5" /> Questão: {formatDateShort(topico.ultimaQuestao!)}
+                                        <BarChart2 className="w-2.5 h-2.5" /> Questão: {formatDateShort(topico.questaoStats?.total?.ultimaQuestao!)}
                                       </span>
                                     )}
                                     <span className={`text-[10px] font-medium inline-flex items-center gap-1 ${studied ? 'text-slate-400' : 'text-slate-300'}`}>
@@ -239,6 +254,11 @@ export default function ConcursoCargoDetailPage() {
                                   </div>
                                 </div>
                               </div>
+                              <StatsBreakdownPanel 
+                                stats={topico.questaoStats} 
+                                highlights={highlights} 
+                                title="Desempenho no tópico" 
+                              />
                             </div>
                           );
                         })}
@@ -258,6 +278,11 @@ export default function ConcursoCargoDetailPage() {
             inscrito={cargo.inscrito}
             banca={concurso.banca}
             instituicao={concurso.instituicao}
+            areaInstituicao={concurso.instituicao?.area}
+            cargoId={cargo.cargoId}
+            cargoNome={cargo.cargoNome}
+            areaCargo={cargo.area}
+            nivel={cargo.nivel}
           />
         </div>
 

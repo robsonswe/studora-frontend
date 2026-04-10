@@ -24,51 +24,95 @@ export interface DificuldadeStatDto {
 }
 
 /**
+ * Fatia de estatísticas por dimensão (nível, banca, instituição, cargo, área).
+ * Usado dentro de `QuestaoStatsDto` for each breakdown `por*`.
+ */
+export interface StatSliceDto {
+  /** ID da entidade (presente para porBanca, porInstituicao, porCargo). */
+  id?: number;
+  /** Nome/label da fatia (ex: "SUPERIOR", "Cebraspe (CESPE)", "Policial"). */
+  nome?: string;
+  /** Total de questões respondidas nesta fatia. */
+  respondidas?: number;
+  /** Total de questões acertadas nesta fatia. */
+  acertadas?: number;
+  /** Total de questões disponíveis nesta fatia. */
+  totalQuestoes?: number;
+  /** Tempo médio de resposta em segundos. */
+  mediaTempoResposta?: number;
+  /** Estatísticas por dificuldade. Keys: FACIL, MEDIA, DIFICIL, CHUTE */
+  dificuldade?: Record<string, DificuldadeStatDto>;
+  /** Data da última questão respondida nesta fatia. */
+  ultimaQuestao?: string;
+}
+
+/**
+ * DTO agregado de estatísticas de questões com múltiplas dimensões.
+ * Presente em DTOs quando `metrics` é `summary` or `full`.
+ */
+export interface QuestaoStatsDto {
+  /** Estatísticas agregadas para toda a entidade. */
+  total: StatSliceDto;
+  /** Breakdown por nível de cargo. Key: NivelCargo (SUPERIOR, MEDIO, FUNDAMENTAL). */
+  porNivel?: Record<string, StatSliceDto>;
+  /** Breakdown por banca. Key: bancaId. */
+  porBanca?: Record<number, StatSliceDto>;
+  /** Breakdown por instituição. Key: instituicaoId. */
+  porInstituicao?: Record<number, StatSliceDto>;
+  /** Breakdown por área da instituição. Key: área (string). */
+  porAreaInstituicao?: Record<string, StatSliceDto>;
+  /** Breakdown por cargo. Key: cargoId. */
+  porCargo?: Record<number, StatSliceDto>;
+  /** Breakdown por área do cargo. Key: área (string). */
+  porAreaCargo?: Record<string, StatSliceDto>;
+}
+
+/**
+ * Referência simplificada para tema (apenas id e nome).
+ * Usado em SubtemaDetailDto para evitar nesting excessivo.
+ */
+export interface TemaReferenceDto {
+  /** ID do tema. */
+  id: number;
+  /** Nome do tema. */
+  nome: string;
+}
+
+/**
+ * Referência simplificada para disciplina (apenas id e nome).
+ * Usado em SubtemaDetailDto para evitar nesting excessivo.
+ */
+export interface DisciplinaReferenceDto {
+  /** ID da disciplina. */
+  id: number;
+  /** Nome da disciplina. */
+  nome: string;
+}
+
+/**
  * DTO simplificado para listagem de disciplinas.
- *
- * Fields are nullable (`number | null`) when controlled by the `metrics` query param.
- * - **lean** (default): only `id` and `nome` are populated; all metric fields are `null`/`undefined`.
- * - **summary**: + `totalEstudos`, `totalSubtemas`, `subtemasEstudados`, `questoesRespondidas`,
- *   `questoesAcertadas`, `ultimoEstudo`.
- * - **full**: + `totalTemas`, `temasEstudados`, `totalQuestoes`, `ultimaQuestao`,
- *   `mediaTempoResposta`, `dificuldadeRespostas`.
  */
 export interface DisciplinaSummaryDto {
   /** ID único da disciplina. Example: 1 */
   id: number;
   /** Nome da disciplina. Example: "Direito Constitucional" */
   nome: string;
-  /** Total de sessões de estudo realizadas para todos os subtemas desta disciplina. (summary+) */
-  totalEstudos?: number | null;
-  /** Data e hora do último estudo realizado entre todos os subtemas desta disciplina (ISO string). (summary+) */
-  ultimoEstudo?: string | null;
-  /** Data e hora da última questão respondida entre todos os subtemas desta disciplina (ISO string). (full) */
-  ultimaQuestao?: string | null;
-  /** Total de temas nesta disciplina. (full) */
-  totalTemas?: number | null;
-  /** Total de subtemas nesta disciplina. (summary+) */
-  totalSubtemas?: number | null;
-  /** Número de temas onde todos os subtemas possuem pelo menos uma sessão de estudo. (full) */
-  temasEstudados?: number | null;
-  /** Número de subtemas que possuem pelo menos uma sessão de estudo. (summary+) */
-  subtemasEstudados?: number | null;
-  /** Total de questões associadas a esta disciplina (somando temas/subtemas). (full) */
-  totalQuestoes?: number | null;
-  /** Total de questões que possuem pelo menos uma resposta. (summary+) */
-  questoesRespondidas?: number | null;
-  /** Total de questões que possuem pelo menos uma resposta correta. (summary+) */
-  questoesAcertadas?: number | null;
-  /** Tempo médio de resposta em segundos. (full) */
-  mediaTempoResposta?: number | null;
-  /** Estatísticas de respostas por nível de dificuldade. (full) */
-  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
+  /** Data e hora do último estudo realizado. */
+  ultimoEstudo?: string;
+  /** Total de temas associados. */
+  totalTemas?: number;
+  /** Total de temas estudados (temas onde todos os subtemas foram estudados). */
+  temasEstudados?: number;
+  /** Total de subtemas associados. */
+  totalSubtemas?: number;
+  /** Total de subtemas estudados (subtemas com ao menos 1 sessão). */
+  subtemasEstudados?: number;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
 }
 
 /**
  * DTO detalhado de Disciplina, incluindo seus temas.
- *
- * Metrics fields are nullable unless `metrics=full` is passed.
- * Nested `temas` are always present but their metric fields follow the same tier rules.
  */
 export interface DisciplinaDetailDto {
   /** ID único da disciplina. Example: 1 */
@@ -77,39 +121,36 @@ export interface DisciplinaDetailDto {
   nome: string;
   /** Lista de temas associados a esta disciplina. */
   temas: TemaSummaryDto[];
-  /** Total de sessões de estudo. (full) */
-  totalEstudos?: number | null;
-  /** Data e hora do último estudo (ISO string). (full) */
-  ultimoEstudo?: string | null;
-  /** Data e hora da última questão respondida (ISO string). (full) */
-  ultimaQuestao?: string | null;
-  /** Total de temas nesta disciplina. (full) */
-  totalTemas?: number | null;
-  /** Total de subtemas nesta disciplina. (full) */
-  totalSubtemas?: number | null;
-  /** Número de temas estudados. (full) */
-  temasEstudados?: number | null;
-  /** Número de subtemas estudados. (full) */
-  subtemasEstudados?: number | null;
-  /** Total de questões associadas. (full) */
-  totalQuestoes?: number | null;
-  /** Total de questões respondidas. (full) */
-  questoesRespondidas?: number | null;
-  /** Total de questões acertadas. (full) */
-  questoesAcertadas?: number | null;
-  /** Tempo médio de resposta em segundos. (full) */
-  mediaTempoResposta?: number | null;
-  /** Estatísticas de respostas por nível de dificuldade. (full) */
-  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
+  /** Data e hora do último estudo realizado. */
+  ultimoEstudo?: string;
+  /** Total de temas associados. */
+  totalTemas?: number;
+  /** Total de temas estudados. */
+  temasEstudados?: number;
+  /** Total de subtemas associados. */
+  totalSubtemas?: number;
+  /** Total de subtemas estudados. */
+  subtemasEstudados?: number;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
+}
+
+/**
+ * Request DTO para criação de disciplina.
+ */
+export interface DisciplinaCreateRequest {
+  nome: string;
+}
+
+/**
+ * Request DTO para atualização de disciplina.
+ */
+export interface DisciplinaUpdateRequest {
+  nome: string;
 }
 
 /**
  * DTO simplificado para listagem de temas.
- *
- * Metric fields are controlled via the `metrics` query param:
- * - **lean** (default): only `id`, `nome`, `disciplinaId`, `disciplinaNome`.
- * - **summary**: + `totalSubtemas`, `subtemasEstudados`, `questoesRespondidas`, `questoesAcertadas`, `totalEstudos`, `ultimoEstudo`.
- * - **full**: + `mediaTempoResposta`, `dificuldadeRespostas`.
  */
 export interface TemaSummaryDto {
   /** ID único do tema. Example: 1 */
@@ -120,34 +161,20 @@ export interface TemaSummaryDto {
   nome: string;
   /** Nome da disciplina (para evitar lookups). (lean+) */
   disciplinaNome?: string;
-  /** Total de sessões de estudo realizadas para todos os subtemas deste tema. (summary+) */
-  totalEstudos?: number | null;
-  /** Data e hora do último estudo realizado entre todos os subtemas deste tema (ISO string). (summary+) */
-  ultimoEstudo?: string | null;
-  /** Data e hora da última questão respondida entre todos os subtemas deste tema (ISO string). (full) */
-  ultimaQuestao?: string | null;
-  /** Total de subtemas neste tema. (summary+) */
-  totalSubtemas?: number | null;
-  /** Número de subtemas que possuem pelo menos uma sessão de estudo. (summary+) */
-  subtemasEstudados?: number | null;
-  /** Total de questões associadas a este tema (somando subtemas). (summary+) */
-  totalQuestoes?: number | null;
-  /** Total de questões que possuem pelo menos uma resposta. (summary+) */
-  questoesRespondidas?: number | null;
-  /** Total de questões que possuem pelo menos uma resposta correta. (summary+) */
-  questoesAcertadas?: number | null;
-  /** Tempo médio de resposta em segundos. (full) */
-  mediaTempoResposta?: number | null;
-  /** Estatísticas de respostas por nível de dificuldade. (full) */
-  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
+  /** Data e hora do último estudo realizado. */
+  ultimoEstudo?: string;
+  /** Total de subtemas associados. */
+  totalSubtemas?: number;
+  /** Total de subtemas estudados (subtemas com ao menos 1 sessão). */
+  subtemasEstudados?: number;
   /** Lista de subtemas (only populated in detail/hierarchy endpoints). */
   subtemas?: SubtemaSummaryDto[];
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
 }
 
 /**
  * DTO detalhado para visualização de um tema, incluindo disciplina e subtemas.
- *
- * Metric fields are nullable unless `metrics=full` is passed.
  */
 export interface TemaDetailDto {
   /** ID único do tema. */
@@ -156,37 +183,36 @@ export interface TemaDetailDto {
   disciplina: DisciplinaSummaryDto;
   /** Nome do tema. */
   nome: string;
+  /** Data e hora do último estudo realizado. */
+  ultimoEstudo?: string;
+  /** Total de subtemas associados. */
+  totalSubtemas?: number;
+  /** Total de subtemas estudados. */
+  subtemasEstudados?: number;
   /** Lista de subtemas associados a este tema. */
   subtemas: SubtemaSummaryDto[];
-  /** Total de sessões de estudo realizadas para todos os subtemas deste tema. (full) */
-  totalEstudos?: number | null;
-  /** Data e hora do último estudo realizado entre todos os subtemas deste tema (ISO string). (full) */
-  ultimoEstudo?: string | null;
-  /** Data e hora da última questão respondida entre todos os subtemas deste tema (ISO string). (full) */
-  ultimaQuestao?: string | null;
-  /** Total de subtemas neste tema. (full) */
-  totalSubtemas?: number | null;
-  /** Número de subtemas que possuem pelo menos uma sessão de estudo. (full) */
-  subtemasEstudados?: number | null;
-  /** Total de questões associadas a este tema (somando subtemas). (full) */
-  totalQuestoes?: number | null;
-  /** Total de questões que possuem pelo menos uma resposta. (full) */
-  questoesRespondidas?: number | null;
-  /** Total de questões que possuem pelo menos uma resposta correta. (full) */
-  questoesAcertadas?: number | null;
-  /** Tempo médio de resposta em segundos. (full) */
-  mediaTempoResposta?: number | null;
-  /** Estatísticas de respostas por nível de dificuldade. (full) */
-  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
+}
+
+/**
+ * Request DTO para criação de tema.
+ */
+export interface TemaCreateRequest {
+  nome: string;
+  disciplinaId: number;
+}
+
+/**
+ * Request DTO para atualização de tema.
+ */
+export interface TemaUpdateRequest {
+  nome: string;
+  disciplinaId: number;
 }
 
 /**
  * DTO simplificado para listagem de subtemas.
- *
- * Metric fields are controlled via the `metrics` query param:
- * - **lean** (default): only `id`, `nome`, `temaId`, `temaNome`, `disciplinaId`, `disciplinaNome`.
- * - **summary**: + `totalEstudos`, `questoesRespondidas`, `questoesAcertadas`.
- * - **full**: + `ultimoEstudo`, `ultimaQuestao`, `totalQuestoes`, `mediaTempoResposta`, `dificuldadeRespostas`.
  */
 export interface SubtemaSummaryDto {
   /** ID único do subtema. Example: 1 */
@@ -201,52 +227,48 @@ export interface SubtemaSummaryDto {
   disciplinaNome?: string;
   /** Nome do subtema. Example: "Atos Administrativos" */
   nome: string;
-  /** Total de sessões de estudo realizadas para este subtema. (summary+) */
-  totalEstudos?: number | null;
-  /** Data e hora do último estudo realizado (ISO string). (full) */
-  ultimoEstudo?: string | null;
-  /** Data e hora da última questão respondida (ISO string). (full) */
-  ultimaQuestao?: string | null;
-  /** Total de questões associadas a este subtema. (full) */
-  totalQuestoes?: number | null;
-  /** Total de questões que possuem pelo menos uma resposta. (summary+) */
-  questoesRespondidas?: number | null;
-  /** Total de questões que possuem pelo menos uma resposta correta. (summary+) */
-  questoesAcertadas?: number | null;
-  /** Tempo médio de resposta em segundos. (full) */
-  mediaTempoResposta?: number | null;
-  /** Estatísticas de respostas por nível de dificuldade. (full) */
-  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
+  /** Total de sessões de estudo realizadas. */
+  totalEstudos?: number;
+  /** Data e hora do último estudo realizado. */
+  ultimoEstudo?: string;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
 }
 
 /**
- * DTO detalhado para visualização de um subtema, incluindo o tema pai.
- *
- * Metric fields are nullable unless `metrics=full` is passed.
+ * DTO detalhado para visualização de um subtema, incluindo referências lean do tema e disciplina.
  */
 export interface SubtemaDetailDto {
   /** ID único do subtema. */
   id: number;
-  /** Tema ao qual o subtema pertence. */
-  tema: TemaSummaryDto;
+  /** Tema ao qual the subtema pertence (referência lean: apenas id+nome). */
+  tema: TemaReferenceDto;
+  /** Disciplina à qual the subtema pertence (referência lean: apenas id+nome). */
+  disciplina: DisciplinaReferenceDto;
   /** Nome do subtema. */
   nome: string;
-  /** Total de sessões de estudo realizadas para este subtema. (full) */
-  totalEstudos?: number | null;
-  /** Data e hora do último estudo realizado (ISO string). (full) */
-  ultimoEstudo?: string | null;
-  /** Data e hora da última questão respondida (ISO string). (full) */
-  ultimaQuestao?: string | null;
-  /** Total de questões associadas a este subtema. (full) */
-  totalQuestoes?: number | null;
-  /** Total de questões que possuem pelo menos uma resposta. (full) */
-  questoesRespondidas?: number | null;
-  /** Total de questões que possuem pelo menos uma resposta correta. (full) */
-  questoesAcertadas?: number | null;
-  /** Tempo médio de resposta em segundos. (full) */
-  mediaTempoResposta?: number | null;
-  /** Estatísticas de respostas por nível de dificuldade. (full) */
-  dificuldadeRespostas?: Record<string, DificuldadeStatDto>;
+  /** Total de sessões de estudo realizadas. */
+  totalEstudos?: number;
+  /** Data e hora do último estudo realizado. */
+  ultimoEstudo?: string;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
+}
+
+/**
+ * Request DTO para criação de subtema.
+ */
+export interface SubtemaCreateRequest {
+  nome: string;
+  temaId: number;
+}
+
+/**
+ * Request DTO para atualização de subtema.
+ */
+export interface SubtemaUpdateRequest {
+  nome: string;
+  temaId: number;
 }
 
 /**
@@ -269,12 +291,35 @@ export interface BancaSummaryDto {
   id: number;
   /** Nome da banca organizadora. Example: "Cebraspe (CESPE)" */
   nome: string;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
 }
 
 /**
  * DTO detalhado para visualização de uma banca.
  */
-export interface BancaDetailDto extends BancaSummaryDto {}
+export interface BancaDetailDto {
+  /** ID único da banca. */
+  id: number;
+  /** Nome da banca organizadora. */
+  nome: string;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
+}
+
+/**
+ * Request DTO para criação de banca.
+ */
+export interface BancaCreateRequest {
+  nome: string;
+}
+
+/**
+ * Request DTO para atualização de banca.
+ */
+export interface BancaUpdateRequest {
+  nome: string;
+}
 
 /**
  * DTO simplificado para listagem de instituições.
@@ -286,12 +331,39 @@ export interface InstituicaoSummaryDto {
   nome: string;
   /** Área de atuação da instituição. Example: "Judiciária" */
   area: string;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
 }
 
 /**
  * DTO detalhado para visualização de uma instituição.
  */
-export interface InstituicaoDetailDto extends InstituicaoSummaryDto {}
+export interface InstituicaoDetailDto {
+  /** ID único da instituição. */
+  id: number;
+  /** Nome da instituição. */
+  nome: string;
+  /** Área de atuação da instituição. */
+  area: string;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
+}
+
+/**
+ * Request DTO para criação de instituição.
+ */
+export interface InstituicaoCreateRequest {
+  nome: string;
+  area: string;
+}
+
+/**
+ * Request DTO para atualização de instituição.
+ */
+export interface InstituicaoUpdateRequest {
+  nome: string;
+  area: string;
+}
 
 /**
  * DTO simplificado para listagem de cargos.
@@ -305,12 +377,43 @@ export interface CargoSummaryDto {
   nivel: NivelCargo;
   /** Área de atuação do cargo. */
   area: string;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
 }
 
 /**
  * DTO detalhado para visualização de um cargo.
  */
-export interface CargoDetailDto extends CargoSummaryDto {}
+export interface CargoDetailDto {
+  /** ID único do cargo. */
+  id: number;
+  /** Nome do cargo. */
+  nome: string;
+  /** Nível de escolaridade exigido. */
+  nivel: NivelCargo;
+  /** Área de atuação do cargo. */
+  area: string;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
+}
+
+/**
+ * Request DTO para criação de cargo.
+ */
+export interface CargoCreateRequest {
+  nome: string;
+  nivel: NivelCargo;
+  area: string;
+}
+
+/**
+ * Request DTO para atualização de cargo.
+ */
+export interface CargoUpdateRequest {
+  nome?: string;
+  nivel?: NivelCargo;
+  area?: string;
+}
 
 /**
  * DTO com contexto do concurso para exibição em questões.
@@ -326,18 +429,14 @@ export interface ConcursoQuestaoDto {
   bancaNome: string;
   /** ID da instituição. */
   instituicaoId: number;
-  /** Nome da instituição. */
+  /** Nome da institution. */
   instituicaoNome: string;
-  /** Área da instituição. */
+  /** Área da institution. */
   instituicaoArea: string;
 }
 
 /**
  * DTO que representa a associação de um cargo a um concurso com status de inscrição.
- *
- * When `metrics=full` is passed on `GET /concursos/{id}`, the `topicos` array
- * includes metric fields. Otherwise, topicos only have structural fields
- * (`id`, `nome`, `temaId`, `temaNome`, `disciplinaId`, `disciplinaNome`).
  */
 export interface ConcursoCargoSummaryDto {
   /** ID da associação concurso-cargo. */
@@ -473,7 +572,29 @@ export interface AlternativaDto {
 }
 
 /**
+ * Request DTO for alternative creation.
+ */
+export interface AlternativaCreateRequest {
+  ordem: number;
+  texto: string;
+  correta: boolean;
+  justificativa: string;
+}
+
+/**
+ * Request DTO for alternative update.
+ */
+export interface AlternativaUpdateRequest {
+  id?: number;
+  ordem: number;
+  texto: string;
+  correta: boolean;
+  justificativa: string;
+}
+
+/**
  * Grau de dificuldade percebido pelo usuário na questão.
+ * Keys are uppercase to match backend: FACIL, MEDIA, DIFICIL, CHUTE.
  */
 export const Dificuldade = {
   FACIL: 'FACIL',
@@ -567,6 +688,31 @@ export interface QuestaoDetailDto {
   resposta?: RespostaSummaryDto;
   /** Histórico completo de respostas recentes. (Visível apenas se respondida recentemente ou admin). */
   respostas?: RespostaSummaryDto[];
+}
+
+/**
+ * Request DTO for question creation.
+ */
+export interface QuestaoCreateRequest {
+  enunciado: string;
+  alternativas: AlternativaCreateRequest[];
+  subtemas: number[];
+  cargos: number[];
+  concursoId: number;
+  imageUrl?: string;
+}
+
+/**
+ * Request DTO for question update.
+ */
+export interface QuestaoUpdateRequest {
+  enunciado?: string;
+  alternativas?: AlternativaUpdateRequest[];
+  subtemas?: number[];
+  cargos?: number[];
+  concursoId?: number;
+  imageUrl?: string;
+  anulada?: boolean;
 }
 
 /**
@@ -766,161 +912,70 @@ export interface ApiResponse<T> {
 }
 
 /**
-
  * Parâmetros padrão para paginação e ordenação em requisições GET.
-
  */
-
 export interface PaginationParams {
-
   /** Número da página (inicia em 0). */
-
   page?: number;
-
   /** Quantidade de itens por página. */
-
   size?: number;
-
   /** Campo para ordenação. */
-
   sort?: string;
-
   /** Direção da ordenação. */
-
   direction?: 'ASC' | 'DESC';
-
 }
 
-
-
 /**
-
  * DTO para métricas de consistência diária.
-
  */
-
 export interface AnalyticsConsistenciaDto {
-
   date: string;
-
   totalAnswered: number;
-
   totalCorrect: number;
-
   totalTimeSeconds: number;
-
   activeStreak: number;
-
 }
 
-
-
 /**
-
-
-
  * DTO para domínio por tópico (Disciplina, Tema ou Subtema).
-
-
-
  */
-
-
-
 export interface AnalyticsTopicMasteryDto {
-
-
-
   id: number;
-
-
-
   nome: string;
-
-
-
   totalAttempts: number;
-
-
-
   correctAttempts: number;
-
-
-
   avgTimeSeconds: number;
-
-
-
   masteryScore: number;
-
-
-
   difficultyStats: Record<string, { total: number; correct: number }>;
-
-
-
+  children?: AnalyticsTopicMasteryDto[];
 }
 
-
-
-
-
-
-
 /**
-
- * DTO detalhado para domínio de uma disciplina com hierarquia.
-
+ * DTO detalhado para domínio de uma disciplina with hierarquia.
  */
-
 export interface AnalyticsTopicMasteryDetailDto extends AnalyticsTopicMasteryDto {
-
   children: AnalyticsTopicMasteryDto[];
-
 }
 
-
-
 /**
-
  * DTO para evolução temporal.
-
  */
-
 export interface AnalyticsEvolucaoDto {
-
   period: string;
-
   overallAccuracy: number;
-
   avgResponseTime: number;
-
   difficultyDistribution: Record<string, number>;
-
 }
 
-
-
 /**
-
  * DTO para taxa de aprendizado em questões repetidas.
-
  */
-
 export interface AnalyticsLearningRateDto {
-
   totalRepeatedQuestions: number;
-
   recoveryRate: number;
-
   retentionRate: number;
-
   data: {
-
     attemptNumber: number;
-
     accuracy: number;
-
   }[];
-
 }

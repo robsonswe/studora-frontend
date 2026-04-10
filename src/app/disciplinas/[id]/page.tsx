@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import { disciplinaService, subtemaService, ApiError } from '@/services/api';
+import StatsBreakdownPanel from '@/components/ui/StatsBreakdownPanel';
 import * as Types from '@/types';
 import {
   ArrowLeft,
@@ -144,12 +145,12 @@ const SubtemaRow = ({
   isLoadingHistory: boolean;
 }) => {
   const accuracy =
-    (subtema.questoesRespondidas ?? 0) > 0
+    (subtema.questaoStats?.total?.respondidas ?? 0) > 0
       ? Math.round(
-          ((subtema.questoesAcertadas ?? 0) / (subtema.questoesRespondidas ?? 0)) * 100
+          ((subtema.questaoStats?.total?.acertadas ?? 0) / (subtema.questaoStats?.total?.respondidas ?? 0)) * 100
         )
       : 0;
-  const hasStats = (subtema.questoesRespondidas ?? 0) > 0;
+  const hasStats = (subtema.questaoStats?.total?.respondidas ?? 0) > 0;
   const isStudied = (subtema.totalEstudos ?? 0) > 0;
   const hasHistory = isStudied;
 
@@ -177,7 +178,7 @@ const SubtemaRow = ({
                 <span className={`font-semibold tabular-nums text-sm ${
                   accuracy >= 70 ? 'text-emerald-600' : accuracy >= 50 ? 'text-amber-600' : 'text-rose-600'
                 }`}>
-                  {accuracy}% <span className="text-slate-400 font-normal text-xs">({subtema.questoesAcertadas}/{subtema.questoesRespondidas})</span>
+                  {accuracy}% <span className="text-slate-400 font-normal text-xs">({subtema.questaoStats?.total?.acertadas}/{subtema.questaoStats?.total?.respondidas})</span>
                 </span>
               ) : (
                 <span className="font-semibold text-slate-400">—</span>
@@ -187,7 +188,7 @@ const SubtemaRow = ({
             <div className="space-y-1">
               <span className="text-slate-400 font-medium block">Questões - Tempo Médio</span>
               <span className="font-semibold text-slate-700 tabular-nums">
-                {(subtema.mediaTempoResposta ?? 0) > 0 ? `${Math.round(subtema.mediaTempoResposta!)}s` : '—'}
+                {(subtema.questaoStats?.total?.mediaTempoResposta ?? 0) > 0 ? `${Math.round(subtema.questaoStats?.total?.mediaTempoResposta!)}s` : '—'}
               </span>
             </div>
 
@@ -202,22 +203,23 @@ const SubtemaRow = ({
 
             <div className="space-y-1">
               <span className="text-slate-400 font-medium block">Última Questão</span>
-              <span className={`font-semibold ${subtema.ultimaQuestao ? 'text-slate-700' : 'text-slate-400'}`}>
-                {subtema.ultimaQuestao
-                  ? new Date(subtema.ultimaQuestao).toLocaleDateString('pt-BR')
-                  : '—'}
+              <span className={`font-semibold ${subtema.questaoStats?.total.ultimaQuestao ? 'text-slate-700' : 'text-slate-400'}`}>
+                {subtema.questaoStats?.total.ultimaQuestao
+                  ? new Date(subtema.questaoStats?.total.ultimaQuestao).toLocaleDateString('pt-BR')
+                  : 'Nenhum'}
               </span>
             </div>
 
             <div className="space-y-1">
               <span className="text-slate-400 font-medium block">Questões - Dificuldade</span>
-              {hasStats && subtema.dificuldadeRespostas && Object.keys(subtema.dificuldadeRespostas).length > 0 ? (
-                <DifficultyMiniBadges stats={subtema.dificuldadeRespostas} />
+              {hasStats && subtema.questaoStats?.total?.dificuldade && Object.keys(subtema.questaoStats?.total?.dificuldade).length > 0 ? (
+                <DifficultyMiniBadges stats={subtema.questaoStats?.total?.dificuldade} />
               ) : (
                 <span className="font-semibold text-slate-400">—</span>
               )}
             </div>
           </div>
+          <StatsBreakdownPanel stats={subtema.questaoStats} title="Desempenho no tópico" />
         </div>
 
         <div className="flex flex-col gap-2 sm:w-44">
@@ -407,7 +409,7 @@ export default function DisciplinaDetailPage() {
   if (error || !disciplina) return null;
 
   const hasTemas = temas.length > 0;
-  const accuracy = calculateAccuracy(disciplina.questoesRespondidas ?? 0, disciplina.questoesAcertadas ?? 0);
+  const accuracy = calculateAccuracy(disciplina.questaoStats?.total?.respondidas ?? 0, disciplina.questaoStats?.total?.acertadas ?? 0);
   const studyProgress = (disciplina.totalSubtemas ?? 0) > 0
     ? Math.round(((disciplina.subtemasEstudados ?? 0) / (disciplina.totalSubtemas ?? 0)) * 100)
     : 0;
@@ -479,42 +481,51 @@ export default function DisciplinaDetailPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* DASHBOARD STRIP: Only shown if Temas exist */}
         {hasTemas ? (
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-8 flex flex-col md:flex-row gap-6 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-slate-200">
-            <div className="flex-1 md:pr-6 flex flex-col justify-center">
-              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1">Tópicos estudados</h2>
-              <div className="flex items-baseline gap-2 mb-2">
-                <span className="text-3xl font-mono font-bold tracking-tight text-slate-900">{disciplina.subtemasEstudados}/{disciplina.totalSubtemas}</span>
-                <span className="text-sm font-bold text-indigo-600 font-mono">({studyProgress}%)</span>
-              </div>
-              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-auto">
-                <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${studyProgress}%` }} />
-              </div>
-            </div>
-
-            <div className="flex-[1.5] md:px-6 pt-6 md:pt-0 flex flex-col justify-center">
-              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">Desempenho Geral</h2>
-              <div className="flex flex-col gap-3">
-                <div className="flex items-baseline gap-3">
-                  <AccuracyPill accuracy={accuracy} size="lg" />
-                  <span className="text-xs text-slate-500 flex items-center gap-2">
-                    <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded tabular-nums">{disciplina.questoesRespondidas ?? 0}</span> respondidas
-                    <span className="w-1 h-1 rounded-full bg-slate-300" />
-                    <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded tabular-nums">{(disciplina.mediaTempoResposta ?? 0) > 0 ? `${Math.round(disciplina.mediaTempoResposta!)}s` : '—'}</span> por questão
-                  </span>
+          <>
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm mb-8 flex flex-col">
+            <div className="p-5 flex flex-col md:flex-row gap-6 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+              <div className="flex-1 md:pr-6 flex flex-col justify-center">
+                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1">Tópicos estudados</h2>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-3xl font-mono font-bold tracking-tight text-slate-900">{disciplina.subtemasEstudados}/{disciplina.totalSubtemas}</span>
+                  <span className="text-sm font-bold text-indigo-600 font-mono">({studyProgress}%)</span>
                 </div>
-                {disciplina.dificuldadeRespostas && Object.keys(disciplina.dificuldadeRespostas).length > 0 && (
-                  <DifficultyMiniBadges stats={disciplina.dificuldadeRespostas} />
-                )}
+                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-auto">
+                  <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${studyProgress}%` }} />
+                </div>
+              </div>
+
+              <div className="flex-[1.5] md:px-6 pt-6 md:pt-0 flex flex-col justify-center">
+                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">Desempenho Geral</h2>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-baseline gap-3">
+                    <AccuracyPill accuracy={accuracy} size="lg" />
+                    <span className="text-xs text-slate-500 flex items-center gap-2">
+                      <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded tabular-nums">{disciplina.questaoStats?.total?.respondidas ?? 0}</span> respondidas
+                      <span className="w-1 h-1 rounded-full bg-slate-300" />
+                      <span className="font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded tabular-nums">{(disciplina.questaoStats?.total?.mediaTempoResposta ?? 0) > 0 ? `${Math.round(disciplina.questaoStats?.total?.mediaTempoResposta!)}s` : '—'}</span> por questão
+                    </span>
+                  </div>
+                  {disciplina.questaoStats?.total?.dificuldade && Object.keys(disciplina.questaoStats?.total?.dificuldade).length > 0 && (
+                    <DifficultyMiniBadges stats={disciplina.questaoStats?.total?.dificuldade} />
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1 md:pl-6 pt-6 md:pt-0 flex flex-col justify-center">
+                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1">Última Atividade</h2>
+                <span className="text-xl font-bold tracking-tight text-slate-900">
+                  {disciplina.ultimoEstudo ? new Date(disciplina.ultimoEstudo).toLocaleDateString('pt-BR') : 'Nenhuma atividade'}
+                </span>
               </div>
             </div>
 
-            <div className="flex-1 md:pl-6 pt-6 md:pt-0 flex flex-col justify-center">
-              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1">Última Atividade</h2>
-              <span className="text-xl font-bold tracking-tight text-slate-900">
-                {disciplina.ultimoEstudo ? new Date(disciplina.ultimoEstudo).toLocaleDateString('pt-BR') : 'Nenhuma atividade'}
-              </span>
+            {/* Dimensional Breakdown — Disciplina level */}
+            <div className="px-5 pb-5">
+              <StatsBreakdownPanel stats={disciplina.questaoStats} title="Desempenho na disciplina" />
             </div>
           </div>
+          </>
         ) : (
           /* NO TEMAS EMPTY STATE */
           <div className="bg-white border border-slate-200 rounded-2xl p-12 shadow-sm mb-8 text-center">
@@ -564,7 +575,7 @@ export default function DisciplinaDetailPage() {
                 filteredTemas.map((tema) => {
                   const isExpanded = expandedTemas.includes(tema.id);
                   const hasSubtemas = tema.subtemas.length > 0;
-                  const temaAcc = calculateAccuracy(tema.questoesRespondidas ?? 0, tema.questoesAcertadas ?? 0);
+                  const temaAcc = calculateAccuracy(tema.questaoStats?.total?.respondidas ?? 0, tema.questaoStats?.total?.acertadas ?? 0);
                   const temaProgress = (tema.totalSubtemas ?? 0) > 0 ? Math.round(((tema.subtemasEstudados ?? 0) / (tema.totalSubtemas ?? 0)) * 100) : 0;
 
                   return (
@@ -593,12 +604,16 @@ export default function DisciplinaDetailPage() {
                             <>
                               <div className="px-5 py-3 bg-slate-50/30 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
                                 <div className="flex items-center gap-4 text-xs text-slate-500">
-                                  <div className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-slate-400" /><span><strong className="text-slate-700">{tema.questoesAcertadas ?? 0}</strong>/{tema.questoesRespondidas ?? 0} questões</span></div>
-                                  {(tema.mediaTempoResposta ?? 0) > 0 && <div className="flex items-center gap-1.5 hidden sm:flex"><Clock className="w-3.5 h-3.5 text-slate-400" /><span>{Math.round(tema.mediaTempoResposta!)}s média</span></div>}
+                                  <div className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-slate-400" /><span><strong className="text-slate-700">{tema.questaoStats?.total?.acertadas ?? 0}</strong>/{tema.questaoStats?.total?.respondidas ?? 0} questões</span></div>
+                                  {(tema.questaoStats?.total?.mediaTempoResposta ?? 0) > 0 && <div className="flex items-center gap-1.5 hidden sm:flex"><Clock className="w-3.5 h-3.5 text-slate-400" /><span>{Math.round(tema.questaoStats?.total?.mediaTempoResposta!)}s média</span></div>}
                                 </div>
-                                {tema.dificuldadeRespostas && Object.keys(tema.dificuldadeRespostas).length > 0 && (
-                                  <DifficultyMiniBadges stats={tema.dificuldadeRespostas} />
+                                {tema.questaoStats?.total?.dificuldade && Object.keys(tema.questaoStats?.total?.dificuldade).length > 0 && (
+                                  <DifficultyMiniBadges stats={tema.questaoStats?.total?.dificuldade} />
                                 )}
+                              </div>
+                              {/* Dimensional Breakdown — Tema level */}
+                              <div className="px-5 py-2 border-b border-slate-100 bg-white">
+                                <StatsBreakdownPanel stats={tema.questaoStats} title="Desempenho no tema" />
                               </div>
                               <div className="divide-y divide-slate-50">
                                 {tema.subtemas.map((subtema) => (
