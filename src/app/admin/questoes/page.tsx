@@ -44,6 +44,7 @@ export default function QuestoesPage() {
       enunciado: '',
       anulada: false,
       desatualizada: false,
+      autoral: false,
       subtemas: [] as { value: number, label: string }[],
       cargos: [] as number[],
       imageUrl: ''
@@ -113,9 +114,13 @@ export default function QuestoesPage() {
         errors.push('Apenas uma alternativa pode ser marcada como correta (questão não anulada)');
       }
     }
-    
-    if (data.cargos.length === 0) {
+
+    if (!data.autoral && data.cargos.length === 0) {
       errors.push('A questão deve estar associada a pelo menos um cargo');
+    }
+
+    if (!data.autoral && !data.concurso) {
+      errors.push('A questão deve estar vinculada a um concurso (ou marcar como autoral)');
     }
 
     if (data.subtemas.length === 0) {
@@ -131,14 +136,13 @@ export default function QuestoesPage() {
     setLocalLoading(true);
 
     try {
-      const payload = {
-        concursoId: data.concurso.value,
+      const payload: any = {
         enunciado: data.enunciado,
         anulada: data.anulada,
         desatualizada: data.desatualizada,
         imageUrl: data.imageUrl,
-        subtemas: data.subtemas.map((s: any) => s.value),
-        cargos: data.cargos,
+        subtemaIds: data.subtemas.map((s: any) => s.value),
+        autoral: data.autoral,
         alternativas: currentAlternativas.map((alt, index) => ({
           ...alt,
           correta: !!alt.correta,
@@ -146,6 +150,11 @@ export default function QuestoesPage() {
           ordem: index + 1
         }))
       };
+
+      if (!data.autoral) {
+        payload.concursoId = data.concurso.value;
+        payload.cargos = data.cargos;
+      }
 
       if (editingItem) {
         await questaoService.update(editingItem.id, payload);
@@ -170,11 +179,14 @@ export default function QuestoesPage() {
       const detail = await questaoService.getById(item.id, true);
       setEditingItem(item);
 
-      const concursoLabel = `${detail.concurso.ano} - ${detail.concurso.instituicaoNome} - ${detail.concurso.bancaNome}`;
-      setValue('concurso', { value: detail.concurso.id, label: concursoLabel });
+      if (detail.concurso) {
+        const concursoLabel = `${detail.concurso.ano} - ${detail.concurso.instituicaoNome} - ${detail.concurso.bancaNome}`;
+        setValue('concurso', { value: detail.concurso.id, label: concursoLabel });
+      }
       setValue('enunciado', detail.enunciado);
       setValue('anulada', detail.anulada);
       setValue('desatualizada', detail.desatualizada);
+      setValue('autoral', detail.autoral || false);
 
       setValue('subtemas', (detail.subtemas || []).map(s => ({
         value: s.id,
@@ -218,6 +230,7 @@ export default function QuestoesPage() {
       enunciado: '',
       anulada: false,
       desatualizada: false,
+      autoral: false,
       subtemas: [],
       cargos: [],
       imageUrl: ''
@@ -332,6 +345,26 @@ export default function QuestoesPage() {
                 {errors.enunciado && <p className="mt-1 text-sm text-red-600">{errors.enunciado.message}</p>}
               </div>
 
+              <div className="sm:col-span-2 flex items-center pt-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="autoral"
+                    {...register('autoral')}
+                    disabled={!!editingItem}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
+                  />
+                  <label htmlFor="autoral" className="ml-2 text-sm text-gray-700">
+                    Questão autoral
+                  </label>
+                </div>
+                {editingItem && (
+                  <p className="ml-2 text-xs text-gray-400 italic">não pode ser alterado</p>
+                )}
+              </div>
+
+              {!watchedFields.autoral && (
+                <>
               <div className="sm:col-span-3">
                 <label htmlFor="concurso" className="block text-sm font-medium text-gray-700 mb-1">
                   Concurso
@@ -381,6 +414,8 @@ export default function QuestoesPage() {
                   menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                 />
               </div>
+                </>
+              )}
 
               <div className="sm:col-span-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -705,19 +740,37 @@ export default function QuestoesPage() {
                       <span className="text-xs text-gray-500">
                         <span className="font-bold text-gray-400 mr-1 uppercase">Cargos:</span>
                         <span className="truncate">
-                          {(questao.cargos || []).map(cargo => `${cargo.nome} (${formatNivel(cargo.nivel)})`).join(' · ')}
+                          {questao.autoral
+                            ? '—'
+                            : (questao.cargos || []).map(cargo => `${cargo.nome} (${formatNivel(cargo.nivel)})`).join(' · ') || 'Nenhum'
+                          }
                         </span>
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="hidden lg:flex flex-col flex-shrink-0 w-64 text-right">
-                    <div className="text-xs font-bold text-indigo-600 truncate uppercase tracking-tight">
-                      {questao.concurso?.instituicaoNome || 'Sem Instituição'}
-                    </div>
-                    <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase">
-                      <span className="font-mono tabular-nums">{questao.concurso ? questao.concurso.ano : '—'}</span> · {questao.concurso?.bancaNome || 'Banca pendente'}
-                    </div>
+                    {questao.concurso ? (
+                      <>
+                        <div className="text-xs font-bold text-indigo-600 truncate uppercase tracking-tight">
+                          {questao.concurso.instituicaoNome}
+                        </div>
+                        <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase">
+                          <span className="font-mono tabular-nums">{questao.concurso.ano}</span> · {questao.concurso.bancaNome}
+                        </div>
+                      </>
+                    ) : questao.autoral ? (
+                      <>
+                        <div className="text-xs font-bold text-amber-600 truncate uppercase tracking-tight">
+                          Questão Autoral
+                        </div>
+                        <div className="text-[10px] font-bold text-gray-300 mt-1 uppercase">
+                          —
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-[10px] font-bold text-gray-300 uppercase">—</span>
+                    )}
                   </div>
 
                   <div className="flex space-x-2 flex-shrink-0">

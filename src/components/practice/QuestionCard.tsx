@@ -37,41 +37,68 @@ export const TaxonomyDisplay = ({ subtemas }: TaxonomyDisplayProps) => {
 // ─── Question Header ─────────────────────────────────────────────────────────
 
 interface QuestionHeaderProps {
-  concurso?: Types.ConcursoQuestaoDto;
+  concurso?: Types.ConcursoQuestaoDto | null;
   cargos?: Types.CargoSummaryDto[];
   anulada?: boolean;
   desatualizada?: boolean;
+  autoral?: boolean;
 }
 
-export const QuestionHeader = ({ concurso, cargos, anulada, desatualizada }: QuestionHeaderProps) => (
-  <div className="px-6 py-4 bg-slate-50 border-b border-slate-100">
-    <div className="flex flex-wrap items-center gap-2 mb-2">
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
-        {concurso?.bancaNome || 'Banca não especificada'}
-      </span>
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 tabular-nums">
-        {concurso?.ano || '—'}
-      </span>
-      <span className="text-sm text-slate-600 truncate">
-        {concurso?.instituicaoNome || 'Instituição não especificada'}
-      </span>
-      {anulada && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 ms-auto">
-          ANULADA
-        </span>
-      )}
-      {desatualizada && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 ms-auto">
-          DESATUALIZADA
-        </span>
-      )}
-    </div>
+export const QuestionHeader = ({ concurso, cargos, anulada, desatualizada, autoral }: QuestionHeaderProps) => {
+  const hasConcurso = !!concurso;
 
-    <div className="text-xs text-slate-500">
-      {(cargos || []).map((c) => `${c.nome} – ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
+  if (autoral && !hasConcurso) {
+    return (
+      <div className="px-6 py-3 bg-slate-50 border-b border-slate-100">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-widest bg-amber-50 text-amber-700 border border-amber-100">
+            Questão Autoral
+          </span>
+          {anulada && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 ms-auto">
+              ANULADA
+            </span>
+          )}
+          {desatualizada && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 ms-auto">
+              DESATUALIZADA
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-6 py-4 bg-slate-50 border-b border-slate-100">
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+          {concurso?.bancaNome || 'Banca não especificada'}
+        </span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 tabular-nums">
+          {concurso?.ano || '—'}
+        </span>
+        <span className="text-sm text-slate-600 truncate">
+          {concurso?.instituicaoNome || 'Instituição não especificada'}
+        </span>
+        {anulada && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 ms-auto">
+            ANULADA
+          </span>
+        )}
+        {desatualizada && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 ms-auto">
+            DESATUALIZADA
+          </span>
+        )}
+      </div>
+
+      <div className="text-xs text-slate-500">
+        {(cargos || []).map((c) => `${c.nome} – ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ─── Alternatives List ───────────────────────────────────────────────────────
 
@@ -249,6 +276,7 @@ interface QuestionCardBodyProps {
   isVerifyDisabled: boolean;
   anulada?: boolean;
   desatualizada?: boolean;
+  autoral?: boolean;
   onAlternativaSelect: (id: number) => void;
   onJustificativaChange: (value: string) => void;
   onDificuldadeChange: (val: number) => void;
@@ -274,6 +302,7 @@ export const QuestionCard = ({
   isVerifyDisabled,
   anulada,
   desatualizada,
+  autoral,
   onAlternativaSelect,
   onJustificativaChange,
   onDificuldadeChange,
@@ -283,7 +312,7 @@ export const QuestionCard = ({
 }: QuestionCardBodyProps) => (
   <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
     {/* Header */}
-    <QuestionHeader concurso={concurso} cargos={cargos} anulada={anulada} desatualizada={desatualizada} />
+    <QuestionHeader concurso={concurso} cargos={cargos} anulada={anulada} desatualizada={desatualizada} autoral={autoral} />
 
     {/* Body */}
     <div className="p-6 md:p-8">

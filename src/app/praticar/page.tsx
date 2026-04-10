@@ -29,6 +29,7 @@ export default function QuestaoPracticePage() {
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [includeAutoral, setIncludeAutoral] = useState(false);
 
   // Question State
   const [currentQuestion, setCurrentQuestion] = useState<QuestaoDto | null>(null);
@@ -127,6 +128,7 @@ export default function QuestaoPracticePage() {
         cargoArea: filters.selectedCargoArea?.value !== '' ? filters.selectedCargoArea?.value : undefined,
         cargoNivel: filters.selectedCargoNivel || undefined,
         anulada: false,
+        includeAutoral: includeAutoral || undefined,
       };
 
       const question = await questaoService.getRandom(params);
@@ -414,6 +416,19 @@ export default function QuestaoPracticePage() {
             </div>
           </div>
 
+          <div className="pt-6 border-t border-slate-100">
+            <label className="relative inline-flex items-center cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={includeAutoral}
+                onChange={e => setIncludeAutoral(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              <span className="ml-3 text-sm font-medium text-slate-700 group-hover:text-indigo-600 transition-colors">Incluir questões autorais</span>
+            </label>
+          </div>
+
           <p className="mt-8 text-xs text-slate-400">
             Cada questão exige uma justificativa escrita antes de revelar o gabarito.
           </p>
@@ -532,6 +547,7 @@ export default function QuestaoPracticePage() {
           isVerifyDisabled={isVerifyDisabled || verifying}
           anulada={currentQuestion.anulada}
           desatualizada={currentQuestion.desatualizada}
+          autoral={currentQuestion.autoral}
           onAlternativaSelect={(id) => setSelectedAlternativa(id)}
           onJustificativaChange={(v) => setJustificativa(v)}
           onDificuldadeChange={(v) => setDificuldade(v)}

@@ -65,6 +65,8 @@ export interface QuestaoStatsDto {
   porCargo?: Record<number, StatSliceDto>;
   /** Breakdown por área do cargo. Key: área (string). */
   porAreaCargo?: Record<string, StatSliceDto>;
+  /** Breakdown por questões autorais (apenas para escopos de disciplina, tema, subtema). */
+  porAutoral?: StatSliceDto;
 }
 
 /**
@@ -624,14 +626,16 @@ export interface RespostaSummaryDto {
 export interface QuestaoSummaryDto {
   /** ID único da questão. */
   id: number;
-  /** Contexto do concurso. */
-  concurso: ConcursoQuestaoDto;
+  /** Contexto do concurso (null para questões autorais). */
+  concurso?: ConcursoQuestaoDto | null;
   /** Texto do enunciado da questão. */
   enunciado: string;
   /** Indica se a questão foi anulada. */
   anulada: boolean;
   /** Indica se a questão está desatualizada. */
   desatualizada: boolean;
+  /** Indica se a questão é autoral (sem vínculo com concurso ou cargo). */
+  autoral: boolean;
   /** Indica se a questão já foi respondida pelo usuário. */
   respondida: boolean;
   /** URL da imagem associada à questão (opcional). */
@@ -652,14 +656,16 @@ export interface QuestaoSummaryDto {
 export interface QuestaoDetailDto {
   /** ID único da questão. */
   id: number;
-  /** Contexto do concurso. */
-  concurso: ConcursoQuestaoDto;
+  /** Contexto do concurso (null para questões autorais). */
+  concurso?: ConcursoQuestaoDto | null;
   /** Texto do enunciado. */
   enunciado: string;
   /** Indica se a questão foi anulada. */
   anulada: boolean;
   /** Indica se a questão está desatualizada. */
   desatualizada: boolean;
+  /** Indica se a questão é autoral (sem vínculo com concurso ou cargo). */
+  autoral: boolean;
   /** Indica se a questão já foi respondida pelo usuário. */
   respondida: boolean;
   /** URL da imagem associada. */
@@ -686,10 +692,12 @@ export interface QuestaoDetailDto {
 export interface QuestaoCreateRequest {
   enunciado: string;
   alternativas: AlternativaCreateRequest[];
-  subtemas: number[];
-  cargos: number[];
-  concursoId: number;
+  subtemaIds: number[];
+  cargos?: number[];
+  concursoId?: number;
   imageUrl?: string;
+  /** Se verdadeiro, a questão é autoral e não requer concurso ou cargo. Padrão: false. */
+  autoral?: boolean;
 }
 
 /**
@@ -698,11 +706,13 @@ export interface QuestaoCreateRequest {
 export interface QuestaoUpdateRequest {
   enunciado?: string;
   alternativas?: AlternativaUpdateRequest[];
-  subtemas?: number[];
+  subtemaIds?: number[];
   cargos?: number[];
   concursoId?: number;
   imageUrl?: string;
   anulada?: boolean;
+  /** Tipo da questão. Não pode ser alterado após a criação. */
+  autoral?: boolean;
 }
 
 /**
@@ -795,6 +805,8 @@ export interface SimuladoDetailDto {
   nivel?: NivelCargo;
   /** Se o simulado ignorou questões já respondidas. */
   ignorarRespondidas?: boolean;
+  /** Se questões autorais foram incluídas na geração. */
+  includeAutoral?: boolean;
   /** Seleção de questões por Disciplina. */
   disciplinas?: DisciplinaSimuladoDto[];
   /** Seleção de questões por Tema. */
@@ -827,6 +839,8 @@ export interface SimuladoSummaryDto {
   nivel?: NivelCargo;
   /** Se ignorou questões já respondidas. */
   ignorarRespondidas?: boolean;
+  /** Se questões autorais foram incluídas na geração. */
+  includeAutoral?: boolean;
   /** Seleção de disciplinas. */
   disciplinas?: DisciplinaSimuladoDto[];
   /** Seleção de temas. */
@@ -861,6 +875,8 @@ export interface SimuladoGenerationRequest {
   nivel?: NivelCargo;
   /** Se verdadeiro, ignora questões que o usuário já respondeu. Padrão: false. */
   ignorarRespondidas?: boolean;
+  /** Se verdadeiro, questões autorais elegíveis por taxonomia serão incluídas. Padrão: false. */
+  includeAutoral?: boolean;
   /** Seleção de quantidades por Disciplina. */
   disciplinas?: SimuladoItemSelectionDto[];
   /** Seleção de quantidades por Tema. */

@@ -283,6 +283,7 @@ function ProvaContent() {
               isVerifyDisabled={isVerifyDisabled}
               anulada={currentQuestion.anulada}
               desatualizada={currentQuestion.desatualizada}
+              autoral={currentQuestion.autoral}
               onAlternativaSelect={(id) => setSelectedAlternativa(id)}
               onJustificativaChange={(v) => setJustificativa(v)}
               onDificuldadeChange={(v) => setDificuldade(v)}

@@ -462,23 +462,23 @@ export const questaoService = {
     cargoNivel?: string;
     anulada?: boolean;
     desatualizada?: boolean;
+    autoral?: boolean;
     admin?: boolean;
-  }): Promise<Types.PageResponse<Types.QuestaoSummaryDto>> => 
+  }): Promise<Types.PageResponse<Types.QuestaoSummaryDto>> =>
     apiCall(`/questoes${buildQueryString(params)}`),
-  
+
   /**
    * Obter questão por ID.
    */
-  getById: (id: number, admin: boolean = false): Promise<Types.QuestaoDetailDto> => 
+  getById: (id: number, admin: boolean = false): Promise<Types.QuestaoDetailDto> =>
     apiCall(`/questoes/${id}${buildQueryString({ admin })}`),
-  
+
   /**
    * Obter uma questão aleatória com base em filtros.
    */
   getRandom: (params?: {
     bancaId?: number;
     instituicaoId?: number;
-    concursoId?: number;
     cargoId?: number;
     disciplinaId?: number;
     temaId?: number;
@@ -487,7 +487,9 @@ export const questaoService = {
     cargoArea?: string;
     cargoNivel?: string;
     anulada?: boolean;
-  }): Promise<Types.QuestaoDetailDto> => 
+    /** Se verdadeiro, questões autorais são incluídas na seleção aleatória. Padrão: false. */
+    includeAutoral?: boolean;
+  }): Promise<Types.QuestaoDetailDto> =>
     apiCall(`/questoes/random${buildQueryString(params)}`),
   
   /**

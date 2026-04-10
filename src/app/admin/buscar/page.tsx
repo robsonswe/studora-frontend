@@ -35,7 +35,8 @@ export default function SearchBrowsePage() {
       selectedBanca: { value: 0, label: 'Todas as bancas' } as { value: number, label: string } | null,
       selectedInstituicaoArea: { value: '', label: 'Todas as áreas' } as { value: string, label: string } | null,
       selectedCargoArea: { value: '', label: 'Todas as áreas' } as { value: string, label: string } | null,
-      selectedCargoNivel: ''
+      selectedCargoNivel: '',
+      selectedAutoral: 'all' as 'all' | 'only' | 'exclude'
     }
   });
 
@@ -62,7 +63,7 @@ export default function SearchBrowsePage() {
     try {
       const params: any = {
         page: page,
-        size: 20, 
+        size: 20,
         admin: adminMode,
         disciplinaId: (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) ? watchedFields.selectedDisciplina.value : undefined,
         temaId: (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) ? watchedFields.selectedTema.value : undefined,
@@ -71,6 +72,7 @@ export default function SearchBrowsePage() {
         instituicaoArea: (watchedFields.selectedInstituicaoArea && watchedFields.selectedInstituicaoArea.value !== '') ? watchedFields.selectedInstituicaoArea.value : undefined,
         cargoArea: (watchedFields.selectedCargoArea && watchedFields.selectedCargoArea.value !== '') ? watchedFields.selectedCargoArea.value : undefined,
         cargoNivel: watchedFields.selectedCargoNivel || undefined,
+        autoral: watchedFields.selectedAutoral === 'only' ? true : watchedFields.selectedAutoral === 'exclude' ? false : undefined,
       };
 
       const data = await questaoService.getAll(params);
@@ -90,7 +92,8 @@ export default function SearchBrowsePage() {
     watchedFields.selectedBanca,
     watchedFields.selectedInstituicaoArea,
     watchedFields.selectedCargoArea,
-    watchedFields.selectedCargoNivel
+    watchedFields.selectedCargoNivel,
+    watchedFields.selectedAutoral
   ]);
 
   useEffect(() => {
@@ -258,12 +261,27 @@ export default function SearchBrowsePage() {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nível</label>
-              <Select 
+              <Select
                 instanceId="nivel-select"
-                options={[{ value: '', label: 'Todos' }, { value: 'FUNDAMENTAL', label: 'Fundamental' }, { value: 'MEDIO', label: 'Médio' }, { value: 'SUPERIOR', label: 'Superior' }]} 
-                value={watchedFields.selectedCargoNivel ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) } : { value: '', label: 'Todos' }} 
-                onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')} 
-                styles={selectStyles} 
+                options={[{ value: '', label: 'Todos' }, { value: 'FUNDAMENTAL', label: 'Fundamental' }, { value: 'MEDIO', label: 'Médio' }, { value: 'SUPERIOR', label: 'Superior' }]}
+                value={watchedFields.selectedCargoNivel ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) } : { value: '', label: 'Todos' }}
+                onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')}
+                styles={selectStyles}
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Questões Autorais</label>
+              <Select
+                instanceId="autoral-select"
+                options={[
+                  { value: 'all', label: 'Todas' },
+                  { value: 'only', label: 'Apenas autorais' },
+                  { value: 'exclude', label: 'Excluir autorais' }
+                ]}
+                value={{ value: watchedFields.selectedAutoral, label: watchedFields.selectedAutoral === 'all' ? 'Todas' : watchedFields.selectedAutoral === 'only' ? 'Apenas autorais' : 'Excluir autorais' }}
+                onChange={(opt) => setValue('selectedAutoral', (opt?.value as 'all' | 'only' | 'exclude') || 'all')}
+                styles={selectStyles}
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
             </div>
@@ -300,19 +318,29 @@ export default function SearchBrowsePage() {
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-100 tracking-widest">
-                            {concurso?.bancaNome}
-                          </span>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200 font-mono tabular-nums">
-                            {concurso?.ano}
-                          </span>
-                          <span className="text-sm font-semibold text-gray-900 ml-1">
-                            {concurso?.instituicaoNome}
-                          </span>
+                          {concurso ? (
+                            <>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-100 tracking-widest">
+                                {concurso.bancaNome}
+                              </span>
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200 font-mono tabular-nums">
+                                {concurso.ano}
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900 ml-1">
+                                {concurso.instituicaoNome}
+                              </span>
+                            </>
+                          ) : questao.autoral ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-100 tracking-widest">
+                              Questão Autoral
+                            </span>
+                          ) : null}
                         </div>
-                        <div className="text-xs text-gray-500 leading-relaxed">
-                          {(questao.cargos || []).map(c => `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
-                        </div>
+                        {!questao.autoral && (
+                          <div className="text-xs text-gray-500 leading-relaxed">
+                            {(questao.cargos || []).map(c => `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
+                          </div>
+                        )}
                       </div>
                       <div className="flex-shrink-0">
                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono tabular-nums">ID #{questao.id}</span>
