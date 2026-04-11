@@ -1,5 +1,21 @@
 .agents/
 
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
 # Logs
 logs
 *.log
@@ -9,10 +25,11 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# env files
+.env*
+
+# Vercel
+.vercel
 
 # Editor directories and files
 .vscode/*
@@ -24,3 +41,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.pem
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Build outputs
+dist
+dist-ssr
+*.local
+
+.qwen/
+gha-creds-*.json
