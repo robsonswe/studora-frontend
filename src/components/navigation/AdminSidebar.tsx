@@ -1,16 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { 
-  LayoutDashboard, 
-  Building2, 
-  Gavel, 
-  FileText, 
-  Briefcase, 
-  BookOpen, 
-  Tag, 
-  Tags, 
-  Search, 
+import {
+  LayoutDashboard,
+  Building2,
+  Gavel,
+  FileText,
+  Briefcase,
+  BookOpen,
+  Tag,
+  Tags,
+  Search,
   Settings,
   ArrowLeft,
   X
@@ -32,7 +32,6 @@ export const AdminSidebar = ({ isOpen, onClose, pathname }: AdminSidebarProps) =
     { label: 'Temas', path: '/admin/temas', icon: Tag },
     { label: 'Subtemas', path: '/admin/subtemas', icon: Tags },
     { label: 'Questões', path: '/admin/questoes', icon: LayoutDashboard },
-    { label: 'Buscar e Explorar', path: '/admin/buscar', icon: Search },
   ];
 
   return (

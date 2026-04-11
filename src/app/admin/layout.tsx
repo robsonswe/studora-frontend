@@ -26,7 +26,6 @@ function AdminLayoutContent({
     { label: 'Temas', path: '/admin/temas' },
     { label: 'Subtemas', path: '/admin/subtemas' },
     { label: 'Questões', path: '/admin/questoes' },
-    { label: 'Buscar e Explorar', path: '/admin/buscar' },
   ];
 
   const activeItem = navItems.find(i => i.path === pathname) || { label: 'Admin' };

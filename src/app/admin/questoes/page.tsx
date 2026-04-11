@@ -2,34 +2,54 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
-import { formatNivel } from '@/utils/formatters';
-import { questaoService, concursoService, subtemaService } from '@/services/api';
+import { questaoService, concursoService, instituicaoService, cargoService, bancaService, disciplinaService, temaService, subtemaService } from '@/services/api';
+import { formatNivel, formatDificuldade, formatDateTime } from '@/utils/formatters';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
-import { 
-  Loader2, 
-  AlertCircle, 
-  Tag, 
-  ChevronLeft, 
-  ChevronRight 
+import {
+  Filter,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  Calendar,
+  Award,
+  ChevronLeft,
+  ChevronRight,
+  Tag,
+  Eye,
+  EyeOff,
+  User,
+  Plus,
+  Pencil,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 
-type QuestaoDto = Types.QuestaoSummaryDto;
-type AlternativaDto = Types.AlternativaDto;
+type QuestaoDto = Types.QuestaoDetailDto;
 
-export default function QuestoesPage() {
+export default function SearchBrowsePage() {
+  const [adminMode, setAdminMode] = useState(false);
+  const { setValue, watch, reset } = useForm({
+    defaultValues: {
+      selectedDisciplina: { value: 0, label: 'Todas as disciplinas' } as { value: number, label: string } | null,
+      selectedTema: { value: 0, label: 'Todos os temas' } as { value: number, label: string } | null,
+      selectedSubtema: { value: 0, label: 'Todos os subtemas' } as { value: number, label: string } | null,
+      selectedBanca: { value: 0, label: 'Todas as bancas' } as { value: number, label: string } | null,
+      selectedInstituicaoArea: { value: '', label: 'Todas as áreas' } as { value: string, label: string } | null,
+      selectedCargoArea: { value: '', label: 'Todas as áreas' } as { value: string, label: string } | null,
+      selectedCargoNivel: '',
+      selectedAutoral: 'all' as 'all' | 'only' | 'exclude'
+    }
+  });
+
+  const watchedFields = watch();
+
   const [questoes, setQuestoes] = useState<QuestaoDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editingItem, setEditingItem] = useState<QuestaoDto | null>(null);
-  const [availableCargos, setAvailableCargos] = useState<Types.CargoSummaryDto[]>([]);
-  const [localLoading, setLocalLoading] = useState(false);
-
-  const [pagination, setPagination] = useState<Types.PageResponse<QuestaoDto>>({
+  const [localLoading, setLocalLoading] = useState(true);
+  const [pagination, setPagination] = useState<Types.PageResponse<any>>({
     content: [],
     pageNumber: 0,
     pageSize: 20,
@@ -39,9 +59,23 @@ export default function QuestoesPage() {
   });
   const [currentPage, setCurrentPage] = useState(0);
 
-  usePageTitle('Questões', 'Admin');
+  // CRUD state
+  const [showForm, setShowForm] = useState(false);
+  const [editingItem, setEditingItem] = useState<Types.QuestaoSummaryDto | null>(null);
+  const [availableCargos, setAvailableCargos] = useState<Types.CargoSummaryDto[]>([]);
+  const [formLoading, setFormLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [alternativeErrors, setAlternativeErrors] = useState<string>('');
 
-  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm({
+  const [currentAlternativas, setCurrentAlternativas] = useState<Types.AlternativaDto[]>([]);
+  const [novaAlternativa, setNovaAlternativa] = useState<Omit<Types.AlternativaDto, 'id' | 'questaoId'>>({
+    ordem: 0,
+    texto: '',
+    correta: false,
+    justificativa: ''
+  });
+
+  const crudForm = useForm({
     defaultValues: {
       concurso: null as { value: number, label: string } | null,
       enunciado: '',
@@ -53,46 +87,13 @@ export default function QuestoesPage() {
       imageUrl: ''
     }
   });
+  const crudWatchedFields = crudForm.watch();
 
-  const watchedFields = watch();
-
-  const [currentAlternativas, setCurrentAlternativas] = useState<AlternativaDto[]>([]);
-  const [novaAlternativa, setNovaAlternativa] = useState<Omit<AlternativaDto, 'id' | 'questaoId'>>({
-    ordem: 0,
-    texto: '',
-    correta: false,
-    justificativa: ''
-  });
-
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [alternativeErrors, setAlternativeErrors] = useState<string>('');
-
-  const loadQuestoes = useCallback(async (page: number = 0) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await questaoService.getAll({ page, size: 20 });
-      setQuestoes(data.content);
-      setPagination(data);
-      setCurrentPage(page);
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    } catch (err: any) {
-      console.error('Erro ao carregar questões:', err);
-      setError(err.message || 'Não foi possível carregar as questões. Por favor, tente novamente.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // ─── CRUD Functions ───────────────────────────────────────────────────────────
 
   useEffect(() => {
-    loadQuestoes(0);
-  }, [loadQuestoes]);
-
-  useEffect(() => {
-    if (watchedFields.concurso?.value) {
-      concursoService.getById(watchedFields.concurso.value)
+    if (crudWatchedFields.concurso?.value) {
+      concursoService.getById(crudWatchedFields.concurso.value)
         .then(detail => {
           setAvailableCargos(detail.cargos.map(c => ({ id: c.cargoId, nome: c.cargoNome, nivel: c.nivel, area: c.area })));
         })
@@ -100,43 +101,43 @@ export default function QuestoesPage() {
     } else {
       setAvailableCargos([]);
     }
-  }, [watchedFields.concurso?.value]);
+  }, [crudWatchedFields.concurso?.value]);
 
-  const onSubmit = async (data: any) => {
-    const errors: string[] = [];
+  const handleQuestaoSubmit = async (data: any) => {
+    const errs: string[] = [];
 
     if (currentAlternativas.length < 2) {
-      errors.push('A questão deve ter pelo menos 2 alternativas');
+      errs.push('A questão deve ter pelo menos 2 alternativas');
     }
 
     if (!data.anulada) {
       const correctAlternativas = currentAlternativas.filter(a => a.correta);
       if (correctAlternativas.length === 0) {
-        errors.push('Pelo menos uma alternativa deve ser marcada como correta');
+        errs.push('Pelo menos uma alternativa deve ser marcada como correta');
       } else if (correctAlternativas.length > 1) {
-        errors.push('Apenas uma alternativa pode ser marcada como correta (questão não anulada)');
+        errs.push('Apenas uma alternativa pode ser marcada como correta (questão não anulada)');
       }
     }
 
     if (!data.autoral && data.cargos.length === 0) {
-      errors.push('A questão deve estar associada a pelo menos um cargo');
+      errs.push('A questão deve estar associada a pelo menos um cargo');
     }
 
     if (!data.autoral && !data.concurso) {
-      errors.push('A questão deve estar vinculada a um concurso (ou marcar como autoral)');
+      errs.push('A questão deve estar vinculada a um concurso (ou marcar como autoral)');
     }
 
     if (data.subtemas.length === 0) {
-      errors.push('A questão deve estar associada a pelo menos um subtema');
+      errs.push('A questão deve estar associada a pelo menos um subtema');
     }
 
-    if (errors.length > 0) {
-      setValidationErrors(errors);
+    if (errs.length > 0) {
+      setValidationErrors(errs);
       return;
     }
 
     setValidationErrors([]);
-    setLocalLoading(true);
+    setFormLoading(true);
 
     try {
       const payload: any = {
@@ -165,39 +166,39 @@ export default function QuestoesPage() {
         await questaoService.create(payload);
       }
 
-      await loadQuestoes(currentPage);
-      resetForm();
+      await filterQuestoes(currentPage);
+      resetQuestaoForm();
     } catch (err: any) {
       console.error('Erro ao salvar questão:', err);
       setValidationErrors([err.message || 'Erro inesperado ao salvar questão. Verifique sua conexão.']);
     } finally {
-      setLocalLoading(false);
+      setFormLoading(false);
     }
   };
 
-  const handleEdit = async (item: QuestaoDto) => {
-    setLocalLoading(true);
+  const handleEditQuestao = async (id: number) => {
+    setFormLoading(true);
     setValidationErrors([]);
     try {
-      const detail = await questaoService.getById(item.id, true);
-      setEditingItem(item);
+      const detail = await questaoService.getById(id, true);
+      setEditingItem(detail);
 
       if (detail.concurso) {
         const concursoLabel = `${detail.concurso.ano} - ${detail.concurso.instituicaoNome} - ${detail.concurso.bancaNome}`;
-        setValue('concurso', { value: detail.concurso.id, label: concursoLabel });
+        crudForm.setValue('concurso', { value: detail.concurso.id, label: concursoLabel });
       }
-      setValue('enunciado', detail.enunciado);
-      setValue('anulada', detail.anulada);
-      setValue('desatualizada', detail.desatualizada);
-      setValue('autoral', detail.autoral || false);
+      crudForm.setValue('enunciado', detail.enunciado);
+      crudForm.setValue('anulada', detail.anulada);
+      crudForm.setValue('desatualizada', detail.desatualizada);
+      crudForm.setValue('autoral', detail.autoral || false);
 
-      setValue('subtemas', (detail.subtemas || []).map(s => ({
+      crudForm.setValue('subtemas', (detail.subtemas || []).map(s => ({
         value: s.id,
         label: s.disciplina?.nome ? `${s.disciplina.nome} - ${s.tema?.nome} - ${s.nome}` : s.nome
       })));
 
-      setValue('cargos', detail.cargoIds || detail.cargos.map(c => c.id));
-      setValue('imageUrl', detail.imageUrl || '');
+      crudForm.setValue('cargos', detail.cargoIds || detail.cargos.map(c => c.id));
+      crudForm.setValue('imageUrl', detail.imageUrl || '');
 
       setCurrentAlternativas([...detail.alternativas].sort((a, b) => a.ordem - b.ordem));
       setShowForm(true);
@@ -208,27 +209,27 @@ export default function QuestoesPage() {
       console.error('Erro ao carregar detalhes da questão:', err);
       alert(err.message || 'Erro ao carregar detalhes para edição.');
     } finally {
-      setLocalLoading(false);
+      setFormLoading(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDeleteQuestao = async (id: number) => {
     if (window.confirm('Tem certeza que deseja excluir esta questão? Esta ação não pode ser desfeita.')) {
-      setLocalLoading(true);
+      setFormLoading(true);
       try {
         await questaoService.delete(id);
-        await loadQuestoes(currentPage);
+        await filterQuestoes(currentPage);
       } catch (err: any) {
         console.error('Erro ao excluir questão:', err);
         alert(err.message || 'Erro ao excluir questão. O item pode estar sendo usado por outras entidades.');
       } finally {
-        setLocalLoading(false);
+        setFormLoading(false);
       }
     }
   };
 
-  const resetForm = () => {
-    reset({
+  const resetQuestaoForm = () => {
+    crudForm.reset({
       concurso: null,
       enunciado: '',
       anulada: false,
@@ -248,6 +249,7 @@ export default function QuestoesPage() {
     setEditingItem(null);
     setShowForm(false);
     setValidationErrors([]);
+    setAlternativeErrors('');
   };
 
   const loadConcursoOptions = async (inputValue: string) => {
@@ -258,25 +260,25 @@ export default function QuestoesPage() {
     })).filter(o => o.label.toLowerCase().includes(inputValue.toLowerCase()));
   };
 
-  const loadSubtemaOptions = async (inputValue: string) => {
+  const loadCrudSubtemaOptions = async (inputValue: string) => {
     const data = await subtemaService.getAll({ nome: inputValue, size: 20 });
     return data.content.map(s => ({
       value: s.id,
       label: s.disciplina?.nome ? `${s.disciplina.nome} - ${s.tema?.nome} - ${s.nome}` : s.nome
     }));
   };
+
   const adicionarAlternativa = () => {
     if (!novaAlternativa.texto.trim()) {
       setAlternativeErrors('O campo texto da alternativa é obrigatório');
       return;
     }
-
-    setAlternativeErrors(''); 
+    setAlternativeErrors('');
     const nova = {
       ...novaAlternativa,
       ordem: currentAlternativas.length + 1
     };
-    setCurrentAlternativas([...currentAlternativas, nova as AlternativaDto]);
+    setCurrentAlternativas([...currentAlternativas, nova as Types.AlternativaDto]);
     setNovaAlternativa({
       ordem: 0,
       texto: '',
@@ -305,568 +307,899 @@ export default function QuestoesPage() {
     setCurrentAlternativas(novasAlternativas);
   };
 
+  // ─── Filter Option Loaders ───────────────────────────────────────────────────
+
+  usePageTitle('Questões', 'Admin');
+
+  const filterQuestoes = useCallback(async (page: number = 0) => {
+    setLocalLoading(true);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    try {
+      const params: any = {
+        page: page,
+        size: 20,
+        admin: adminMode,
+        disciplinaId: (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) ? watchedFields.selectedDisciplina.value : undefined,
+        temaId: (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) ? watchedFields.selectedTema.value : undefined,
+        subtemaId: (watchedFields.selectedSubtema && watchedFields.selectedSubtema.value !== 0) ? watchedFields.selectedSubtema.value : undefined,
+        bancaId: (watchedFields.selectedBanca && watchedFields.selectedBanca.value !== 0) ? watchedFields.selectedBanca.value : undefined,
+        instituicaoArea: (watchedFields.selectedInstituicaoArea && watchedFields.selectedInstituicaoArea.value !== '') ? watchedFields.selectedInstituicaoArea.value : undefined,
+        cargoArea: (watchedFields.selectedCargoArea && watchedFields.selectedCargoArea.value !== '') ? watchedFields.selectedCargoArea.value : undefined,
+        cargoNivel: watchedFields.selectedCargoNivel || undefined,
+        autoral: watchedFields.selectedAutoral === 'only' ? true : watchedFields.selectedAutoral === 'exclude' ? false : undefined,
+      };
+
+      const data = await questaoService.getAll(params);
+      setQuestoes(data.content as any);
+      setPagination(data); 
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Erro ao filtrar questões:', error);
+    } finally {
+      setLocalLoading(false);
+    }
+  }, [
+    adminMode,
+    watchedFields.selectedDisciplina,
+    watchedFields.selectedTema,
+    watchedFields.selectedSubtema,
+    watchedFields.selectedBanca,
+    watchedFields.selectedInstituicaoArea,
+    watchedFields.selectedCargoArea,
+    watchedFields.selectedCargoNivel,
+    watchedFields.selectedAutoral
+  ]);
+
+  useEffect(() => {
+    filterQuestoes(0);
+  }, [filterQuestoes]);
+
+  const loadBancaOptions = async (inputValue: string) => {
+    const data = await bancaService.getAll({ nome: inputValue, size: 20 });
+    return [{ value: 0, label: 'Todas as bancas' }, ...data.content.map(b => ({ value: b.id, label: b.nome }))];
+  };
+
+  const loadDisciplinaOptions = async (inputValue: string) => {
+    const data = await disciplinaService.getAll({ nome: inputValue, size: 20 });
+    return [{ value: 0, label: 'Todas as disciplinas' }, ...data.content.map(d => ({ value: d.id, label: d.nome }))];
+  };
+
+  const loadTemaOptions = async (inputValue: string) => {
+    if (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) {
+      const data = await temaService.getAll({ 
+        disciplinaIds: watchedFields.selectedDisciplina.value,
+        nome: inputValue,
+        size: 100 
+      });
+      return [{ value: 0, label: 'Todos os temas' }, ...data.content.map(t => ({ value: t.id, label: t.nome }))];
+    }
+    return [{ value: 0, label: 'Todos os temas' }];
+  };
+
+  const loadSubtemaOptions = async (inputValue: string) => {
+    if (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) {
+      const data = await subtemaService.getAll({ 
+        temaIds: watchedFields.selectedTema.value,
+        nome: inputValue,
+        size: 100 
+      });
+      return [{ value: 0, label: 'Todos os subtemas' }, ...data.content.map(s => ({ value: s.id, label: s.nome }))];
+    }
+    return [{ value: 0, label: 'Todos os subtemas' }];
+  };
+
+  const loadInstituicaoAreaOptions = async (inputValue: string) => {
+    const areas = await instituicaoService.getAreas(inputValue);
+    return [{ value: '', label: 'Todas as áreas' }, ...areas.map(area => ({ value: area, label: area }))];
+  };
+
+  const loadCargoAreaOptions = async (inputValue: string) => {
+    const areas = await cargoService.getAreas(inputValue);
+    return [{ value: '', label: 'Todas as áreas' }, ...areas.map(area => ({ value: area, label: area }))];
+  };
+
+  const selectStyles = {
+    control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.5rem' }),
+    singleValue: (base: any) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
+    placeholder: (base: any) => ({ ...base, fontSize: '0.875rem', color: '#9ca3af' })
+  };
+
+  // Styles for Selects rendered inside the modal.
+  // menuPortal MUST override zIndex so portalled menus render above z-50 modal layer.
+  const crudSelectStyles = {
+    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+    control: (base: any) => ({
+      ...base,
+      borderColor: '#e5e7eb',
+      boxShadow: 'none',
+      '&:hover': { borderColor: '#6366f1' },
+      borderRadius: '0.375rem',
+      fontSize: '0.875rem',
+      minHeight: '38px',
+    }),
+    singleValue: (base: any) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
+    placeholder: (base: any) => ({ ...base, fontSize: '0.875rem', color: '#9ca3af' }),
+    option: (base: any, state: any) => ({
+      ...base,
+      fontSize: '0.875rem',
+      backgroundColor: state.isSelected ? '#4f46e5' : state.isFocused ? '#eef2ff' : 'white',
+      color: state.isSelected ? 'white' : '#374151',
+    }),
+    multiValue: (base: any) => ({ ...base, backgroundColor: '#eef2ff', borderRadius: '0.25rem' }),
+    multiValueLabel: (base: any) => ({ ...base, color: '#4338ca', fontSize: '0.8rem', fontWeight: 600 }),
+    multiValueRemove: (base: any) => ({ ...base, color: '#6366f1', ':hover': { backgroundColor: '#c7d2fe', color: '#312e81' } }),
+  };
+
   return (
-    <div className="max-w-7xl mx-auto pb-12 font-sans">
+    <div className="min-h-screen bg-gray-50 pb-20 font-sans">
       <PageHeader
         title="Questões"
+        subtitle="Encontre questões por filtros"
         breadcrumbs={[{ label: 'Questões' }]}
         actions={
-          (!loading && !error && (questoes.length > 0 || showForm)) ? (
+          <div className="flex items-center gap-3">
+            {!showForm && (
+              <button
+                onClick={() => { resetQuestaoForm(); setShowForm(true); }}
+                disabled={formLoading}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                <Plus className="w-4 h-4 mr-2" /> Nova Questão
+              </button>
+            )}
             <button
-              onClick={() => {
-                if (showForm) {
-                   resetForm();
-                } else {
-                   setShowForm(true);
-                }
-              }}
-              disabled={localLoading}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
+              onClick={() => setAdminMode(!adminMode)}
+              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm ${
+                adminMode
+                  ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
             >
-              {showForm ? 'Cancelar' : 'Nova Questão'}
+              {adminMode ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
+              Modo Spoiler: {adminMode ? 'ON' : 'OFF'}
             </button>
-          ) : null
+          </div>
         }
       />
 
-      {showForm && (
-        <div className="bg-white shadow-md rounded-lg p-6 mb-6 border border-gray-100 animate-in fade-in slide-in-from-top-4 duration-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">
-            {editingItem ? 'Editar Questão' : 'Nova Questão'}
-          </h3>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-6">
-              <div className="sm:col-span-4">
-                <label htmlFor="enunciado" className="block text-sm font-medium text-gray-700 mb-1">
-                  Enunciado
-                </label>
-                <textarea
-                  id="enunciado"
-                  rows={4}
-                  {...register('enunciado', { required: 'Enunciado é obrigatório' })}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
-                />
-                {errors.enunciado && <p className="mt-1 text-sm text-red-600">{errors.enunciado.message}</p>}
-              </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Filters Card */}
+        {!localLoading && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <div className="flex items-center mb-6">
+            <div className="p-2 bg-indigo-100 rounded-lg mr-3">
+              <Filter className="w-5 h-5 text-indigo-700" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Filtros de Pesquisa</h2>
+          </div>
 
-              <div className="sm:col-span-2 flex items-center pt-4">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="autoral"
-                    {...register('autoral')}
-                    disabled={!!editingItem}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
-                  />
-                  <label htmlFor="autoral" className="ml-2 text-sm text-gray-700">
-                    Questão autoral
-                  </label>
-                </div>
-                {editingItem && (
-                  <p className="ml-2 text-xs text-gray-400 italic">não pode ser alterado</p>
-                )}
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Disciplina</label>
+              <AsyncSelect 
+                instanceId="disciplina-select"
+                cacheOptions 
+                defaultOptions 
+                loadOptions={loadDisciplinaOptions} 
+                value={watchedFields.selectedDisciplina} 
+                onChange={(val) => { setValue('selectedDisciplina', val); setValue('selectedTema', { value: 0, label: 'Todos os temas' }); }} 
+                styles={selectStyles} 
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tema</label>
+              <AsyncSelect 
+                instanceId="tema-select"
+                key={`tema-${watchedFields.selectedDisciplina?.value}`} 
+                cacheOptions 
+                defaultOptions 
+                loadOptions={loadTemaOptions} 
+                value={watchedFields.selectedTema} 
+                onChange={(val) => { setValue('selectedTema', val); setValue('selectedSubtema', { value: 0, label: 'Todos os subtemas' }); }} 
+                isDisabled={!watchedFields.selectedDisciplina || watchedFields.selectedDisciplina.value === 0} 
+                styles={selectStyles} 
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Subtema</label>
+              <AsyncSelect 
+                instanceId="subtema-select"
+                key={`subtema-${watchedFields.selectedTema?.value}`} 
+                cacheOptions 
+                defaultOptions 
+                loadOptions={loadSubtemaOptions} 
+                value={watchedFields.selectedSubtema} 
+                onChange={(val) => setValue('selectedSubtema', val)} 
+                isDisabled={!watchedFields.selectedTema || watchedFields.selectedTema.value === 0} 
+                styles={selectStyles} 
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
+            </div>
+          </div>
 
-              {!watchedFields.autoral && (
-                <>
-              <div className="sm:col-span-3">
-                <label htmlFor="concurso" className="block text-sm font-medium text-gray-700 mb-1">
-                  Concurso
-                </label>
-                <AsyncSelect
-                  id="concurso"
-                  instanceId="concurso-select"
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadConcursoOptions}
-                  value={watchedFields.concurso}
-                  onChange={(val) => {
-                    setValue('concurso', val);
-                    setValue('cargos', []);
-                  }}
-                  placeholder="Busque por concurso..."
-                  className="text-sm"
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6 pt-6 border-t border-gray-100">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Banca</label>
+              <AsyncSelect 
+                instanceId="banca-select"
+                cacheOptions 
+                defaultOptions 
+                loadOptions={loadBancaOptions} 
+                value={watchedFields.selectedBanca} 
+                onChange={(val) => setValue('selectedBanca', val)} 
+                styles={selectStyles} 
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Área Instituição</label>
+              <AsyncSelect 
+                instanceId="instituicao-area-select"
+                cacheOptions 
+                defaultOptions 
+                loadOptions={loadInstituicaoAreaOptions} 
+                value={watchedFields.selectedInstituicaoArea} 
+                onChange={(val) => setValue('selectedInstituicaoArea', val)} 
+                styles={selectStyles} 
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Área Cargo</label>
+              <AsyncSelect 
+                instanceId="cargo-area-select"
+                cacheOptions 
+                defaultOptions 
+                loadOptions={loadCargoAreaOptions} 
+                value={watchedFields.selectedCargoArea} 
+                onChange={(val) => setValue('selectedCargoArea', val)} 
+                styles={selectStyles} 
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nível</label>
+              <Select
+                instanceId="nivel-select"
+                options={[{ value: '', label: 'Todos' }, { value: 'FUNDAMENTAL', label: 'Fundamental' }, { value: 'MEDIO', label: 'Médio' }, { value: 'SUPERIOR', label: 'Superior' }]}
+                value={watchedFields.selectedCargoNivel ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) } : { value: '', label: 'Todos' }}
+                onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')}
+                styles={selectStyles}
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Questões Autorais</label>
+              <Select
+                instanceId="autoral-select"
+                options={[
+                  { value: 'all', label: 'Todas' },
+                  { value: 'only', label: 'Apenas autorais' },
+                  { value: 'exclude', label: 'Excluir autorais' }
+                ]}
+                value={{ value: watchedFields.selectedAutoral, label: watchedFields.selectedAutoral === 'all' ? 'Todas' : watchedFields.selectedAutoral === 'only' ? 'Apenas autorais' : 'Excluir autorais' }}
+                onChange={(opt) => setValue('selectedAutoral', (opt?.value as 'all' | 'only' | 'exclude') || 'all')}
+                styles={selectStyles}
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
+            </div>
+          </div>
 
-              <div className="sm:col-span-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cargos do Concurso
-                </label>
-                <Select
-                  id="cargos"
-                  instanceId="cargos-select"
-                  isMulti
-                  options={availableCargos.map(c => ({
-                    value: c.id,
-                    label: `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`
-                  }))}
-                  value={watchedFields.cargos.map(id => {
-                    const cargo = availableCargos.find(c => c.id === id);
-                    return {
-                      value: id,
-                      label: cargo ? `${cargo.nome} - ${cargo.area} (${formatNivel(cargo.nivel)})` : `Cargo ID: ${id}`
-                    };
-                  })}
-                  onChange={(selectedOptions) => {
-                    setValue('cargos', selectedOptions ? selectedOptions.map(o => o.value) : []);
-                  }}
-                  placeholder="Selecione os cargos..."
-                  isDisabled={!watchedFields.concurso}
-                  className="text-sm"
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
-                </>
-              )}
+          <div className="mt-6 flex justify-end">
+            <button onClick={() => reset()} className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+              <Trash2 className="w-4 h-4 mr-2 text-gray-500" />
+              Limpar filtros
+            </button>
+          </div>
+        </div>
+        )}
 
-              <div className="sm:col-span-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subtemas
-                </label>
-                <AsyncSelect
-                  id="subtemas"
-                  instanceId="subtemas-select"
-                  isMulti
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadSubtemaOptions}
-                  value={watchedFields.subtemas}
-                  onChange={(val) => setValue('subtemas', val as any)}
-                  placeholder="Busque por subtemas..."
-                  className="text-sm"
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
+        {/* Results List */}
+        {localLoading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+          </div>
+        ) : questoes.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <Filter className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhuma questão encontrada</h3>
+            <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+              Tente ajustar os filtros para encontrar questões ou crie uma nova questão.
+            </p>
+            <button
+              onClick={() => { resetQuestaoForm(); setShowForm(true); }}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Nova Questão
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {questoes.map((questao) => {
+              const concurso = questao.concurso;
+              const displayAlts = [...questao.alternativas].sort((a, b) => a.ordem - b.ordem);
+              const latestResposta = questao.respostas && questao.respostas.length > 0 
+                ? [...questao.respostas].sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())[0]
+                : null;
+              
+              const shouldShowGabarito = adminMode || questao.respondida;
 
-              <div className="sm:col-span-3">
-                <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">
-                  URL da Imagem
-                </label>
-                <input
-                  type="text"
-                  id="imageUrl"
-                  {...register('imageUrl')}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
-                  placeholder="https://exemplo.com/imagem.jpg"
-                />
-              </div>
-
-              <div className="sm:col-span-3">
-                <div className="flex items-center space-x-4 h-full pt-4">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="anulada"
-                      {...register('anulada')}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="anulada" className="ml-2 text-sm text-gray-700">
-                      Anulada
-                    </label>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="desatualizada"
-                      {...register('desatualizada')}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="desatualizada" className="ml-2 text-sm text-gray-700">
-                      Desatualizada
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="sm:col-span-6 border-t border-gray-100 pt-6">
-                <h4 className="text-md font-bold text-gray-900 mb-4">Alternativas</h4>
-
-                <div className="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-100">
-                  <div className="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-12">
-                    <div className="sm:col-span-8">
-                      <label htmlFor="texto" className="block text-xs font-bold text-gray-500 uppercase mb-1">
-                        Texto da Alternativa
-                      </label>
-                      <input
-                        type="text"
-                        id="texto"
-                        value={novaAlternativa.texto}
-                        onChange={(e) => setNovaAlternativa({...novaAlternativa, texto: e.target.value})}
-                        className={`shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border ${
-                          alternativeErrors ? 'border-red-500' : ''
-                        }`}
-                        placeholder="Ex: Todas as alternativas estão corretas."
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <div className="flex items-center pt-6">
-                        <input
-                          type="checkbox"
-                          id="correta"
-                          checked={novaAlternativa.correta}
-                          onChange={(e) => setNovaAlternativa({...novaAlternativa, correta: e.target.checked})}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="correta" className="ml-2 text-sm text-gray-700">
-                          Correta
-                        </label>
+              return (
+                <div key={questao.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  {/* Metadata Header */}
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          {concurso ? (
+                            <>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-100 tracking-widest">
+                                {concurso.bancaNome}
+                              </span>
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200 font-mono tabular-nums">
+                                {concurso.ano}
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900 ml-1">
+                                {concurso.instituicaoNome}
+                              </span>
+                            </>
+                          ) : questao.autoral ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-100 tracking-widest">
+                              Questão Autoral
+                            </span>
+                          ) : null}
+                        </div>
+                        {!questao.autoral && (
+                          <div className="text-xs text-gray-500 leading-relaxed">
+                            {(questao.cargos || []).map(c => `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0 flex items-center gap-2">
+                         <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono tabular-nums">ID #{questao.id}</span>
+                         <button
+                          onClick={() => handleEditQuestao(questao.id)}
+                          disabled={formLoading}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-indigo-200 text-xs font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-50 disabled:opacity-50 transition-colors"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteQuestao(questao.id)}
+                          disabled={formLoading}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-red-200 text-xs font-medium rounded-md text-red-600 bg-white hover:bg-red-50 disabled:opacity-50 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Excluir
+                        </button>
                       </div>
                     </div>
 
-                    <div className="sm:col-span-2 flex items-end">
-                      <button
-                        type="button"
-                        onClick={adicionarAlternativa}
-                        className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 transition-colors"
-                      >
-                        Adicionar
-                      </button>
+                    <div className="pt-3 mt-1 border-t border-gray-200/60">
+                       <div className="flex items-start gap-2">
+                          <Tag className="w-4 h-4 text-gray-300 mt-0.5 flex-shrink-0" />
+                          <div className="text-xs text-gray-600 leading-relaxed font-sans">
+                            {(() => {
+                              const grouped: Record<string, Record<string, string[]>> = {};
+                              (questao.subtemas || []).forEach(st => {
+                                const discNome = st.disciplina?.nome || 'Sem disciplina';
+                                const temaNome = st.tema?.nome || 'Sem tema';
+                                if (!grouped[discNome]) grouped[discNome] = {};
+                                if (!grouped[discNome][temaNome]) grouped[discNome][temaNome] = [];
+                                grouped[discNome][temaNome].push(st.nome);
+                              });
+                              return Object.entries(grouped).map(([disc, temasMap]) => (
+                                <span key={disc} className="block mb-0.5">
+                                  <span className="font-bold text-gray-800 uppercase text-[10px] tracking-tight">{disc}:</span> {Object.entries(temasMap).map(([tema, subtemaNomes]) => `${tema} (${subtemaNomes.join(', ')})`).join(' | ')}
+                                </span>
+                              ));
+                            })()}
+                          </div>
+                       </div>
                     </div>
+                  </div>
+
+                  <div className="p-6">
+                    {/* Question Content */}
+                    <div className="prose prose-indigo max-w-none text-gray-800 mb-6 font-sans leading-relaxed text-lg">
+                       <p className="whitespace-pre-line">{questao.enunciado}</p>
+                    </div>
+                    
+                    {questao.imageUrl && (
+                      <div className="mb-8 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 p-2 text-center">
+                        <img src={questao.imageUrl} alt="Imagem" className="max-w-full h-auto inline-block rounded" />
+                      </div>
+                    )}
+                    
+                    {/* Alternatives */}
+                    <div className="space-y-3">
+                      {displayAlts.map((alternativa) => {
+                        const isCorrect = alternativa.correta;
+                        const isUserChoice = latestResposta?.alternativaId === alternativa.id;
+                        
+                        let baseClass = "relative flex items-start p-4 rounded-xl border-2 transition-all duration-200 ";
+                        let badgeClass = "flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold font-mono tabular-nums ";
+
+                        if (shouldShowGabarito) {
+                          if (isCorrect) { 
+                            baseClass += "bg-green-50 border-green-500 "; 
+                            badgeClass += "bg-green-500 text-white"; 
+                          } else if (isUserChoice) { 
+                            baseClass += "bg-red-50 border-red-500 "; 
+                            badgeClass += "bg-red-500 text-white"; 
+                          } else { 
+                            baseClass += "bg-white border-gray-100 opacity-60 "; 
+                            badgeClass += "bg-gray-100 text-gray-400"; 
+                          }
+                        } else {
+                          baseClass += "bg-white border-gray-200 "; 
+                          badgeClass += "bg-white border-2 border-gray-300 text-gray-500";
+                        }
+
+                        return (
+                          <div key={alternativa.id} className={baseClass}>
+                            <div className="flex-shrink-0 pt-0.5">
+                              <span className={badgeClass}>{String.fromCharCode(64 + alternativa.ordem)}</span>
+                            </div>
+                            <div className="ml-4 flex-1">
+                              <span className={`text-base font-sans ${shouldShowGabarito && isCorrect ? 'font-bold text-green-900' : 'text-gray-700'}`}>
+                                {alternativa.texto}
+                              </span>
+                              {shouldShowGabarito && alternativa.justificativa && (
+                                  <div className="mt-3">
+                                    {isCorrect ? (
+                                      <div className="flex items-start text-sm p-3 rounded-lg bg-green-100/50 text-green-800 font-sans">
+                                        <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+                                        <div><strong className="block mb-1 uppercase text-xs tracking-widest font-black">Gabarito</strong>{alternativa.justificativa}</div>
+                                      </div>
+                                    ) : isUserChoice ? (
+                                      <div className="flex items-start text-sm p-3 rounded-lg bg-red-100/50 text-red-800 font-sans">
+                                        <XCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+                                        <div><strong className="block mb-1 uppercase text-xs tracking-widest font-black">Sua Escolha</strong>{alternativa.justificativa}</div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-sm text-gray-500 mt-1 pl-3 border-l-2 border-gray-200 italic font-sans font-medium">
+                                        {alternativa.justificativa}
+                                      </div>
+                                    )}
+                                  </div>
+                              )}
+                            </div>
+                            {isUserChoice && (
+                              <div className="absolute top-2 right-2">
+                                <span className="bg-indigo-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase flex items-center shadow-sm tracking-widest">
+                                  <User className="w-2 h-2 mr-1" /> Sua Resposta
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Response Info Footer */}
+                    {latestResposta && (
+                      <div className="mt-8 pt-6 border-t border-gray-100">
+                        <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 font-sans">
+                           <div className="mb-4 pb-4 border-b border-gray-200">
+                               <span className="text-xs font-black text-gray-400 uppercase block mb-2 tracking-widest">Última Justificativa do Usuário</span>
+                               <p className="text-sm text-gray-800 bg-white p-4 rounded-lg border border-gray-200 italic shadow-sm">"{latestResposta.justificativa}"</p>
+                           </div>
+                           <div className="flex flex-wrap gap-6">
+                              <div className="flex items-center text-xs text-gray-600 font-medium">
+                                <Award className="w-4 h-4 mr-2 text-indigo-400" />
+                                <span className="font-bold mr-1 uppercase text-[10px] tracking-tight">Dificuldade:</span> {formatDificuldade(latestResposta.dificuldade)}
+                              </div>
+                              <div className="flex items-center text-xs text-gray-600 font-medium">
+                                <Calendar className="w-4 h-4 mr-2 text-indigo-400" />
+                                <span className="font-bold mr-1 uppercase text-[10px] tracking-tight text-gray-500">Data:</span> <span className="font-mono tabular-nums">{formatDateTime(latestResposta.createdAt)}</span>
+                              </div>
+                              {latestResposta.simuladoId && (
+                                <div className="flex items-center text-xs text-indigo-600 font-black uppercase tracking-widest">
+                                  <Tag className="w-3.5 h-3.5 mr-1" /> Simulado
+                                </div>
+                              )}
+                           </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-center mt-12 font-sans">
+             <nav className="isolate inline-flex -space-x-px rounded-lg shadow-sm border border-gray-200 bg-white overflow-hidden">
+                  <button onClick={() => filterQuestoes(currentPage - 1)} disabled={currentPage === 0} className="relative inline-flex items-center px-4 py-3 text-gray-400 hover:bg-gray-50 disabled:opacity-30 border-r border-gray-200 transition-colors"><ChevronLeft className="h-5 w-5" /></button>
+                  <div className="flex items-center px-6 py-2 bg-gray-50/50 border-r border-gray-200 text-sm font-mono font-medium text-gray-900 tabular-nums">
+                    {currentPage + 1} / {pagination.totalPages}
+                  </div>
+                  <button onClick={() => filterQuestoes(currentPage + 1)} disabled={currentPage === pagination.totalPages - 1} className="relative inline-flex items-center px-4 py-3 text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors"><ChevronRight className="h-5 w-5" /></button>
+             </nav>
+          </div>
+        )}
+      </div>
+
+      {/* CRUD Form Modal — two-panel layout */}
+      {showForm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) resetQuestaoForm(); }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-5xl flex flex-col animate-in fade-in slide-in-from-top-3 duration-200 overflow-hidden"
+            style={{ height: 'min(88vh, 680px)' }}
+          >
+            {/* ── Header ── */}
+            <div className="flex-shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-indigo-100/60 bg-white">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-bold text-gray-900 tracking-tight">
+                  {editingItem ? 'Editar Questão' : 'Nova Questão'}
+                </h3>
+                {editingItem && (
+                  <span className="text-[10px] font-mono font-bold text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded tabular-nums">
+                    ID #{editingItem.id}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={resetQuestaoForm}
+                title="Fechar"
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-300 hover:text-gray-500 transition-colors duration-150"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* ── Two-panel body ── */}
+            <form
+              id="questao-crud-form"
+              onSubmit={crudForm.handleSubmit(handleQuestaoSubmit)}
+              className="flex flex-1 min-h-0"
+            >
+              {/* ── LEFT: metadata fields ── */}
+              <div className="flex flex-col w-[46%] border-r border-slate-100 overflow-y-auto bg-slate-50/40">
+                <div className="flex-1 px-5 py-5 space-y-5">
+
+                  {/* Enunciado */}
+                  <div>
+                    <label htmlFor="crud-enunciado" className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
+                      Enunciado
+                      <span className="text-red-400 font-black">*</span>
+                    </label>
+                    <textarea
+                      id="crud-enunciado"
+                      rows={5}
+                      autoFocus
+                      {...crudForm.register('enunciado', { required: 'O enunciado é obrigatório.' })}
+                      className="block w-full text-sm border border-slate-200 bg-white rounded-lg p-2.5 text-gray-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none transition-shadow duration-150 leading-relaxed"
+                      placeholder="Digite o enunciado da questão…"
+                    />
+                    {crudForm.formState.errors.enunciado && (
+                      <p className="mt-1.5 text-[11px] text-red-500 font-medium">{crudForm.formState.errors.enunciado.message}</p>
+                    )}
+                  </div>
+
+                  {/* Flags */}
+                  <div className="flex flex-wrap gap-x-5 gap-y-2 py-0.5">
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                      <input
+                        type="checkbox"
+                        id="crud-autoral"
+                        {...crudForm.register('autoral')}
+                        disabled={!!editingItem}
+                        className="h-3.5 w-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-400 disabled:opacity-40 transition-colors"
+                      />
+                      <span className="text-xs text-slate-500 group-hover:text-slate-700 transition-colors">
+                        Autoral
+                      </span>
+                      {editingItem && (
+                        <span className="text-[10px] text-slate-400 italic">— não editável</span>
+                      )}
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                      <input
+                        type="checkbox"
+                        id="crud-anulada"
+                        {...crudForm.register('anulada')}
+                        className="h-3.5 w-3.5 text-amber-500 border-slate-300 rounded focus:ring-amber-400 transition-colors"
+                      />
+                      <span className={`text-xs transition-colors ${crudWatchedFields.anulada ? 'text-amber-600 font-semibold' : 'text-slate-500 group-hover:text-slate-700'}`}>
+                        Anulada
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                      <input
+                        type="checkbox"
+                        id="crud-desatualizada"
+                        {...crudForm.register('desatualizada')}
+                        className="h-3.5 w-3.5 text-amber-500 border-slate-300 rounded focus:ring-amber-400 transition-colors"
+                      />
+                      <span className={`text-xs transition-colors ${crudWatchedFields.desatualizada ? 'text-amber-600 font-semibold' : 'text-slate-500 group-hover:text-slate-700'}`}>
+                        Desatualizada
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Origem (conditional on non-autoral) */}
+                  {!crudWatchedFields.autoral && (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
+                          Concurso
+                        </label>
+                        <AsyncSelect
+                          id="crud-concurso"
+                          instanceId="crud-concurso-select"
+                          cacheOptions
+                          defaultOptions
+                          loadOptions={loadConcursoOptions}
+                          value={crudWatchedFields.concurso}
+                          onChange={(val) => { crudForm.setValue('concurso', val); crudForm.setValue('cargos', []); }}
+                          placeholder="Busque pelo ano, instituição ou banca…"
+                          styles={crudSelectStyles}
+                          menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
+                          Cargos
+                        </label>
+                        <Select
+                          id="crud-cargos"
+                          instanceId="crud-cargos-select"
+                          isMulti
+                          options={availableCargos.map(c => ({ value: c.id, label: `${c.nome} — ${c.area} (${formatNivel(c.nivel)})` }))}
+                          value={crudWatchedFields.cargos.map(id => {
+                            const cargo = availableCargos.find(c => c.id === id);
+                            return { value: id, label: cargo ? `${cargo.nome} — ${cargo.area} (${formatNivel(cargo.nivel)})` : `Cargo ID: ${id}` };
+                          })}
+                          onChange={(sel) => crudForm.setValue('cargos', sel ? sel.map(o => o.value) : [])}
+                          placeholder={crudWatchedFields.concurso ? 'Selecione um ou mais cargos…' : 'Selecione um concurso primeiro'}
+                          isDisabled={!crudWatchedFields.concurso}
+                          styles={crudSelectStyles}
+                          menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Subtemas */}
+                  <div>
+                    <label className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
+                      Subtemas
+                      <span className="text-red-400 font-black">*</span>
+                    </label>
+                    <AsyncSelect
+                      id="crud-subtemas"
+                      instanceId="crud-subtemas-select"
+                      isMulti
+                      cacheOptions
+                      defaultOptions
+                      loadOptions={loadCrudSubtemaOptions}
+                      value={crudWatchedFields.subtemas}
+                      onChange={(val) => crudForm.setValue('subtemas', val as any)}
+                      placeholder="Busque por disciplina, tema ou subtema…"
+                      styles={crudSelectStyles}
+                      menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                    />
+                  </div>
+
+                  {/* URL da imagem */}
+                  <div>
+                    <label htmlFor="crud-imageUrl" className="block text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
+                      Imagem <span className="normal-case font-normal text-slate-400">(opcional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="crud-imageUrl"
+                      {...crudForm.register('imageUrl')}
+                      className="block w-full text-sm border border-slate-200 bg-white rounded-lg px-2.5 py-2 text-gray-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-shadow duration-150"
+                      placeholder="https://exemplo.com/imagem.jpg"
+                    />
+                  </div>
+
+                  {/* Validation errors */}
+                  {validationErrors.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                      <ul className="space-y-0.5">
+                        {validationErrors.map((err, i) => (
+                          <li key={i} className="text-xs text-red-600">· {err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── RIGHT: alternativas ── */}
+              <div className="flex flex-col flex-1 min-w-0 bg-white">
+
+                {/* Add new alternative */}
+                <div className="flex-shrink-0 px-5 py-4 border-b border-slate-100 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest">
+                      Alternativas
+                    </p>
+                    {currentAlternativas.length > 0 && (
+                      <span className={`text-[10px] font-mono font-bold tabular-nums px-1.5 py-0.5 rounded transition-colors ${
+                        currentAlternativas.length >= 2 && currentAlternativas.filter(a => a.correta).length === 1
+                          ? 'bg-green-50 text-green-600 border border-green-200'
+                          : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {currentAlternativas.length} alt · {currentAlternativas.filter(a => a.correta).length} correta
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={novaAlternativa.texto}
+                      onChange={(e) => setNovaAlternativa({...novaAlternativa, texto: e.target.value})}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); adicionarAlternativa(); } }}
+                      className={`flex-1 text-sm border rounded-lg px-2.5 py-[7px] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-shadow duration-150 ${
+                        alternativeErrors ? 'border-red-300 bg-red-50 placeholder-red-300' : 'border-slate-200 placeholder-slate-300'
+                      }`}
+                      placeholder="Texto da alternativa… (Enter para adicionar)"
+                    />
+                    <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer whitespace-nowrap px-1 hover:text-slate-700 transition-colors select-none">
+                      <input
+                        type="checkbox"
+                        checked={novaAlternativa.correta}
+                        onChange={(e) => setNovaAlternativa({...novaAlternativa, correta: e.target.checked})}
+                        className="h-3.5 w-3.5 text-green-600 border-slate-300 rounded focus:ring-green-400"
+                      />
+                      Correta
+                    </label>
+                    <button
+                      type="button"
+                      onClick={adicionarAlternativa}
+                      title="Adicionar alternativa"
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-[7px] text-xs font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-colors duration-150"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Adicionar</span>
+                    </button>
                   </div>
 
                   {alternativeErrors && (
-                    <div className="mt-2 text-sm text-red-600">
-                      {alternativeErrors}
-                    </div>
+                    <p className="text-[11px] text-red-500 font-medium">{alternativeErrors}</p>
                   )}
 
-                  <div className="mt-4">
-                    <label htmlFor="justificativa_alt" className="block text-xs font-bold text-gray-500 uppercase mb-1">
-                      Justificativa (Explicação)
-                    </label>
-                    <textarea
-                      id="justificativa_alt"
-                      rows={2}
-                      value={novaAlternativa.justificativa || ''}
-                      onChange={(e) => setNovaAlternativa({...novaAlternativa, justificativa: e.target.value})}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
-                      placeholder="Explique por que esta alternativa é a correta ou por que está errada."
-                    />
-                  </div>
+                  <textarea
+                    rows={2}
+                    value={novaAlternativa.justificativa || ''}
+                    onChange={(e) => setNovaAlternativa({...novaAlternativa, justificativa: e.target.value})}
+                    className="block w-full text-sm border border-slate-200 rounded-lg px-2.5 py-2 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none transition-shadow duration-150"
+                    placeholder="Justificativa da alternativa — por que está correta ou errada (opcional)…"
+                  />
                 </div>
 
-                <div className="space-y-4">
-                  {currentAlternativas.map((alternativa, index) => (
-                    <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:border-indigo-200 transition-colors">
-                      <div className="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-12 items-center">
-                        <div className="sm:col-span-1">
-                          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-bold text-sm">
-                            {String.fromCharCode(65 + index)}
-                          </span>
+                {/* Alternative list — only this region scrolls */}
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5">
+                  {currentAlternativas.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center py-8 gap-1">
+                      <p className="text-xs text-slate-300 font-semibold">Nenhuma alternativa adicionada.</p>
+                      <p className="text-[11px] text-slate-300">São necessárias pelo menos 2 para salvar.</p>
+                    </div>
+                  ) : (
+                    currentAlternativas.map((alt, index) => (
+                      <div
+                        key={index}
+                        className={`group flex items-start gap-2.5 px-3 py-2.5 rounded-lg border transition-all duration-150 ${
+                          alt.correta
+                            ? 'bg-green-50 border-green-200'
+                            : 'bg-white border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/20'
+                        }`}
+                      >
+                        <span className={`flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-black font-mono mt-0.5 transition-colors ${
+                          alt.correta ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {String.fromCharCode(65 + index)}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm leading-snug transition-colors ${alt.correta ? 'text-green-900 font-medium' : 'text-gray-700'}`}>
+                            {alt.texto}
+                          </p>
+                          {alt.justificativa && (
+                            <p className="text-[11px] text-slate-400 mt-0.5 italic truncate">{alt.justificativa}</p>
+                          )}
                         </div>
-                        <div className="sm:col-span-6">
-                          <div className="text-gray-900 font-medium">{alternativa.texto}</div>
-                        </div>
-                        <div className="sm:col-span-2">
-                          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                            alternativa.correta 
-                              ? 'bg-green-50 text-green-700 border-green-200' 
-                              : 'bg-slate-50 text-slate-500 border-slate-200'
-                          }`}>
-                            {alternativa.correta ? 'Correta' : 'Incorreta'}
-                          </div>
-                        </div>
-                        <div className="sm:col-span-3 flex justify-end space-x-2">
+                        <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                           <button
                             type="button"
                             onClick={() => moverAlternativaParaCima(index)}
                             disabled={index === 0}
-                            className={`p-1.5 rounded-md transition-colors ${
-                              index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100 hover:text-indigo-600'
-                            }`}
                             title="Mover para cima"
+                            className={`p-1 rounded transition-colors ${index === 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-                            </svg>
+                            <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
                           </button>
                           <button
                             type="button"
                             onClick={() => moverAlternativaParaBaixo(index)}
                             disabled={index === currentAlternativas.length - 1}
-                            className={`p-1.5 rounded-md transition-colors ${
-                              index === currentAlternativas.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100 hover:text-indigo-600'
-                            }`}
                             title="Mover para baixo"
+                            className={`p-1 rounded transition-colors ${index === currentAlternativas.length - 1 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
+                            <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                           </button>
                           <button
                             type="button"
                             onClick={() => removerAlternativa(index)}
-                            className="p-1.5 rounded-md text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors"
                             title="Remover alternativa"
+                            className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
+                            <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                           </button>
                         </div>
                       </div>
-                      {alternativa.justificativa && (
-                        <div className="mt-3 pl-12">
-                          <div className="text-sm text-gray-600 bg-slate-50 p-3 rounded-md border-l-4 border-indigo-200">
-                            <span className="font-bold text-indigo-700 block mb-1">Explicação:</span> 
-                            {alternativa.justificativa}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
-            </div>
+            </form>
 
-            {validationErrors.length > 0 && (
-              <div className="mt-6 bg-red-50 border-l-4 border-red-400 p-4 rounded shadow-sm">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <div className="text-sm text-red-800 font-bold">
-                      Por favor, corrija os erros abaixo:
-                    </div>
-                    <ul className="mt-1 list-disc pl-5 space-y-1 text-sm text-red-700">
-                      {validationErrors.map((error, index) => <li key={index}>{error}</li>)}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-8 flex justify-end space-x-3 border-t border-gray-100 pt-6">
-              <button
-                type="button"
-                onClick={resetForm}
-                disabled={localLoading}
-                className="inline-flex items-center px-6 py-2.5 border border-gray-300 shadow-sm text-sm font-semibold rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={localLoading}
-                className="inline-flex items-center px-8 py-2.5 border border-transparent text-sm font-semibold rounded-lg shadow-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-all"
-              >
-                {localLoading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Processando...
-                  </>
-                ) : editingItem ? 'Atualizar Questão' : 'Salvar Questão'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6 rounded shadow-sm flex items-center justify-between">
-          <div className="flex items-center">
-            <svg className="h-5 w-5 text-red-500 mr-3" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-            <p className="text-sm font-medium text-red-700">{error}</p>
-          </div>
-          <button 
-            onClick={() => loadQuestoes(currentPage)}
-            className="text-sm font-bold text-red-700 hover:text-red-800 underline uppercase tracking-tight"
-          >
-            Tentar novamente
-          </button>
-        </div>
-      )}
-
-      <div className="bg-white shadow rounded-xl overflow-hidden border border-gray-200">
-        {loading ? (
-          <div className="flex flex-col justify-center items-center h-80 space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
-            <p className="text-gray-500 text-sm font-medium animate-pulse">Carregando acervo de questões...</p>
-          </div>
-        ) : error ? (
-           <div className="flex flex-col justify-center items-center h-80 text-center px-4 bg-slate-50/50">
-             <div className="bg-red-100 p-3 rounded-full mb-4">
-              <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-             </div>
-             <h3 className="text-lg font-bold text-gray-900">Erro técnico detectado</h3>
-             <p className="mt-1 text-sm text-gray-500 max-w-xs">{error}</p>
-             <button
-               onClick={() => loadQuestoes(currentPage)}
-               className="mt-6 inline-flex items-center px-6 py-2 border border-transparent shadow-sm text-sm font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-all"
-             >
-               Recarregar Página
-             </button>
-           </div>
-        ) : questoes.length === 0 ? (
-          <div className="flex flex-col justify-center items-center h-80 text-center px-4 bg-slate-50/50">
-            <div className="bg-slate-200 p-4 rounded-full mb-4">
-              <svg className="h-10 w-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">Nenhuma questão no sistema</h3>
-            <p className="mt-1 text-sm text-gray-500 max-w-xs">O banco de dados está vazio ou os filtros ocultaram os resultados.</p>
-            {!showForm && (
-              <button
-                onClick={() => setShowForm(true)}
-                className="mt-6 inline-flex items-center px-6 py-2 border border-transparent shadow-sm text-sm font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-all"
-              >
-                Cadastrar Primeira Questão
-              </button>
-            )}
-          </div>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {questoes.map((questao) => (
-              <li key={questao.id} className="hover:bg-gray-50 transition-colors duration-150">
-                <div className="px-4 py-5 sm:px-6 flex justify-between items-start gap-6 font-sans">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 leading-snug line-clamp-3 mb-2" title={questao.enunciado}>
-                      {questao.enunciado}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded tabular-nums">ID #{questao.id}</span>
-                      {questao.anulada && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded uppercase">Anulada</span>}
-                      {questao.desatualizada && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase">Desatualizada</span>}
-                      <span className="text-xs text-gray-500">
-                        <span className="font-bold text-gray-400 mr-1 uppercase">Cargos:</span>
-                        <span className="truncate">
-                          {questao.autoral
-                            ? '—'
-                            : (questao.cargos || []).map(cargo => `${cargo.nome} (${formatNivel(cargo.nivel)})`).join(' · ') || 'Nenhum'
-                          }
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="hidden lg:flex flex-col flex-shrink-0 w-64 text-right">
-                    {questao.concurso ? (
-                      <>
-                        <div className="text-xs font-bold text-indigo-600 truncate uppercase tracking-tight">
-                          {questao.concurso.instituicaoNome}
-                        </div>
-                        <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase">
-                          <span className="font-mono tabular-nums">{questao.concurso.ano}</span> · {questao.concurso.bancaNome}
-                        </div>
-                      </>
-                    ) : questao.autoral ? (
-                      <>
-                        <div className="text-xs font-bold text-amber-600 truncate uppercase tracking-tight">
-                          Questão Autoral
-                        </div>
-                        <div className="text-[10px] font-bold text-gray-300 mt-1 uppercase">
-                          —
-                        </div>
-                      </>
-                    ) : (
-                      <span className="text-[10px] font-bold text-gray-300 uppercase">—</span>
-                    )}
-                  </div>
-
-                  <div className="flex space-x-2 flex-shrink-0">
-                    <button
-                      onClick={() => handleEdit(questao)}
-                      disabled={localLoading}
-                      className="inline-flex items-center px-3 py-1 border border-indigo-600 text-sm font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(questao.id!)}
-                      disabled={localLoading}
-                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* Pagination Controls */}
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4 font-sans">
-            <div className="flex flex-1 justify-between sm:hidden">
-              <button
-                onClick={() => loadQuestoes(currentPage - 1)}
-                disabled={currentPage === 0}
-                className={`relative inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
-                  currentPage === 0
-                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                }`}
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => loadQuestoes(currentPage + 1)}
-                disabled={currentPage === pagination.totalPages - 1}
-                className={`relative ml-3 inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
-                  currentPage === pagination.totalPages - 1
-                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                }`}
-              >
-                Próximo
-              </button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between font-sans">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Mostrando <span className="font-medium font-mono tabular-nums">{currentPage * pagination.pageSize + 1}</span> até{' '}
-                  <span className="font-medium font-mono tabular-nums">
-                    {Math.min((currentPage + 1) * pagination.pageSize, pagination.totalElements)}
-                  </span>{' '}
-                  de <span className="font-medium font-mono tabular-nums">{pagination.totalElements}</span> resultados
-                </p>
-              </div>
-              <div className="flex items-center space-x-2">
+            {/* ── Footer ── */}
+            <div className="flex-shrink-0 flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/60">
+              <p className={`text-[11px] font-medium tabular-nums transition-colors ${
+                currentAlternativas.length < 2
+                  ? 'text-amber-500'
+                  : currentAlternativas.filter(a => a.correta).length !== 1 && !crudWatchedFields.anulada
+                    ? 'text-amber-500'
+                    : 'text-green-600'
+              }`}>
+                {currentAlternativas.length < 2
+                  ? `Adicione pelo menos ${2 - currentAlternativas.length} alternativa${2 - currentAlternativas.length > 1 ? 's' : ''} para continuar`
+                  : crudWatchedFields.anulada
+                    ? `${currentAlternativas.length} alternativas · questão anulada`
+                    : currentAlternativas.filter(a => a.correta).length === 0
+                      ? 'Marque a alternativa correta antes de salvar'
+                      : currentAlternativas.filter(a => a.correta).length > 1
+                        ? 'Apenas uma alternativa pode ser marcada como correta'
+                        : `${currentAlternativas.length} alternativas · gabarito definido`
+                }
+              </p>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => loadQuestoes(currentPage - 1)}
-                  disabled={currentPage === 0}
-                  className={`p-1 rounded border transition-colors ${
-                    currentPage === 0
-                      ? 'cursor-not-allowed text-gray-300 border-gray-200'
-                      : 'text-gray-600 border-gray-300 hover:bg-gray-50'
-                  }`}
+                  type="button"
+                  onClick={resetQuestaoForm}
+                  disabled={formLoading}
+                  className="px-3.5 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors duration-150"
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  Cancelar
                 </button>
-                <div className="text-sm font-mono font-medium px-2 py-1 bg-gray-50 border border-gray-200 rounded tabular-nums">
-                  {currentPage + 1} / {pagination.totalPages}
-                </div>
                 <button
-                  onClick={() => loadQuestoes(currentPage + 1)}
-                  disabled={currentPage === pagination.totalPages - 1}
-                  className={`p-1 rounded border transition-colors ${
-                    currentPage === pagination.totalPages - 1
-                      ? 'cursor-not-allowed text-gray-300 border-gray-200'
-                      : 'text-gray-600 border-gray-300 hover:bg-gray-50'
-                  }`}
+                  type="submit"
+                  form="questao-crud-form"
+                  disabled={formLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 transition-colors duration-150 shadow-sm shadow-indigo-200"
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  {formLoading
+                    ? (<><Loader2 className="animate-spin w-3.5 h-3.5" /> Salvando…</>)
+                    : (editingItem ? 'Atualizar Questão' : 'Salvar Questão')
+                  }
                 </button>
               </div>
             </div>
+
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
