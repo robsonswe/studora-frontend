@@ -7,6 +7,7 @@ import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { formatNivel } from '@/utils/formatters';
 import { questaoService, concursoService, subtemaService } from '@/services/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import { 
   Loader2, 
@@ -37,6 +38,8 @@ export default function QuestoesPage() {
     last: true
   });
   const [currentPage, setCurrentPage] = useState(0);
+
+  usePageTitle('Questões', 'Admin');
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm({
     defaultValues: {

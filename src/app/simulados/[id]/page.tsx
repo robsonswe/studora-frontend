@@ -6,6 +6,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { simuladoService, respostaService } from '@/services/api';
 import { formatDificuldade, formatNivel } from '@/utils/formatters';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import {
   Clock,
@@ -26,6 +27,11 @@ export default function SimuladoDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const startAttemptedRef = useRef(false);
+
+  const simuladoTitle = simulado?.nome
+    ? (simulado.nome.toLowerCase().includes('simulado') ? simulado.nome : `Simulado ${simulado.nome}`)
+    : undefined;
+  usePageTitle(simuladoTitle);
   
   // Question State
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -271,7 +277,7 @@ export default function SimuladoDetailPage() {
         subtitle={isFinished ? "Simulado Finalizado" : "Em Andamento"}
         breadcrumbs={[
           { label: 'Simulados', href: '/simulados' },
-          { label: simulado.nome }
+          { label: simuladoTitle }
         ]}
       />
 

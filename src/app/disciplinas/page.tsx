@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { disciplinaService, ApiError } from '@/services/api';
 import * as Types from '@/types';
 import { BookOpen, AlertCircle, RotateCcw, Search, ChevronRight, ChevronLeft, X } from 'lucide-react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 // ─── Tonal Indigo Palette ───────────────────────────────────────────────────
 const HUE = [
@@ -104,6 +105,8 @@ function DisciplinasContent() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  usePageTitle('Disciplinas');
 
   // Local input value — only committed to URL on submit
   const [inputValue, setInputValue] = useState(urlQuery);

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function SettingsPage() {
   const [notifications, setNotifications] = useState({
@@ -15,6 +16,8 @@ export default function SettingsPage() {
     language: 'pt-BR',
     timezone: 'America/Sao_Paulo',
   });
+
+  usePageTitle('Configurações');
 
   const handleNotificationChange = (type: keyof typeof notifications) => {
     setNotifications(prev => ({

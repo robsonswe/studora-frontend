@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import { disciplinaService, subtemaService, ApiError } from '@/services/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import StatsBreakdownPanel from '@/components/ui/StatsBreakdownPanel';
 import * as Types from '@/types';
 import {
@@ -272,6 +273,8 @@ export default function DisciplinaDetailPage() {
   const [historyModal, setHistoryModal] = useState<SubtemaWithEstudos | null>(null);
   const [loadingHistory, setLoadingHistory] = useState<number | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
+
+  usePageTitle(disciplina?.nome);
 
   useEffect(() => {
     if (id) loadDisciplina(parseInt(id));

@@ -7,6 +7,7 @@ import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { questaoService, instituicaoService, cargoService, bancaService, disciplinaService, temaService, subtemaService } from '@/services/api';
 import { formatNivel, formatDificuldade, formatDateTime } from '@/utils/formatters';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import { 
   Filter, 
@@ -53,6 +54,8 @@ export default function SearchBrowsePage() {
     last: true
   });
   const [currentPage, setCurrentPage] = useState(0);
+
+  usePageTitle('Buscar e Explorar', 'Admin');
 
   const filterQuestoes = useCallback(async (page: number = 0) => {
     setLocalLoading(true);

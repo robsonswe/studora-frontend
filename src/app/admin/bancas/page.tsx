@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import { bancaService } from '@/services/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import {
   Building,
@@ -28,6 +29,8 @@ export default function BancasPage() {
   const [formData, setFormData] = useState<{ nome: string }>({ nome: '' });
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+
+  usePageTitle('Bancas', 'Admin');
   
   const [pagination, setPagination] = useState<Types.PageResponse<any>>({
     content: [],

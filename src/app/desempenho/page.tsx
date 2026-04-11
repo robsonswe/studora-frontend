@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { analyticsService } from '@/services/api';
 import * as Types from '@/types';
 import { 
@@ -43,6 +44,8 @@ export default function PerformancePage() {
   const [selectedDiscId, setSelectedDiscId] = useState<number | null>(null);
   const [discDetail, setDiscDetail] = useState<Types.AnalyticsTopicMasteryDetailDto | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  usePageTitle('Desempenho');
 
   // Pagination for Disciplines
   const [discPagination, setDiscPagination] = useState<Types.PageResponse<Types.AnalyticsTopicMasteryDto>>({

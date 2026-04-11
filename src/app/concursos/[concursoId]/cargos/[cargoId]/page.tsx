@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import { concursoService, ApiError } from '@/services/api';
 import { formatNivel, formatDateTime } from '@/utils/formatters';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import EditalAnalysisReport from '@/components/concursos/EditalAnalysisReport';
 import StatsBreakdownPanel, { type HighlightMap } from '@/components/ui/StatsBreakdownPanel';
@@ -56,6 +57,8 @@ export default function ConcursoCargoDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [concurso, setConcurso] = useState<Types.ConcursoDetailDto | null>(null);
   const [cargo, setCargo] = useState<Types.ConcursoCargoSummaryDto | null>(null);
+
+  usePageTitle(cargo ? `${cargo.cargoNome} — ${concurso?.instituicao.nome}` : undefined);
 
   const groupedTopicos = useMemo(() => {
     if (!cargo?.topicos) return {};

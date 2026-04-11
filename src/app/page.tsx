@@ -7,6 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import { simuladoService, concursoService, respostaService, questaoService } from '@/services/api';
 import { formatDateTime, formatDificuldade, formatNivel } from '@/utils/formatters';
 import * as Types from '@/types';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import {
   ClipboardList,
   PlusCircle,
@@ -21,6 +22,8 @@ import {
 export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+
+  usePageTitle('Dashboard');
   const [simulados, setSimulados] = useState<Types.SimuladoSummaryDto[]>([]);
   const [concursos, setConcursos] = useState<Types.ConcursoSummaryDto[]>([]);
   const [respostas, setRespostas] = useState<(Types.RespostaSummaryDto & { questao?: Types.QuestaoDetailDto })[]>([]);

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import { cargoService } from '@/services/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { formatNivel } from '@/utils/formatters';
 import * as Types from '@/types';
 import { 
@@ -33,6 +34,8 @@ export default function CargosPage() {
   });
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+
+  usePageTitle('Cargos', 'Admin');
   
   const [pagination, setPagination] = useState<Types.PageResponse<CargoDto>>({
     content: [],

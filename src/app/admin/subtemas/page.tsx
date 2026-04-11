@@ -5,6 +5,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import { useForm } from 'react-hook-form';
 import AsyncSelect from 'react-select/async';
 import { subtemaService, temaService } from '@/services/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import { 
   Tags, 
@@ -47,6 +48,8 @@ export default function SubtemasPage() {
   });
 
   const watchedFields = watch();
+
+  usePageTitle('Subtemas', 'Admin');
 
   const loadSubtemas = useCallback(async (page: number = 0) => {
     setLoading(true);

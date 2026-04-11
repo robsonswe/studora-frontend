@@ -5,6 +5,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import { useForm } from 'react-hook-form';
 import AsyncSelect from 'react-select/async';
 import { temaService, disciplinaService } from '@/services/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import { 
   Tag, 
@@ -47,6 +48,8 @@ export default function TemasPage() {
   });
 
   const watchedFields = watch();
+
+  usePageTitle('Temas', 'Admin');
 
   const loadTemas = useCallback(async (page: number = 0) => {
     setLoading(true);

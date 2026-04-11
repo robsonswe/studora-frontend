@@ -6,6 +6,7 @@ import Link from 'next/link';
 import PageHeader from '@/components/ui/PageHeader';
 import { simuladoService, disciplinaService, temaService, subtemaService, bancaService, cargoService } from '@/services/api';
 import { formatNivel } from '@/utils/formatters';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import AsyncSelect from 'react-select/async';
 import { 
@@ -55,6 +56,8 @@ export default function SimuladosPage() {
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  usePageTitle('Simulados');
 
   // Filter and Options data
   const [cachedBancas, setCachedBancas] = useState<Types.BancaSummaryDto[]>([]);

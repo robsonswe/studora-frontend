@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import { concursoService, bancaService, instituicaoService, cargoService, subtemaService } from '@/services/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import AsyncSelect from 'react-select/async';
 import { formatNivel, formatDateTime, utcToLocalInputValue, localInputValueToUtc } from '@/utils/formatters';
@@ -107,6 +108,8 @@ export default function ConcursosAdminPage() {
     last: true
   });
   const [currentPage, setCurrentPage] = useState(0);
+
+  usePageTitle('Concursos', 'Admin');
 
   const loadConcursos = useCallback(async (page: number = 0) => {
     setLoading(true);

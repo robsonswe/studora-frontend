@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 interface UserProfile {
   id: number;
@@ -22,6 +23,8 @@ export default function ProfilePage() {
     avatar: '',
     createdAt: '2024-01-15',
   });
+
+  usePageTitle('Perfil');
 
   const [formData, setFormData] = useState({
     name: user.name,

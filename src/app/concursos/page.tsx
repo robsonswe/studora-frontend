@@ -15,6 +15,7 @@ import {
 } from '@/services/api';
 import { formatNivel, formatDateTime } from '@/utils/formatters';
 import * as Types from '@/types';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import {
   BookOpen,
   Link as LinkIcon,
@@ -78,6 +79,8 @@ export default function ConcursosPage() {
   const removeToast = (id: number) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
+
+  usePageTitle('Concursos');
 
   const loadConcursos = useCallback(async (page: number = 0) => {
     setLoading(true);

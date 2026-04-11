@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import { disciplinaService } from '@/services/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import { 
   BookOpen, 
@@ -36,6 +37,8 @@ export default function DisciplinasAdminPage() {
     totalPages: 0,
     last: true
   });
+
+  usePageTitle('Disciplinas', 'Admin');
   const [currentPage, setCurrentPage] = useState(0);
 
   const loadDisciplinas = useCallback(async (page: number = 0) => {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import { instituicaoService } from '@/services/api';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import { 
   Library, 
@@ -27,6 +28,8 @@ export default function InstituicoesPage() {
   const [formData, setFormData] = useState<{ nome: string, area: string }>({ nome: '', area: '' });
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+
+  usePageTitle('Instituições', 'Admin');
   
   const [pagination, setPagination] = useState<Types.PageResponse<InstituicaoDto>>({
     content: [],

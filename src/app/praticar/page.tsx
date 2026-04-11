@@ -8,6 +8,7 @@ import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { questaoService, respostaService, instituicaoService, cargoService, bancaService, disciplinaService, temaService, subtemaService } from '@/services/api';
 import { formatNivel } from '@/utils/formatters';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import {
   Play,
@@ -30,6 +31,8 @@ export default function QuestaoPracticePage() {
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [includeAutoral, setIncludeAutoral] = useState(false);
+
+  usePageTitle('Praticar');
 
   // Question State
   const [currentQuestion, setCurrentQuestion] = useState<QuestaoDto | null>(null);
