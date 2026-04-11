@@ -164,8 +164,9 @@ export default function TemasPage() {
 
   return (
     <div className="max-w-7xl mx-auto pb-12 font-sans">
-      <PageHeader 
+      <PageHeader
         title="Temas"
+        breadcrumbs={[{ label: 'Temas' }]}
         actions={
           (!loading && !error && temas.length > 0) ? (
             <button

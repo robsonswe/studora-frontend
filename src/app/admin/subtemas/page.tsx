@@ -172,6 +172,7 @@ export default function SubtemasPage() {
     <div className="max-w-7xl mx-auto pb-12 font-sans">
       <PageHeader
         title="Subtemas"
+        breadcrumbs={[{ label: 'Subtemas' }]}
         actions={
           (!loading && !error && subtemas.length > 0) ? (
             <button

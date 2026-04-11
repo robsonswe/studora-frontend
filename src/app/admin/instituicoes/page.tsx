@@ -125,6 +125,7 @@ export default function InstituicoesPage() {
     <div className="max-w-7xl mx-auto pb-12 font-sans">
       <PageHeader
         title="Instituições"
+        breadcrumbs={[{ label: 'Instituições' }]}
         actions={
           (!loading && !error && instituicoes.length > 0) ? (
             <button

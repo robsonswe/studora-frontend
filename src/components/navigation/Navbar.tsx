@@ -3,11 +3,11 @@
 import { Menu } from 'lucide-react';
 
 interface NavbarProps {
-  title: string;
   onMenuClick: () => void;
+  children?: React.ReactNode;
 }
 
-export const Navbar = ({ title, onMenuClick }: NavbarProps) => {
+export const Navbar = ({ onMenuClick, children }: NavbarProps) => {
   return (
     <div className="flex items-center">
       <button
@@ -16,11 +16,7 @@ export const Navbar = ({ title, onMenuClick }: NavbarProps) => {
       >
         <Menu className="h-6 w-6" />
       </button>
-      {title && (
-        <h2 className="text-lg font-bold text-slate-800">
-          {title}
-        </h2>
-      )}
+      {children}
     </div>
   );
 };

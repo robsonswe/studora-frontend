@@ -306,6 +306,7 @@ export default function QuestoesPage() {
     <div className="max-w-7xl mx-auto pb-12 font-sans">
       <PageHeader
         title="Questões"
+        breadcrumbs={[{ label: 'Questões' }]}
         actions={
           (!loading && !error && (questoes.length > 0 || showForm)) ? (
             <button

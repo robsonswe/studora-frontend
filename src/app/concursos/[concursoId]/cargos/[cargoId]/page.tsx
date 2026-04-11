@@ -9,7 +9,6 @@ import * as Types from '@/types';
 import EditalAnalysisReport from '@/components/concursos/EditalAnalysisReport';
 import StatsBreakdownPanel, { type HighlightMap } from '@/components/ui/StatsBreakdownPanel';
 import {
-  ArrowLeft,
   AlertCircle,
   Loader2,
   Clock,
@@ -108,7 +107,13 @@ export default function ConcursoCargoDetailPage() {
 
   if (loading) return (
     <div className="space-y-8 pb-20">
-      <PageHeader title="Mapa do Edital" />
+      <PageHeader
+        title="Mapa do Edital"
+        breadcrumbs={[
+          { label: 'Concursos', href: '/concursos' },
+          { label: 'Carregando...' }
+        ]}
+      />
       <div className="flex flex-col items-center justify-center py-32 gap-4">
         <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
         <p className="text-sm font-semibold text-slate-400 tracking-tight">Carregando edital...</p>
@@ -118,7 +123,13 @@ export default function ConcursoCargoDetailPage() {
 
   if (error || !concurso || !cargo) return (
     <div className="space-y-8 pb-20">
-      <PageHeader title="Mapa do Edital" />
+      <PageHeader
+        title="Mapa do Edital"
+        breadcrumbs={[
+          { label: 'Concursos', href: '/concursos' },
+          { label: 'Erro ao carregar' }
+        ]}
+      />
       <div className="bg-white border border-red-100 rounded-xl p-10 text-center">
         <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-4" />
         <p className="text-sm font-semibold text-slate-600">{error || 'Concurso não encontrado.'}</p>
@@ -127,15 +138,17 @@ export default function ConcursoCargoDetailPage() {
     </div>
   );
 
+  const concursoBreadcrumbLabel = `${concurso.instituicao.nome} - ${concurso.banca.nome} - ${concurso.mes}/${concurso.ano}`;
+
   return (
     <div className="space-y-8 pb-20">
       <PageHeader
         title="Mapa do Edital"
-        actions={
-          <button onClick={() => router.push('/concursos')} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors active:scale-95">
-            <ArrowLeft className="w-4 h-4" /> Concursos
-          </button>
-        }
+        breadcrumbs={[
+          { label: 'Concursos', href: '/concursos' },
+          { label: concursoBreadcrumbLabel, href: '/concursos' },
+          { label: cargo.cargoNome }
+        ]}
       />
 
       {/* Identity strip */}

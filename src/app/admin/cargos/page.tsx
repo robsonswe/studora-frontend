@@ -132,6 +132,7 @@ export default function CargosPage() {
     <div className="max-w-7xl mx-auto pb-12 font-sans">
       <PageHeader
         title="Cargos"
+        breadcrumbs={[{ label: 'Cargos' }]}
         actions={
           (!loading && !error && cargos.length > 0) ? (
             <button

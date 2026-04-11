@@ -266,7 +266,14 @@ export default function SimuladoDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
-      <PageHeader title={simulado.nome} subtitle={isFinished ? "Simulado Finalizado" : "Em Andamento"} />
+      <PageHeader
+        title={simulado.nome}
+        subtitle={isFinished ? "Simulado Finalizado" : "Em Andamento"}
+        breadcrumbs={[
+          { label: 'Simulados', href: '/simulados' },
+          { label: simulado.nome }
+        ]}
+      />
 
       {/* Sticky Bar */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-20">

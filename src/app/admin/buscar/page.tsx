@@ -144,9 +144,10 @@ export default function SearchBrowsePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 font-sans">
-      <PageHeader 
-        title="Buscar e Explorar" 
-        subtitle="Encontre questões por filtros" 
+      <PageHeader
+        title="Buscar e Explorar"
+        subtitle="Encontre questões por filtros"
+        breadcrumbs={[{ label: 'Buscar e Explorar' }]}
         actions={
           <button
             onClick={() => setAdminMode(!adminMode)}

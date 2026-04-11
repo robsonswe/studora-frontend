@@ -125,6 +125,7 @@ export default function BancasPage() {
     <div className="max-w-7xl mx-auto pb-12 font-sans">
       <PageHeader
         title="Bancas"
+        breadcrumbs={[{ label: 'Bancas' }]}
         actions={
           (!loading && !error && bancas.length > 0) ? (
             <button

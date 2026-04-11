@@ -124,6 +124,7 @@ export default function DisciplinasAdminPage() {
     <div className="max-w-7xl mx-auto pb-12 font-sans">
       <PageHeader
         title="Disciplinas"
+        breadcrumbs={[{ label: 'Disciplinas' }]}
         actions={
           (!loading && !error && disciplinas.length > 0) ? (
             <button

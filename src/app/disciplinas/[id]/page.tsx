@@ -417,12 +417,11 @@ export default function DisciplinaDetailPage() {
   return (
     <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-800 antialiased">
       <PageHeader
-        title={
-          <button onClick={() => router.push('/disciplinas')} className="flex items-center gap-2 text-slate-800 hover:text-indigo-600 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-semibold">{disciplina.nome}</span>
-          </button>
-        }
+        title={disciplina.nome}
+        breadcrumbs={[
+          { label: 'Disciplinas', href: '/disciplinas' },
+          { label: disciplina.nome }
+        ]}
       />
 
       {/* Action Error Toast */}

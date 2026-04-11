@@ -383,9 +383,10 @@ export default function ConcursosAdminPage() {
 
   return (
     <div className="max-w-7xl mx-auto pb-12 font-sans">
-      <PageHeader 
+      <PageHeader
         title="Concursos"
         subtitle="Gerenciamento de editais e provas"
+        breadcrumbs={[{ label: 'Concursos' }]}
         actions={
           (!loading && !error && (concursos.length > 0 || showForm)) ? (
             <button
