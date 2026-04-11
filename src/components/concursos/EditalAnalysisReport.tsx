@@ -22,7 +22,11 @@ import {
   Calendar,
   Building,
   GraduationCap,
-  Briefcase
+  Briefcase,
+  BookOpen,
+  Award,
+  Gauge,
+  SplitSquareHorizontal,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -79,6 +83,10 @@ interface DisciplineStats {
   daysSinceLastQuestion: number;
   avgTempoResposta: number | null;
   dificuldade: Record<string, DiffAgg>;
+  // Autoral stats
+  autoralRespondidas: number;
+  autoralAcertadas: number;
+  autoralPerf: number | null;
 }
 
 interface DifficultyAggregate {
@@ -139,6 +147,15 @@ interface EditalAnalysis {
     bankCoverageRate: number;
     globalAvgTempo: number | null;
     daysUntilProva: number | null;
+    // Autoral breakdown
+    totalAutoralRespondidas: number;
+    totalAutoralAcertadas: number;
+    autoralPerf: number | null;
+    concursoRespondidas: number;
+    concursoAcertadas: number;
+    concursoPerf: number | null;
+    // Composite
+    readinessScore: number;
   };
   disciplineStats: DisciplineStats[];
   insights: EditalInsight[];
@@ -186,7 +203,7 @@ const sToMin = (s: number) =>
   s < 60 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}min${Math.round(s % 60) > 0 ? `${Math.round(s % 60)}s` : ''}`;
 
 const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, inscrito?: boolean, context?: EditalContext): EditalAnalysis => {
-  
+
   // ── Global Stats ───────────────────────────────────────────────────────────
   const totalTopicos = topicos.length;
   const totalEstudados = topicos.filter(t => (t.totalEstudos ?? 0) > 0).length;
@@ -195,6 +212,14 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
   const totalAcertadas = topicos.reduce((s, t) => s + (t.questaoStats?.total?.acertadas ?? 0), 0);
   const globalBankRate = totalQuestoes > 0 ? totalRespondidas / totalQuestoes : 0;
   const globalPerf = totalRespondidas > 0 ? totalAcertadas / totalRespondidas : null;
+
+  // ── Autoral Stats ──────────────────────────────────────────────────────────
+  const totalAutoralRespondidas = topicos.reduce((s, t) => s + (t.questaoStats?.porAutoral?.respondidas ?? 0), 0);
+  const totalAutoralAcertadas = topicos.reduce((s, t) => s + (t.questaoStats?.porAutoral?.acertadas ?? 0), 0);
+  const autoralPerf = totalAutoralRespondidas > 0 ? totalAutoralAcertadas / totalAutoralRespondidas : null;
+  const concursoRespondidas = totalRespondidas - totalAutoralRespondidas;
+  const concursoAcertadas = totalAcertadas - totalAutoralAcertadas;
+  const concursoPerf = concursoRespondidas > 0 ? concursoAcertadas / concursoRespondidas : null;
 
   // ── Compute context stats ──────────────────────────────────────────────────
   let bancaTotal = 0, bancaCertas = 0;
@@ -271,6 +296,11 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
       });
     });
 
+    // Autoral per-discipline
+    const autoralRespondidas = tops.reduce((s, t) => s + (t.questaoStats?.porAutoral?.respondidas ?? 0), 0);
+    const autoralAcertadas = tops.reduce((s, t) => s + (t.questaoStats?.porAutoral?.acertadas ?? 0), 0);
+    const autoralPerf = autoralRespondidas > 0 ? autoralAcertadas / autoralRespondidas : null;
+
     disciplineStats.push({
       nome,
       topicos: tops,
@@ -287,6 +317,9 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
       daysSinceLastQuestion: daysQuestArr.length > 0 ? Math.min(...daysQuestArr) : Infinity,
       avgTempoResposta,
       dificuldade,
+      autoralRespondidas,
+      autoralAcertadas,
+      autoralPerf,
     });
   });
 
@@ -377,6 +410,76 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
     }
   }
 
+  // ── Autoral vs Concurso insights ──────────────────────────────────────────
+  if (autoralPerf !== null && concursoPerf !== null) {
+    const gap = autoralPerf - concursoPerf;
+    const hasMeaningfulSamples = totalAutoralRespondidas >= 10 && concursoRespondidas >= 10;
+
+    if (hasMeaningfulSamples && gap >= 0.15) {
+      insights.push({
+        severity: 'attention',
+        disciplina: 'Questões Autorais vs Concurso',
+        message: `Zona de conforto: ${pct(autoralPerf)} autorais vs ${pct(concursoPerf)} concurso`,
+        detail: 'Você performa bem em questões internas (autorais), mas cai significativamente nas de concurso real. O nível de cobrança de banca é diferente.',
+        subInsights: [
+          { icon: <BookOpen className="w-3 h-3" />, text: `Autorais: ${totalAutoralAcertadas}/${totalAutoralRespondidas} acertos (${pct(autoralPerf)})` },
+          { icon: <Building className="w-3 h-3" />, text: `Concurso: ${concursoAcertadas}/${concursoRespondidas} acertos (${pct(concursoPerf)})` },
+          { icon: <Target className="w-3 h-3" />, text: 'Aumente a proporção de questões de concurso reais para calibrar melhor.' },
+        ],
+        action: 'Bateria de questões',
+        urgency: 7,
+      });
+    } else if (hasMeaningfulSamples && gap <= -0.1) {
+      insights.push({
+        severity: 'strength',
+        disciplina: 'Questões Autorais vs Concurso',
+        message: `Melhor em concurso real: ${pct(concursoPerf)} vs ${pct(autoralPerf)} autorais`,
+        detail: 'Você performa melhor em questões de concurso real do que nas autorais — excelente sinal de calibração com o nível das bancas.',
+        subInsights: [
+          { icon: <Award className="w-3 h-3" />, text: 'Seu raciocínio está alinhado ao estilo das bancas. Mantenha o volume de questões reais.' },
+        ],
+        action: 'Manter cadência',
+        urgency: 1,
+      });
+    }
+  } else if (autoralPerf !== null && concursoPerf === null && totalAutoralRespondidas >= 15) {
+    insights.push({
+      severity: 'attention',
+      disciplina: 'Questões Autorais vs Concurso',
+      message: 'Praticando apenas com questões autorais',
+      detail: `Todas as ${totalAutoralRespondidas} questões respondidas são autorais — sem exposição ao estilo real das bancas.`,
+      subInsights: [
+        { icon: <FlaskConical className="w-3 h-3" />, text: 'Questões de concurso reais testam um estilo diferente de cobrança. Adicione-as ao ciclo.' },
+      ],
+      action: 'Bateria de questões',
+      urgency: 6,
+    });
+  }
+
+  // Per-discipline autoral gap insights
+  disciplineStats.forEach(disc => {
+    if (disc.autoralPerf === null || disc.performanceRate === null) return;
+    if (disc.autoralRespondidas < 5) return;
+    const discConcursoResp = disc.questoesRespondidas - disc.autoralRespondidas;
+    if (discConcursoResp < 5) return;
+    const discConcursoPerf = (disc.questoesAcertadas - disc.autoralAcertadas) / discConcursoResp;
+    const discGap = disc.autoralPerf - discConcursoPerf;
+    if (discGap >= 0.2 && discConcursoPerf < 0.55) {
+      insights.push({
+        severity: 'attention',
+        disciplina: disc.nome,
+        message: `Queda no concurso real: ${pct(disc.autoralPerf)} autorais vs ${pct(discConcursoPerf)} banca`,
+        detail: `Em ${disc.nome}, questões de concurso real revelam uma lacuna que as autorais não evidenciam.`,
+        subInsights: [
+          { icon: <SplitSquareHorizontal className="w-3 h-3" />, text: `Gap de ${pct(discGap)} entre seu desempenho interno e de banca real.` },
+          { icon: <Target className="w-3 h-3" />, text: 'Filtre questões desta disciplina por banca para exposição mais realista.' },
+        ],
+        action: 'Bateria de questões',
+        urgency: 6,
+      });
+    }
+  });
+
   // Per-discipline insights
   disciplineStats.forEach(disc => {
     const diffRate = (key: string): number | null => {
@@ -432,9 +535,11 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
       if (diffLine)
         sub.push({ icon: <BarChart2 className="w-3 h-3" />, text: diffLine });
       if (chuteRate > 0.15)
-        sub.push({ icon: <Zap className="w-3 h-3" />, text: `${pct(chuteRate)} das respostas foram no "Chute" — indício de falta de conhecimento.`, });
+        sub.push({ icon: <Zap className="w-3 h-3" />, text: `${pct(chuteRate)} das respostas foram no "Chute" — indício de falta de conhecimento.` });
       if (disc.totalEstudos < 3 && disc.questoesRespondidas > 5)
         sub.push({ icon: <Brain className="w-3 h-3" />, text: 'Pouca base teórica registrada. Revise o conteúdo antes de novas questões.' });
+      if (disc.autoralPerf !== null && disc.autoralPerf >= 0.6)
+        sub.push({ icon: <BookOpen className="w-3 h-3" />, text: `Atenção: acerto nas autorais (${pct(disc.autoralPerf)}) é melhor que a média geral. Verifique se está exposto a questões reais de banca.` });
       insights.push({
         severity: 'critical',
         disciplina: disc.nome,
@@ -580,6 +685,23 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
       return;
     }
 
+    // Speed risk: answering very fast but with low accuracy
+    if (disc.avgTempoResposta !== null && disc.avgTempoResposta < 30 && disc.questoesRespondidas >= 5 && disc.performanceRate !== null && disc.performanceRate < 0.6) {
+      insights.push({
+        severity: 'attention',
+        disciplina: disc.nome,
+        message: `Resposta apressada: ${sToMin(disc.avgTempoResposta)}/questão com ${pct(disc.performanceRate)} acerto`,
+        detail: 'Velocidade muito alta combinada com baixo acerto indica leitura superficial das questões.',
+        subInsights: [
+          { icon: <Timer className="w-3 h-3" />, text: `Tempo médio: ${sToMin(disc.avgTempoResposta)}/questão. Leitura atenta costuma render mais do que velocidade.` },
+          { icon: <Eye className="w-3 h-3" />, text: 'Pegadinhas de banca exigem atenção à redação. Desacelere e releia antes de marcar.' },
+        ],
+        action: 'Bateria de questões',
+        urgency: 6,
+      });
+      return;
+    }
+
     if (disc.avgTempoResposta !== null && disc.avgTempoResposta > 100 && disc.questoesRespondidas >= 5) {
       insights.push({
         severity: 'attention',
@@ -611,6 +733,22 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
       return;
     }
 
+    // High coverage but barely used bank
+    if (disc.coverageRate >= 0.75 && disc.totalQuestoes > 0 && disc.bankCoverageRate < 0.15 && disc.performanceRate === null) {
+      insights.push({
+        severity: 'attention',
+        disciplina: disc.nome,
+        message: `Boa cobertura teórica, banco inexplorado`,
+        detail: `Você cobriu ${pct(disc.coverageRate)} dos tópicos mas usou só ${pct(disc.bankCoverageRate)} do banco — não testou o que aprendeu.`,
+        subInsights: [
+          { icon: <FlaskConical className="w-3 h-3" />, text: `${disc.totalQuestoes} questões disponíveis. Começar a praticar agora consolidará a retenção.` },
+        ],
+        action: 'Bateria de questões',
+        urgency: 5,
+      });
+      return;
+    }
+
     if (disc.coverageRate >= 0.75) {
       const sub: SubInsight[] = [];
       if (diffLine)
@@ -619,6 +757,8 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
         sub.push({ icon: <FlaskConical className="w-3 h-3" />, text: `${pct(disc.bankCoverageRate)} do banco explorado. Considere provas de outras bancas.` });
       if (disc.avgTempoResposta !== null && disc.avgTempoResposta < 60 && disc.questoesRespondidas >= 5)
         sub.push({ icon: <Timer className="w-3 h-3" />, text: `Ritmo ágil: ${sToMin(disc.avgTempoResposta)}/questão.` });
+      if (disc.autoralPerf !== null && disc.performanceRate !== null)
+        sub.push({ icon: <BookOpen className="w-3 h-3" />, text: `Autorais: ${pct(disc.autoralPerf)}${disc.autoralPerf >= (disc.performanceRate - 0.05) ? ' — consistência entre autorais e concurso.' : ' — verifique gap com questões de banca.'}` });
 
       const perfStr = disc.performanceRate !== null ? `${pct(disc.performanceRate)} de acertos` : 'cobertura completa';
       insights.push({
@@ -668,6 +808,33 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
     });
   }
 
+  // Autoral comfort zone macro pattern
+  if (autoralPerf !== null && concursoPerf !== null && totalAutoralRespondidas >= 15 && concursoRespondidas >= 15) {
+    const globalGap = autoralPerf - concursoPerf;
+    if (globalGap >= 0.12) {
+      macroPatterns.push({
+        type: 'warning',
+        icon: <SplitSquareHorizontal className="w-4 h-4" />,
+        title: `Zona de conforto autoral detectada (gap de ${pct(globalGap)})`,
+        detail: `Você performa ${pct(globalGap)} melhor em questões internas do que em concursos reais. Aumente a proporção de questões de banca no seu ciclo.`,
+      });
+    } else if (globalGap <= -0.08) {
+      macroPatterns.push({
+        type: 'positive',
+        icon: <Award className="w-4 h-4" />,
+        title: 'Desempenho superior em questões de concurso',
+        detail: `Seu acerto em questões de banca real (${pct(concursoPerf)}) supera as autorais (${pct(autoralPerf)}) — você está calibrado para o nível das provas.`,
+      });
+    }
+  } else if (totalAutoralRespondidas >= 20 && concursoRespondidas === 0) {
+    macroPatterns.push({
+      type: 'info',
+      icon: <BookOpen className="w-4 h-4" />,
+      title: 'Todas as questões são autorais',
+      detail: 'Você ainda não resolveu nenhuma questão de concurso real. Inclua questões de banca para calibrar seu preparo.',
+    });
+  }
+
   const discsNeverStarted = disciplineStats.filter(d => d.estudados === 0 && d.questoesRespondidas === 0);
   const discsActive = disciplineStats.filter(d => d.daysSinceLastStudy < 14 || d.daysSinceLastQuestion < 14);
   const discsStale = disciplineStats.filter(d => d.daysSinceLastStudy > 30 && d.daysSinceLastStudy !== Infinity && d.estudados > 0);
@@ -681,6 +848,10 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
     const ct = d.dificuldade['CHUTE']?.total ?? 0;
     return d.questoesRespondidas > 0 && ct / d.questoesRespondidas > 0.2;
   });
+  // Speed risk across multiple disciplines
+  const discsSpeedRisk = disciplineStats.filter(d =>
+    d.avgTempoResposta !== null && d.avgTempoResposta < 30 && d.questoesRespondidas >= 5 && (d.performanceRate ?? 1) < 0.6
+  );
 
   if (discsNeverStarted.length >= 2) {
     macroPatterns.push({
@@ -715,6 +886,15 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
       icon: <FlaskConical className="w-4 h-4" />,
       title: 'Uso frequente do "Chute" em várias disciplinas',
       detail: 'Você está recorrendo à adivinhação constantemente. Isso reflete uma base teórica frágil que precisa ser reforçada antes de mais prática.',
+    });
+  }
+
+  if (discsSpeedRisk.length >= 2) {
+    macroPatterns.push({
+      type: 'warning',
+      icon: <Gauge className="w-4 h-4" />,
+      title: `Ritmo apressado em ${discsSpeedRisk.length} disciplinas`,
+      detail: `Em ${discsSpeedRisk.map(d => d.nome).join(', ')}, a velocidade de resposta é muito alta mas o acerto é baixo. Leitura atenta pode aumentar o aproveitamento.`,
     });
   }
 
@@ -781,6 +961,13 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
   if (studyNoPrac.length > 0)
     recommendations.push({ label: `Consolidar o que foi estudado: ${studyNoPrac.map(i => i.disciplina).join(', ')}.`, action: 'Bateria de questões', urgency: 7 });
 
+  // Autoral comfort zone recommendation
+  if (autoralPerf !== null && concursoPerf !== null && autoralPerf - concursoPerf >= 0.15 && concursoRespondidas >= 10) {
+    recommendations.push({ label: 'Aumentar proporção de questões de concurso real: seu desempenho cai ao sair das questões autorais.', action: 'Bateria de questões', urgency: 7 });
+  } else if (totalAutoralRespondidas >= 15 && concursoRespondidas === 0) {
+    recommendations.push({ label: 'Resolver questões de concursos reais para expor-se ao nível e estilo das bancas.', action: 'Bateria de questões', urgency: 6 });
+  }
+
   const falseSec = attentionInsights.filter(i => i.message.includes('Inconsistência'));
   if (falseSec.length > 0)
     recommendations.push({ label: `Aprofundar em questões médias/difíceis: ${falseSec.map(i => i.disciplina).join(', ')}.`, action: 'Bateria de questões', urgency: 7 });
@@ -804,6 +991,15 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
   // Global avg tempo
   const temposGlobal = topicos.filter(t => t.questaoStats?.total?.mediaTempoResposta != null && t.questaoStats?.total?.mediaTempoResposta! > 0).map(t => t.questaoStats?.total?.mediaTempoResposta!);
   const globalAvgTempo = temposGlobal.length > 0 ? temposGlobal.reduce((s, v) => s + v, 0) / temposGlobal.length : null;
+
+  // ── Readiness Score ────────────────────────────────────────────────────────
+  const coverageRate = totalTopicos > 0 ? totalEstudados / totalTopicos : 0;
+  const readinessScore = Math.round(
+    (coverageRate * 30) +
+    ((globalPerf ?? 0) * 40) +
+    (globalBankRate * 15) +
+    (criticalCount === 0 ? 15 : criticalCount <= 2 ? 8 : criticalCount <= 4 ? 3 : 0)
+  );
 
   // ── Prova-specific logic ─────────────────────────────────────────────────
   const daysToProva = daysUntil(dataProva);
@@ -859,7 +1055,7 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
         type: 'positive',
         icon: <Calendar className="w-4 h-4" />,
         title: `Prova em ${daysToProva}d — longo prazo`,
-        detail: 'Use the time for deep study and consistent cadence.',
+        detail: 'Aproveite para consolidar base profunda e manter cadência consistente.',
       });
     }
   } else if (!inscrito && dataProva && daysToProva !== null) {
@@ -979,12 +1175,19 @@ const analyzeEdital = (topicos: Types.SubtemaSummaryDto[], dataProva?: string, i
   return {
     summary: {
       totalTopicos, totalEstudados, totalQuestoes,
-      coverageRate: totalTopicos > 0 ? totalEstudados / totalTopicos : 0,
+      coverageRate,
       totalRespondidas, totalAcertadas,
       performanceRate: globalPerf,
       bankCoverageRate: globalBankRate,
       globalAvgTempo,
       daysUntilProva: daysToProva,
+      totalAutoralRespondidas,
+      totalAutoralAcertadas,
+      autoralPerf,
+      concursoRespondidas,
+      concursoAcertadas,
+      concursoPerf,
+      readinessScore,
     },
     disciplineStats,
     insights,
@@ -1107,7 +1310,167 @@ const SummaryBar = ({ label, value, total, color }: { label: string; value: numb
   </div>
 );
 
-// ─── New Panel: Context Stats ────────────────────────────────────────────────
+// ─── Readiness Score Ring ─────────────────────────────────────────────────────
+
+const ReadinessRing = ({ score }: { score: number }) => {
+  const radius = 20;
+  const circ = 2 * Math.PI * radius;
+  const offset = circ - (score / 100) * circ;
+  const color =
+    score >= 75 ? 'oklch(52% 0.14 150)' :
+    score >= 50 ? 'oklch(58% 0.16 65)' :
+    'oklch(55% 0.18 25)';
+  const label =
+    score >= 80 ? 'Excelente' :
+    score >= 65 ? 'Bom' :
+    score >= 45 ? 'Moderado' :
+    'Em formação';
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative w-14 h-14 flex items-center justify-center">
+        <svg className="absolute inset-0 -rotate-90" width="56" height="56" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r={radius} fill="none" stroke="oklch(94% 0.01 250)" strokeWidth="5" />
+          <circle
+            cx="28" cy="28" r={radius} fill="none"
+            stroke={color} strokeWidth="5"
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+          />
+        </svg>
+        <span className="text-sm font-black text-slate-800 tabular-nums leading-none">{score}</span>
+      </div>
+      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+    </div>
+  );
+};
+
+// ─── Autoral vs Concurso Panel ────────────────────────────────────────────────
+
+const AutoralVsConcursoPanel = ({ summary }: { summary: EditalAnalysis['summary'] }) => {
+  const { autoralPerf, concursoPerf, totalAutoralRespondidas, concursoRespondidas, totalAutoralAcertadas, concursoAcertadas } = summary;
+
+  const hasAutoral = totalAutoralRespondidas > 0;
+  const hasConcurso = concursoRespondidas > 0;
+
+  if (!hasAutoral && !hasConcurso) return null;
+
+  const autoralPct = autoralPerf !== null ? Math.round(autoralPerf * 100) : null;
+  const concursoPct = concursoPerf !== null ? Math.round(concursoPerf * 100) : null;
+
+  const gap = autoralPerf !== null && concursoPerf !== null ? autoralPerf - concursoPerf : null;
+  const bothHaveData = autoralPerf !== null && concursoPerf !== null && totalAutoralRespondidas >= 5 && concursoRespondidas >= 5;
+
+  let gapNote = '';
+  let gapColor = 'text-slate-500';
+  if (bothHaveData && gap !== null) {
+    if (gap >= 0.15) {
+      gapNote = `Gap de ${pct(Math.abs(gap))} — você vai melhor nas autorais. Mais questões de banca são recomendadas.`;
+      gapColor = 'text-amber-600';
+    } else if (gap <= -0.08) {
+      gapNote = `Você vai melhor em concurso real (+${pct(Math.abs(gap))}). Ótimo sinal de calibração.`;
+      gapColor = 'text-emerald-600';
+    } else {
+      gapNote = 'Desempenho consistente entre autorais e concurso real. Bom sinal.';
+      gapColor = 'text-slate-500';
+    }
+  }
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-bold text-slate-900 tracking-tight">Questões Autorais vs Concurso</h2>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+            Comparativo de desempenho por origem das questões
+          </p>
+        </div>
+        <SplitSquareHorizontal className="w-4 h-4 text-slate-300" />
+      </div>
+      <div className="p-4">
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          {/* Autoral */}
+          <div className={`rounded-lg border p-3 ${hasAutoral ? 'border-indigo-100 bg-indigo-50/30' : 'border-slate-100 bg-slate-50/50'}`}>
+            <div className="flex items-center gap-1.5 mb-2">
+              <BookOpen className="w-3 h-3 text-indigo-400 flex-shrink-0" />
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Autoral</p>
+            </div>
+            {hasAutoral ? (
+              <>
+                <p className={`text-xl font-black leading-none tabular-nums ${
+                  autoralPct !== null && autoralPct >= 70 ? 'text-emerald-600' :
+                  autoralPct !== null && autoralPct >= 50 ? 'text-amber-600' : 'text-rose-600'
+                }`}>
+                  {autoralPct !== null ? `${autoralPct}%` : '—'}
+                </p>
+                <p className="text-[9px] text-slate-400 font-medium mt-0.5">{totalAutoralAcertadas}/{totalAutoralRespondidas} acertos</p>
+                {autoralPct !== null && (
+                  <div className="mt-2 h-1 bg-slate-200/60 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-500 ${
+                      autoralPct >= 70 ? 'bg-emerald-400' : autoralPct >= 50 ? 'bg-amber-400' : 'bg-rose-400'
+                    }`} style={{ width: `${autoralPct}%` }} />
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-[10px] text-slate-400 font-medium mt-1">Sem questões</p>
+            )}
+          </div>
+
+          {/* Concurso */}
+          <div className={`rounded-lg border p-3 ${hasConcurso ? 'border-violet-100 bg-violet-50/20' : 'border-slate-100 bg-slate-50/50'}`}>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Building className="w-3 h-3 text-violet-400 flex-shrink-0" />
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Concurso</p>
+            </div>
+            {hasConcurso ? (
+              <>
+                <p className={`text-xl font-black leading-none tabular-nums ${
+                  concursoPct !== null && concursoPct >= 70 ? 'text-emerald-600' :
+                  concursoPct !== null && concursoPct >= 50 ? 'text-amber-600' : 'text-rose-600'
+                }`}>
+                  {concursoPct !== null ? `${concursoPct}%` : '—'}
+                </p>
+                <p className="text-[9px] text-slate-400 font-medium mt-0.5">{concursoAcertadas}/{concursoRespondidas} acertos</p>
+                {concursoPct !== null && (
+                  <div className="mt-2 h-1 bg-slate-200/60 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-500 ${
+                      concursoPct >= 70 ? 'bg-emerald-400' : concursoPct >= 50 ? 'bg-amber-400' : 'bg-rose-400'
+                    }`} style={{ width: `${concursoPct}%` }} />
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-[10px] text-slate-400 font-medium mt-1">Sem questões</p>
+            )}
+          </div>
+        </div>
+
+        {gapNote && (
+          <p className={`text-[10px] font-semibold leading-relaxed ${gapColor}`}>
+            {gapNote}
+          </p>
+        )}
+
+        {hasAutoral && !hasConcurso && (
+          <p className="text-[10px] font-semibold text-amber-600 leading-relaxed">
+            Todo seu histórico é de questões autorais. Inclua questões de concurso real para calibrar seu preparo com o estilo das bancas.
+          </p>
+        )}
+
+        {!hasAutoral && hasConcurso && (
+          <p className="text-[10px] font-semibold text-indigo-600 leading-relaxed">
+            Todas as questões são de concurso. Questões autorais podem complementar o estudo com foco mais personalizado.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Context Stats Panel ──────────────────────────────────────────────────────
 
 const ContextStatsPanel = ({ stats, context }: { stats: ContextStats; context: EditalContext }) => {
   const metrics = [
@@ -1135,7 +1498,7 @@ const ContextStatsPanel = ({ stats, context }: { stats: ContextStats; context: E
           const hasData = m.data.total > 0;
           const perf = m.data.perf;
           const accStr = perf !== null ? Math.round(perf * 100) + '%' : '—';
-          
+
           return (
             <div key={m.key} className="flex flex-col border border-slate-100 rounded-lg p-3 bg-slate-50/50">
               <div className="flex items-start gap-2.5 mb-2">
@@ -1157,7 +1520,7 @@ const ContextStatsPanel = ({ stats, context }: { stats: ContextStats; context: E
                     }`}>{accStr}</span>
                   </div>
                   <div className="h-1.5 bg-slate-200/60 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className={`h-full rounded-full transition-all duration-500 ${
                         perf! >= 0.7 ? 'bg-emerald-400' : perf! >= 0.5 ? 'bg-amber-400' : 'bg-rose-400'
                       }`}
@@ -1180,7 +1543,7 @@ const ContextStatsPanel = ({ stats, context }: { stats: ContextStats; context: E
   );
 };
 
-// ─── New Panel: Mapa de Disciplinas ──────────────────────────────────────────
+// ─── Discipline Map ───────────────────────────────────────────────────────────
 
 const DiscMap = ({ disciplineStats }: { disciplineStats: DisciplineStats[] }) => {
   const sorted = [...disciplineStats].sort((a, b) => {
@@ -1206,6 +1569,14 @@ const DiscMap = ({ disciplineStats }: { disciplineStats: DisciplineStats[] }) =>
           const lastActivity = Math.min(disc.daysSinceLastStudy, disc.daysSinceLastQuestion);
           const activityLabel = lastActivity === Infinity ? 'Nunca' : lastActivity === 0 ? 'Hoje' : lastActivity === 1 ? 'Ontem' : `${lastActivity}d`;
           const activityColor = lastActivity <= 7 ? 'text-emerald-600' : lastActivity <= 30 ? 'text-amber-600' : 'text-rose-500';
+
+          // Autoral gap indicator
+          const autoralPct = disc.autoralPerf !== null ? Math.round(disc.autoralPerf * 100) : null;
+          const discConcursoResp = disc.questoesRespondidas - disc.autoralRespondidas;
+          const discConcursoPerf = discConcursoResp > 0 ? (disc.questoesAcertadas - disc.autoralAcertadas) / discConcursoResp : null;
+          const hasAutoralGap = autoralPct !== null && discConcursoPerf !== null &&
+            disc.autoralRespondidas >= 5 && discConcursoResp >= 5 &&
+            (disc.autoralPerf! - discConcursoPerf) >= 0.15;
 
           return (
             <div key={disc.nome} className={`px-5 py-3.5 ${neverStarted ? 'bg-red-50/30' : ''}`}>
@@ -1259,6 +1630,12 @@ const DiscMap = ({ disciplineStats }: { disciplineStats: DisciplineStats[] }) =>
                           banco: <span className="font-bold text-slate-500">{Math.round(disc.bankCoverageRate * 100)}%</span>
                         </span>
                       )}
+                      {autoralPct !== null && disc.autoralRespondidas >= 3 && (
+                        <span className={`text-[9px] font-medium ${hasAutoralGap ? 'text-amber-500' : 'text-slate-400'}`}>
+                          autoral: <span className="font-bold">{autoralPct}%</span>
+                          {hasAutoralGap && ' ⚠'}
+                        </span>
+                      )}
                     </div>
                   )}
                   {neverStarted && (
@@ -1274,7 +1651,7 @@ const DiscMap = ({ disciplineStats }: { disciplineStats: DisciplineStats[] }) =>
   );
 };
 
-// ─── New Panel: Análise de Dificuldade ───────────────────────────────────────
+// ─── Difficulty Panel ─────────────────────────────────────────────────────────
 
 const DifficultyPanel = ({ difficultyAggregate }: { difficultyAggregate: DifficultyAggregate[] }) => {
   if (difficultyAggregate.length === 0) return null;
@@ -1359,7 +1736,7 @@ const DifficultyPanel = ({ difficultyAggregate }: { difficultyAggregate: Difficu
   );
 };
 
-// ─── New Panel: Tópicos Prioritários ─────────────────────────────────────────
+// ─── Priority Topics Panel ────────────────────────────────────────────────────
 
 const PriorityTopicsPanel = ({ topics }: { topics: PriorityTopic[] }) => {
   const [showAll, setShowAll] = useState(false);
@@ -1422,11 +1799,13 @@ const PriorityTopicsPanel = ({ topics }: { topics: PriorityTopic[] }) => {
   );
 };
 
-const EditalAnalysisReport: React.FC<EditalAnalysisReportProps> = ({ 
-  topicos, 
-  dataProva, 
-  inscrito, 
-  banca, 
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+const EditalAnalysisReport: React.FC<EditalAnalysisReportProps> = ({
+  topicos,
+  dataProva,
+  inscrito,
+  banca,
   instituicao,
   areaInstituicao,
   cargoId,
@@ -1456,6 +1835,10 @@ const EditalAnalysisReport: React.FC<EditalAnalysisReportProps> = ({
   const attentionInsights = analysis.insights.filter(i => i.severity === 'attention');
   const strengthInsights  = analysis.insights.filter(i => i.severity === 'strength');
 
+  // Show autoral panel when there's meaningful data
+  const showAutoralPanel =
+    analysis.summary.totalAutoralRespondidas > 0 || analysis.summary.concursoRespondidas > 0;
+
   return (
     <>
       {/* Macro patterns */}
@@ -1478,42 +1861,49 @@ const EditalAnalysisReport: React.FC<EditalAnalysisReportProps> = ({
           <Sparkles className="w-4 h-4 text-indigo-400" />
         </div>
         <div className="p-5">
-          <div className="grid grid-cols-3 gap-4 mb-5">
-            <div className="text-center">
-              <p className="text-2xl font-black tracking-tight leading-none" style={{
-                color: analysis.summary.coverageRate >= 0.75 ? 'oklch(52% 0.14 150)' : analysis.summary.coverageRate >= 0.4 ? 'oklch(58% 0.16 65)' : 'oklch(55% 0.18 25)'
-              }}>{Math.round(analysis.summary.coverageRate * 100)}%</p>
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Cobertura</p>
+          {/* Top row: core metrics + readiness ring */}
+          <div className="flex items-start gap-4 mb-5">
+            <div className="flex-1 grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-black tracking-tight leading-none" style={{
+                  color: analysis.summary.coverageRate >= 0.75 ? 'oklch(52% 0.14 150)' : analysis.summary.coverageRate >= 0.4 ? 'oklch(58% 0.16 65)' : 'oklch(55% 0.18 25)'
+                }}>{Math.round(analysis.summary.coverageRate * 100)}%</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Cobertura</p>
+              </div>
+              <div className="text-center border-x border-slate-100">
+                {analysis.summary.performanceRate !== null ? (
+                  <>
+                    <p className="text-2xl font-black tracking-tight leading-none" style={{
+                      color: analysis.summary.performanceRate >= 0.7 ? 'oklch(52% 0.14 150)' : analysis.summary.performanceRate >= 0.5 ? 'oklch(58% 0.16 65)' : 'oklch(55% 0.18 25)'
+                    }}>{Math.round(analysis.summary.performanceRate * 100)}%</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Acertos</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-2xl font-black text-slate-200 tracking-tight leading-none">—</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Acertos</p>
+                  </>
+                )}
+              </div>
+              <div className="text-center">
+                {analysis.summary.globalAvgTempo !== null ? (
+                  <>
+                    <p className="text-xl font-black tracking-tight leading-none text-slate-700">{sToMin(analysis.summary.globalAvgTempo)}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Tempo médio</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-2xl font-black leading-none" style={{
+                      color: criticalInsights.length === 0 ? 'oklch(52% 0.14 150)' : criticalInsights.length <= 2 ? 'oklch(58% 0.16 65)' : 'oklch(55% 0.18 25)'
+                    }}>{criticalInsights.length === 0 ? '✓' : criticalInsights.length}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">{criticalInsights.length === 0 ? 'Saúde OK' : 'Críticos'}</p>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="text-center border-x border-slate-100">
-              {analysis.summary.performanceRate !== null ? (
-                <>
-                  <p className="text-2xl font-black tracking-tight leading-none" style={{
-                    color: analysis.summary.performanceRate >= 0.7 ? 'oklch(52% 0.14 150)' : analysis.summary.performanceRate >= 0.5 ? 'oklch(58% 0.16 65)' : 'oklch(55% 0.18 25)'
-                  }}>{Math.round(analysis.summary.performanceRate * 100)}%</p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Acertos</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-2xl font-black text-slate-200 tracking-tight leading-none">—</p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Acertos</p>
-                </>
-              )}
-            </div>
-            <div className="text-center">
-              {analysis.summary.globalAvgTempo !== null ? (
-                <>
-                  <p className="text-xl font-black tracking-tight leading-none text-slate-700">{sToMin(analysis.summary.globalAvgTempo)}</p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">Tempo médio</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-2xl font-black leading-none" style={{
-                    color: criticalInsights.length === 0 ? 'oklch(52% 0.14 150)' : criticalInsights.length <= 2 ? 'oklch(58% 0.16 65)' : 'oklch(55% 0.18 25)'
-                  }}>{criticalInsights.length === 0 ? '✓' : criticalInsights.length}</p>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-1">{criticalInsights.length === 0 ? 'Saúde OK' : 'Críticos'}</p>
-                </>
-              )}
+            {/* Readiness ring */}
+            <div className="flex-shrink-0 pl-4 border-l border-slate-100">
+              <ReadinessRing score={analysis.summary.readinessScore} />
             </div>
           </div>
 
@@ -1565,6 +1955,13 @@ const EditalAnalysisReport: React.FC<EditalAnalysisReportProps> = ({
       {analysis.contextStats && analysis.context && (
         <div className="mb-6">
           <ContextStatsPanel stats={analysis.contextStats} context={analysis.context} />
+        </div>
+      )}
+
+      {/* Autoral vs Concurso Panel */}
+      {showAutoralPanel && (
+        <div className="mb-6">
+          <AutoralVsConcursoPanel summary={analysis.summary} />
         </div>
       )}
 
