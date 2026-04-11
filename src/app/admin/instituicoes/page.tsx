@@ -5,16 +5,17 @@ import PageHeader from '@/components/ui/PageHeader';
 import { instituicaoService } from '@/services/api';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
-import { 
-  Library, 
-  Plus, 
-  Pencil, 
-  Trash2, 
+import {
+  Library,
+  Plus,
+  Pencil,
+  Trash2,
   ChevronLeft,
   ChevronRight,
   AlertCircle,
   Loader2,
-  MapPin
+  MapPin,
+  Search
 } from 'lucide-react';
 
 type InstituicaoDto = Types.InstituicaoSummaryDto;
@@ -28,9 +29,10 @@ export default function InstituicoesPage() {
   const [formData, setFormData] = useState<{ nome: string, area: string }>({ nome: '', area: '' });
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [filterNome, setFilterNome] = useState('');
 
   usePageTitle('Instituições', 'Admin');
-  
+
   const [pagination, setPagination] = useState<Types.PageResponse<InstituicaoDto>>({
     content: [],
     pageNumber: 0,
@@ -41,11 +43,11 @@ export default function InstituicoesPage() {
   });
   const [currentPage, setCurrentPage] = useState(0);
 
-  const loadInstituicoes = useCallback(async (page: number = 0) => {
+  const loadInstituicoes = useCallback(async (page: number = 0, nome: string = filterNome) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await instituicaoService.getAll({ page, size: 20 });
+      const data = await instituicaoService.getAll({ page, size: 20, nome: nome || undefined });
       setInstituicoes(data.content);
       setPagination(data);
       setCurrentPage(page);
@@ -58,7 +60,7 @@ export default function InstituicoesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterNome]);
 
   useEffect(() => {
     loadInstituicoes(0);
@@ -144,6 +146,31 @@ export default function InstituicoesPage() {
           ) : null
         }
       />
+
+      {!loading && !error && instituicoes.length > 0 && (
+      <div className="bg-white shadow-sm rounded-lg p-4 mb-6 border border-gray-200 flex items-center gap-4">
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Filtrar por nome..."
+            value={filterNome}
+            onChange={(e) => setFilterNome(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+        {filterNome && (
+          <button
+            onClick={() => setFilterNome('')}
+            className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+          >
+            Limpar
+          </button>
+        )}
+      </div>
+      )}
 
       {showForm && (
         <div className="bg-white shadow-md rounded-lg p-6 mb-6 border border-gray-100 animate-in fade-in slide-in-from-top-4 duration-200">

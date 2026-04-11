@@ -277,7 +277,7 @@ export default function SimuladoDetailPage() {
         subtitle={isFinished ? "Simulado Finalizado" : "Em Andamento"}
         breadcrumbs={[
           { label: 'Simulados', href: '/simulados' },
-          { label: simuladoTitle }
+          { label: simuladoTitle || simulado.nome }
         ]}
       />
 
@@ -302,7 +302,7 @@ export default function SimuladoDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 space-y-6">
             <QuestionCard
-              concurso={concurso}
+              concurso={concurso ?? undefined}
               cargos={currentQuestion.cargos}
               enunciado={currentQuestion.enunciado}
               imageUrl={currentQuestion.imageUrl}

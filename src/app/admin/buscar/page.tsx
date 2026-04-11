@@ -115,16 +115,24 @@ export default function SearchBrowsePage() {
 
   const loadTemaOptions = async (inputValue: string) => {
     if (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) {
-      const data = await temaService.getByDisciplina(watchedFields.selectedDisciplina.value);
-      return [{ value: 0, label: 'Todos os temas' }, ...data.map(t => ({ value: t.id, label: t.nome })).filter(o => o.label.toLowerCase().includes(inputValue.toLowerCase()))];
+      const data = await temaService.getAll({ 
+        disciplinaIds: watchedFields.selectedDisciplina.value,
+        nome: inputValue,
+        size: 100 
+      });
+      return [{ value: 0, label: 'Todos os temas' }, ...data.content.map(t => ({ value: t.id, label: t.nome }))];
     }
     return [{ value: 0, label: 'Todos os temas' }];
   };
 
   const loadSubtemaOptions = async (inputValue: string) => {
     if (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) {
-      const data = await subtemaService.getByTema(watchedFields.selectedTema.value);
-      return [{ value: 0, label: 'Todos os subtemas' }, ...data.map(s => ({ value: s.id, label: s.nome })).filter(o => o.label.toLowerCase().includes(inputValue.toLowerCase()))];
+      const data = await subtemaService.getAll({ 
+        temaIds: watchedFields.selectedTema.value,
+        nome: inputValue,
+        size: 100 
+      });
+      return [{ value: 0, label: 'Todos os subtemas' }, ...data.content.map(s => ({ value: s.id, label: s.nome }))];
     }
     return [{ value: 0, label: 'Todos os subtemas' }];
   };

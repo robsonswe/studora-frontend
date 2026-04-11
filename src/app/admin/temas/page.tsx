@@ -16,7 +16,8 @@ import {
   ChevronRight,
   AlertCircle,
   Loader2,
-  BookOpen
+  BookOpen,
+  Search
 } from 'lucide-react';
 
 type TemaDto = Types.TemaSummaryDto;
@@ -30,6 +31,9 @@ export default function TemasPage() {
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [localLoading, setLocalLoading] = useState(false);
   
+  const [filterNome, setFilterNome] = useState('');
+  const [filterDisciplina, setFilterDisciplina] = useState<{ value: number, label: string } | null>(null);
+
   const [pagination, setPagination] = useState<Types.PageResponse<TemaDto>>({
     content: [],
     pageNumber: 0,
@@ -51,11 +55,16 @@ export default function TemasPage() {
 
   usePageTitle('Temas', 'Admin');
 
-  const loadTemas = useCallback(async (page: number = 0) => {
+  const loadTemas = useCallback(async (page: number = 0, nome: string = filterNome, discId?: number) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await temaService.getAll({ page, size: 20 });
+      const data = await temaService.getAll({ 
+        page, 
+        size: 20, 
+        nome: nome || undefined,
+        disciplinaIds: discId || undefined
+      });
       setTemas(data.content);
       setPagination(data);
       setCurrentPage(page);
@@ -68,11 +77,14 @@ export default function TemasPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterNome]);
 
   useEffect(() => {
-    loadTemas(0);
-  }, [loadTemas]);
+    const timer = setTimeout(() => {
+      loadTemas(0, filterNome, filterDisciplina?.value);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filterNome, filterDisciplina, loadTemas]);
 
   const loadDisciplinaOptions = async (inputValue: string) => {
     try {
@@ -185,6 +197,37 @@ export default function TemasPage() {
           ) : null
         } 
       />
+
+      {!loading && !error && temas.length > 0 && (
+      <div className="bg-white shadow-sm rounded-lg p-4 mb-6 border border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Filtrar por nome..."
+            value={filterNome}
+            onChange={(e) => setFilterNome(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+        <div>
+          <AsyncSelect
+            instanceId="filter-disciplina-select"
+            cacheOptions
+            defaultOptions
+            loadOptions={loadDisciplinaOptions}
+            value={filterDisciplina}
+            onChange={(val) => setFilterDisciplina(val)}
+            placeholder="Filtrar por disciplina..."
+            isClearable
+            styles={selectStyles}
+            menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+          />
+        </div>
+      </div>
+      )}
 
       {showForm && (
         <div className="bg-white shadow-md rounded-lg p-6 mb-6 border border-gray-100 animate-in fade-in slide-in-from-top-4 duration-200">

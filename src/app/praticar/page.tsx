@@ -218,10 +218,14 @@ export default function QuestaoPracticePage() {
 
   const loadTemaOptions = async (inputValue: string) => {
     if (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) {
-      const data = await temaService.getByDisciplina(watchedFields.selectedDisciplina.value);
+      const data = await temaService.getAll({ 
+        disciplinaIds: watchedFields.selectedDisciplina.value, 
+        nome: inputValue,
+        size: 50 
+      });
       return [
         { value: 0, label: 'Todos os temas' },
-        ...data.filter((t) => t.nome.toLowerCase().includes(inputValue.toLowerCase())).map((t) => ({ value: t.id, label: t.nome })),
+        ...data.content.map((t) => ({ value: t.id, label: t.nome })),
       ];
     }
     return [{ value: 0, label: 'Todos os temas' }];
@@ -229,10 +233,14 @@ export default function QuestaoPracticePage() {
 
   const loadSubtemaOptions = async (inputValue: string) => {
     if (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) {
-      const data = await subtemaService.getByTema(watchedFields.selectedTema.value);
+      const data = await subtemaService.getAll({ 
+        temaIds: watchedFields.selectedTema.value, 
+        nome: inputValue,
+        size: 50 
+      });
       return [
         { value: 0, label: 'Todos os subtemas' },
-        ...data.filter((s) => s.nome.toLowerCase().includes(inputValue.toLowerCase())).map((s) => ({ value: s.id, label: s.nome })),
+        ...data.content.map((s) => ({ value: s.id, label: s.nome })),
       ];
     }
     return [{ value: 0, label: 'Todos os subtemas' }];
@@ -536,7 +544,7 @@ export default function QuestaoPracticePage() {
         )}
 
         <QuestionCard
-          concurso={concurso}
+          concurso={concurso ?? undefined}
           cargos={currentQuestion.cargos}
           enunciado={currentQuestion.enunciado}
           imageUrl={currentQuestion.imageUrl}

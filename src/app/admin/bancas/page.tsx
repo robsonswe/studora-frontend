@@ -15,7 +15,8 @@ import {
   ChevronRight,
   AlertCircle,
   Loader2,
-  Fingerprint
+  Fingerprint,
+  Search
 } from 'lucide-react';
 
 type BancaDto = Types.BancaSummaryDto;
@@ -29,9 +30,10 @@ export default function BancasPage() {
   const [formData, setFormData] = useState<{ nome: string }>({ nome: '' });
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [filterNome, setFilterNome] = useState('');
 
   usePageTitle('Bancas', 'Admin');
-  
+
   const [pagination, setPagination] = useState<Types.PageResponse<any>>({
     content: [],
     pageNumber: 0,
@@ -42,11 +44,11 @@ export default function BancasPage() {
   });
   const [currentPage, setCurrentPage] = useState(0);
 
-  const loadBancas = useCallback(async (page: number = 0) => {
+  const loadBancas = useCallback(async (page: number = 0, nome: string = filterNome) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await bancaService.getAll({ page, size: 20 });
+      const data = await bancaService.getAll({ page, size: 20, nome: nome || undefined });
       setBancas(data.content);
       setPagination(data);
       setCurrentPage(page);
@@ -59,7 +61,7 @@ export default function BancasPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterNome]);
 
   useEffect(() => {
     loadBancas(0);
@@ -144,6 +146,31 @@ export default function BancasPage() {
           ) : null
         }
       />
+
+      {!loading && !error && bancas.length > 0 && (
+      <div className="bg-white shadow-sm rounded-lg p-4 mb-6 border border-gray-200 flex items-center gap-4">
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Filtrar por nome..."
+            value={filterNome}
+            onChange={(e) => setFilterNome(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+        {filterNome && (
+          <button
+            onClick={() => setFilterNome('')}
+            className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+          >
+            Limpar
+          </button>
+        )}
+      </div>
+      )}
 
       {showForm && (
         <div className="bg-white shadow-md rounded-lg p-6 mb-6 border border-gray-100 animate-in fade-in slide-in-from-top-4 duration-200">

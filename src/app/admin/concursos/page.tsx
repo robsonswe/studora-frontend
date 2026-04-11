@@ -1,18 +1,19 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useForm } from 'react-hook-form';
 import PageHeader from '@/components/ui/PageHeader';
 import { concursoService, bancaService, instituicaoService, cargoService, subtemaService } from '@/services/api';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import AsyncSelect from 'react-select/async';
 import { formatNivel, formatDateTime, utcToLocalInputValue, localInputValueToUtc } from '@/utils/formatters';
-import { 
-  FileText, 
-  Plus, 
-  Pencil, 
-  Trash2, 
-  Calendar, 
+import {
+  FileText,
+  Plus,
+  Pencil,
+  Trash2,
+  Calendar,
   ExternalLink,
   ChevronLeft,
   ChevronRight,
@@ -20,7 +21,9 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  Hash
+  Hash,
+  SlidersHorizontal,
+  X
 } from 'lucide-react';
 
 type ConcursoDto = Types.ConcursoSummaryDto;
@@ -73,7 +76,20 @@ export default function ConcursosAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<ConcursoDto | null>(null);
-  
+
+  // Filter state
+  const { setValue, watch, reset: resetFilters } = useForm({
+    defaultValues: {
+      selectedBanca: null as { value: number, label: string } | null,
+      selectedInstituicao: null as { value: number, label: string } | null,
+      selectedCargoNivel: '',
+      selectedInstituicaoArea: null as { value: string, label: string } | null,
+      selectedCargoArea: null as { value: string, label: string } | null,
+    }
+  });
+  const watchedFields = watch();
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
   const [formData, setFormData] = useState<any>({
     instituicao: null as { value: number, label: string } | null,
     banca: null as { value: number, label: string } | null,
@@ -115,7 +131,17 @@ export default function ConcursosAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await concursoService.getAll({ page, size: 20 });
+      const params: Record<string, any> = {
+        page,
+        size: 20,
+        bancaId: watchedFields.selectedBanca?.value || undefined,
+        instituicaoId: watchedFields.selectedInstituicao?.value || undefined,
+        instituicaoArea: watchedFields.selectedInstituicaoArea?.value || undefined,
+        cargoArea: watchedFields.selectedCargoArea?.value || undefined,
+        cargoNivel: watchedFields.selectedCargoNivel || undefined,
+      };
+
+      const data = await concursoService.getAll(params);
       setConcursos(data.content);
       setPagination(data);
       setCurrentPage(page);
@@ -128,7 +154,13 @@ export default function ConcursosAdminPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [
+    watchedFields.selectedBanca,
+    watchedFields.selectedInstituicao,
+    watchedFields.selectedInstituicaoArea,
+    watchedFields.selectedCargoArea,
+    watchedFields.selectedCargoNivel
+  ]);
 
   useEffect(() => {
     loadConcursos(0);
@@ -160,6 +192,26 @@ export default function ConcursosAdminPage() {
       return data.content.map(c => ({ value: c.id, label: `${c.nome} - ${c.area} (${formatNivel(c.nivel)})` }));
     } catch (err) {
       console.error('Erro ao carregar cargos:', err);
+      return [];
+    }
+  };
+
+  const loadInstituicaoAreaOptions = async (inputValue: string) => {
+    try {
+      const areas = await instituicaoService.getAreas(inputValue);
+      return areas.map(area => ({ value: area, label: area }));
+    } catch (err) {
+      console.error('Erro ao carregar áreas de instituição:', err);
+      return [];
+    }
+  };
+
+  const loadCargoAreaOptions = async (inputValue: string) => {
+    try {
+      const areas = await cargoService.getAreas(inputValue);
+      return areas.map(area => ({ value: area, label: area }));
+    } catch (err) {
+      console.error('Erro ao carregar áreas de cargo:', err);
       return [];
     }
   };
@@ -409,6 +461,121 @@ export default function ConcursosAdminPage() {
           ) : null
         } 
       />
+
+      {!loading && !error && (concursos.length > 0 || showForm) && (
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-8 overflow-hidden">
+        <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-slate-50 bg-slate-50/20">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+              Filtros
+            </h2>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { resetFilters(); setShowAdvancedFilters(false); }}
+                className="text-xs text-slate-400 hover:text-indigo-600 font-bold transition-colors active:scale-95 tracking-tight px-3 py-2 rounded-lg hover:bg-slate-50"
+              >
+                Limpar filtros
+              </button>
+              <button
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="text-xs text-indigo-600 hover:text-indigo-700 font-bold bg-indigo-50/30 px-3 py-2 rounded-lg transition-all border border-indigo-100/30 hover:bg-indigo-50 active:scale-95 tracking-tight"
+              >
+                {showAdvancedFilters ? 'Filtros básicos' : 'Mais opções'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="space-y-2">
+              <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Banca Organizadora</label>
+              <AsyncSelect
+                instanceId="filter-banca-select"
+                cacheOptions
+                defaultOptions
+                loadOptions={loadBancaOptions}
+                value={watchedFields.selectedBanca}
+                onChange={(val) => setValue('selectedBanca', val)}
+                isClearable
+                placeholder="Pesquisar banca..."
+                styles={selectStyles}
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Instituição</label>
+              <AsyncSelect
+                instanceId="filter-instituicao-select"
+                cacheOptions
+                defaultOptions
+                loadOptions={loadInstituicaoOptions}
+                value={watchedFields.selectedInstituicao}
+                onChange={(val) => setValue('selectedInstituicao', val)}
+                isClearable
+                placeholder="Pesquisar instituição..."
+                styles={selectStyles}
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Nível de Escolaridade</label>
+              <select
+                value={watchedFields.selectedCargoNivel}
+                onChange={(e) => setValue('selectedCargoNivel', e.target.value)}
+                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+              >
+                <option value="">Todos os níveis</option>
+                <option value="FUNDAMENTAL">Fundamental</option>
+                <option value="MEDIO">Médio</option>
+                <option value="SUPERIOR">Superior</option>
+              </select>
+            </div>
+          </div>
+
+          <div
+            className={`grid transition-all duration-300 ease-in-out ${
+              showAdvancedFilters ? 'grid-rows-[1fr] opacity-100 mt-6' : 'grid-rows-[0fr] opacity-0 mt-0'
+            }`}
+          >
+            <div className="overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div className="space-y-2">
+                  <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Área de Atuação (Instituição)</label>
+                  <AsyncSelect
+                    instanceId="filter-instituicao-area-select"
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={loadInstituicaoAreaOptions}
+                    value={watchedFields.selectedInstituicaoArea}
+                    onChange={(val) => setValue('selectedInstituicaoArea', val)}
+                    isClearable
+                    placeholder="Filtrar por área..."
+                    styles={selectStyles}
+                    menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Área de Atuação (Cargo)</label>
+                  <AsyncSelect
+                    instanceId="filter-cargo-area-select"
+                    cacheOptions
+                    defaultOptions
+                    loadOptions={loadCargoAreaOptions}
+                    value={watchedFields.selectedCargoArea}
+                    onChange={(val) => setValue('selectedCargoArea', val)}
+                    isClearable
+                    placeholder="Filtrar por área do cargo..."
+                    styles={selectStyles}
+                    menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      )}
 
       {showForm && (
         <div className="bg-white shadow-xl rounded-xl p-8 mb-8 border border-indigo-100 animate-in fade-in slide-in-from-top-4 duration-200">

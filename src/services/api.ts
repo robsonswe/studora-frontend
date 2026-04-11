@@ -31,7 +31,11 @@ const buildQueryString = (params?: Record<string, any>): string => {
   if (!params) return '';
   const query = Object.entries(params)
     .filter(([_, value]) => value !== undefined && value !== null)
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .map(([key, value]) => {
+      // Handle array values as comma-separated strings for Spring Boot
+      const formattedValue = Array.isArray(value) ? value.join(',') : value;
+      return `${encodeURIComponent(key)}=${encodeURIComponent(formattedValue)}`;
+    })
     .join('&');
   return query ? `?${query}` : '';
 };
@@ -171,7 +175,11 @@ export const temaService = {
    * Obter todos os temas.
    * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
    */
-  getAll: (params?: Types.PaginationParams & { nome?: string; metrics?: 'lean' | 'summary' | 'full' }): Promise<Types.PageResponse<Types.TemaSummaryDto>> =>
+  getAll: (params?: Types.PaginationParams & { 
+    nome?: string; 
+    disciplinaIds?: number | number[] | string;
+    metrics?: 'lean' | 'summary' | 'full' 
+  }): Promise<Types.PageResponse<Types.TemaSummaryDto>> =>
     apiCall(`/temas${buildQueryString(params)}`),
 
   /**
@@ -182,17 +190,11 @@ export const temaService = {
     apiCall(`/temas/${id}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**
-   * Obter temas por disciplina.
-   * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
-   */
-  getByDisciplina: (disciplinaId: number, metrics?: 'lean' | 'summary' | 'full'): Promise<Types.TemaSummaryDto[]> =>
-    apiCall(`/temas/disciplina/${disciplinaId}${buildQueryString(metrics ? { metrics } : undefined)}`),
-
-  /**
    * Criar novo tema.
    */
   create: (data: Types.TemaCreateRequest): Promise<void> =>
     apiCall('/temas', { method: 'POST', body: JSON.stringify(data) }),
+
 
   /**
    * Atualizar tema.
@@ -215,7 +217,12 @@ export const subtemaService = {
    * Obter todos os subtemas.
    * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
    */
-  getAll: (params?: Types.PaginationParams & { nome?: string; metrics?: 'lean' | 'summary' | 'full' }): Promise<Types.PageResponse<Types.SubtemaSummaryDto>> =>
+  getAll: (params?: Types.PaginationParams & { 
+    nome?: string; 
+    temaIds?: number | number[] | string;
+    disciplinaIds?: number | number[] | string;
+    metrics?: 'lean' | 'summary' | 'full' 
+  }): Promise<Types.PageResponse<Types.SubtemaSummaryDto>> =>
     apiCall(`/subtemas${buildQueryString(params)}`),
 
   /**
@@ -226,17 +233,11 @@ export const subtemaService = {
     apiCall(`/subtemas/${id}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**
-   * Obter subtemas por tema.
-   * @param metrics Nível de métricas: 'lean', 'summary', 'full'. Padrão: lean.
-   */
-  getByTema: (temaId: number, metrics?: 'lean' | 'summary' | 'full'): Promise<Types.SubtemaSummaryDto[]> =>
-    apiCall(`/subtemas/tema/${temaId}${buildQueryString(metrics ? { metrics } : undefined)}`),
-
-  /**
    * Criar novo subtema.
    */
   create: (data: Types.SubtemaCreateRequest): Promise<void> =>
     apiCall('/subtemas', { method: 'POST', body: JSON.stringify(data) }),
+
 
   /**
    * Atualizar subtema.
