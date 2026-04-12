@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import PageHeader from '@/components/ui/PageHeader';
+import FormModal from '@/components/ui/FormModal';
 import { concursoService, bancaService, instituicaoService, cargoService, subtemaService } from '@/services/api';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
@@ -74,7 +75,7 @@ export default function ConcursosAdminPage() {
   const [concursos, setConcursos] = useState<ConcursoDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ConcursoDto | null>(null);
 
   // Filter state
@@ -103,14 +104,14 @@ export default function ConcursosAdminPage() {
 
   // Set current date only on mount to avoid hydration mismatch
   useEffect(() => {
-    if (!editingItem && !showForm) {
+    if (!editingItem && !modalOpen) {
       setFormData((prev: any) => ({
         ...prev,
         ano: new Date().getFullYear(),
         mes: new Date().getMonth() + 1
       }));
     }
-  }, [editingItem, showForm]);
+  }, [editingItem, modalOpen]);
 
   const [localLoading, setLocalLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -384,10 +385,7 @@ export default function ConcursosAdminPage() {
         topicos: Array.from(topicoMap.values()),
       });
 
-      setShowForm(true);
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+      setModalOpen(true);
     } catch (err: any) {
       console.error('Erro ao carregar detalhes para edição:', err);
       alert(err.message || 'Erro ao carregar detalhes para edição.');
@@ -423,14 +421,32 @@ export default function ConcursosAdminPage() {
       topicos: []
     });
     setEditingItem(null);
-    setShowForm(false);
+    setModalOpen(false);
     setValidationErrors([]);
+  };
+
+  const openNewForm = () => {
+    setFormData({
+      instituicao: null,
+      banca: null,
+      ano: new Date().getFullYear(),
+      mes: new Date().getMonth() + 1,
+      edital: '',
+      dataProva: '',
+      cargos: [],
+      topicos: []
+    });
+    setEditingItem(null);
+    setValidationErrors([]);
+    setModalOpen(true);
   };
 
   const selectedSubtemaIds = new Set(formData.topicos.map((t: TopicoEntry) => t.subtemaId));
   const groupedTopicos = groupTopicos(formData.topicos);
 
   const selectStyles = {
+    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+    menu: (base: any) => ({ ...base, zIndex: 9999 }),
     control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, padding: '2px' }),
     placeholder: (base: any) => ({ ...base, color: '#9ca3af', fontSize: '0.875rem' }),
     singleValue: (base: any) => ({ ...base, color: '#111827', fontSize: '0.875rem', fontWeight: '500' })
@@ -445,24 +461,17 @@ export default function ConcursosAdminPage() {
         actions={
           (!loading && !error) ? (
             <button
-              onClick={() => {
-                if (showForm) resetForm();
-                else setShowForm(true);
-              }}
+              onClick={openNewForm}
               disabled={localLoading}
-              className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-bold transition-all ${
-                showForm 
-                  ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' 
-                  : 'bg-indigo-600 text-white border-transparent hover:bg-indigo-700'
-              }`}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
-              {showForm ? 'Cancelar' : <><Plus className="w-4 h-4 mr-2" /> Novo Concurso</>}
+              <Plus className="w-4 h-4 mr-2" /> Novo Concurso
             </button>
           ) : null
-        } 
+        }
       />
 
-      {!loading && !error && (concursos.length > 0 || showForm || watchedFields.selectedBanca || watchedFields.selectedInstituicao || watchedFields.selectedCargoNivel || watchedFields.selectedInstituicaoArea || watchedFields.selectedCargoArea) && (
+      {!loading && !error && (concursos.length > 0 || watchedFields.selectedBanca || watchedFields.selectedInstituicao || watchedFields.selectedCargoNivel || watchedFields.selectedInstituicaoArea || watchedFields.selectedCargoArea) && (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-8 overflow-hidden">
         <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-slate-50 bg-slate-50/20">
           <div className="flex items-center justify-between">
@@ -577,251 +586,224 @@ export default function ConcursosAdminPage() {
       </div>
       )}
 
-      {showForm && (
-        <div className="bg-white shadow-xl rounded-xl p-8 mb-8 border border-indigo-100 animate-in fade-in slide-in-from-top-4 duration-200">
-          <div className="flex items-center mb-6">
-            <div className="p-2 bg-indigo-50 rounded-lg mr-3">
-              <FileText className="w-5 h-5 text-indigo-600" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900">
-              {editingItem ? 'Editar Concurso' : 'Nova Prova / Edital'}
-            </h3>
+      <FormModal
+        isOpen={modalOpen}
+        onClose={resetForm}
+        onSubmit={handleSubmit}
+        title={editingItem ? 'Editar Concurso' : 'Nova Prova / Edital'}
+        loading={localLoading}
+        submitLabel={editingItem ? 'Atualizar' : 'Salvar Prova'}
+        size="lg"
+        footerExtra={validationErrors.length > 0 ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2.5">
+            <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+            <ul className="space-y-0.5">
+              {validationErrors.map((err, i) => (
+                <li key={i} className="text-xs text-red-600">· {err}</li>
+              ))}
+            </ul>
+          </div>
+        ) : undefined}
+      >
+        <div className="grid grid-cols-1 gap-y-6 gap-x-8 sm:grid-cols-6">
+          <div className="sm:col-span-3">
+            <label htmlFor="instituicao" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+              Instituição
+            </label>
+            <AsyncSelect
+              id="instituicao"
+              instanceId="instituicao-select"
+              cacheOptions
+              defaultOptions
+              loadOptions={loadInstituicaoOptions}
+              value={formData.instituicao}
+              onChange={(val) => setFormData({...formData, instituicao: val})}
+              placeholder="Selecione o órgão..."
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 gap-y-6 gap-x-8 sm:grid-cols-6">
-              <div className="sm:col-span-3">
-                <label htmlFor="instituicao" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Instituição
-                </label>
-                <AsyncSelect
-                  id="instituicao"
-                  instanceId="instituicao-select"
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadInstituicaoOptions}
-                  value={formData.instituicao}
-                  onChange={(val) => setFormData({...formData, instituicao: val})}
-                  placeholder="Selecione o órgão..."
-                  styles={selectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
-              
-              <div className="sm:col-span-3">
-                <label htmlFor="banca" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Banca Examinadora
-                </label>
-                <AsyncSelect
-                  id="banca"
-                  instanceId="banca-select"
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadBancaOptions}
-                  value={formData.banca}
-                  onChange={(val) => setFormData({...formData, banca: val})}
-                  placeholder="Selecione a banca..."
-                  styles={selectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
-              
-              <div className="sm:col-span-2">
-                <label htmlFor="ano" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Ano
-                </label>
-                <input
-                  type="number"
-                  id="ano"
-                  value={formData.ano}
-                  onChange={(e) => setFormData({...formData, ano: parseInt(e.target.value) || new Date().getFullYear()})}
-                  className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
-                  required
-                />
-              </div>
+          <div className="sm:col-span-3">
+            <label htmlFor="banca" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+              Banca Examinadora
+            </label>
+            <AsyncSelect
+              id="banca"
+              instanceId="banca-select"
+              cacheOptions
+              defaultOptions
+              loadOptions={loadBancaOptions}
+              value={formData.banca}
+              onChange={(val) => setFormData({...formData, banca: val})}
+              placeholder="Selecione a banca..."
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
+          </div>
 
-              <div className="sm:col-span-2">
-                <label htmlFor="mes" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Mês do Edital
-                </label>
-                <input
-                  type="number"
-                  id="mes"
-                  min="1"
-                  max="12"
-                  value={formData.mes}
-                  onChange={(e) => setFormData({...formData, mes: parseInt(e.target.value) || 1})}
-                  className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
-                  required
-                />
-              </div>
-              
-              <div className="sm:col-span-2">
-                <label htmlFor="dataProva" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Data de Aplicação
-                </label>
-                <input
-                  type="datetime-local"
-                  id="dataProva"
-                  value={formData.dataProva}
-                  onChange={(e) => setFormData({...formData, dataProva: e.target.value})}
-                  className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
-                />
-              </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="ano" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+              Ano
+            </label>
+            <input
+              type="number"
+              id="ano"
+              value={formData.ano}
+              onChange={(e) => setFormData({...formData, ano: parseInt(e.target.value) || new Date().getFullYear()})}
+              className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
+              required
+            />
+          </div>
 
-              <div className="sm:col-span-6">
-                <label htmlFor="edital" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Link do Edital / Detalhes
-                </label>
-                <div className="relative">
-                  <input
-                    type="url"
-                    id="edital"
-                    autoComplete="off"
-                    value={formData.edital}
-                    onChange={(e) => setFormData({...formData, edital: e.target.value})}
-                    className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm pl-10"
-                    placeholder="https://..."
-                  />
-                  <ExternalLink className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
-                </div>
-              </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="mes" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+              Mês do Edital
+            </label>
+            <input
+              type="number"
+              id="mes"
+              min="1"
+              max="12"
+              value={formData.mes}
+              onChange={(e) => setFormData({...formData, mes: parseInt(e.target.value) || 1})}
+              className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
+              required
+            />
+          </div>
 
-              <div className="sm:col-span-6">
-                <label htmlFor="cargos" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Cargos Vinculados
-                </label>
-                <AsyncSelect
-                  id="cargos"
-                  instanceId="cargos-select"
-                  isMulti
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadCargoOptions}
-                  value={formData.cargos}
-                  onChange={handleCargoChange}
-                  placeholder="Pesquise cargos..."
-                  styles={selectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="dataProva" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+              Data de Aplicação
+            </label>
+            <input
+              type="datetime-local"
+              id="dataProva"
+              value={formData.dataProva}
+              onChange={(e) => setFormData({...formData, dataProva: e.target.value})}
+              className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
+            />
+          </div>
+
+          <div className="sm:col-span-6">
+            <label htmlFor="edital" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+              Link do Edital / Detalhes
+            </label>
+            <div className="relative">
+              <input
+                type="url"
+                id="edital"
+                autoComplete="off"
+                value={formData.edital}
+                onChange={(e) => setFormData({...formData, edital: e.target.value})}
+                className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm pl-10"
+                placeholder="https://..."
+              />
+              <ExternalLink className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
             </div>
+          </div>
 
-            {formData.cargos.length > 0 && (
-              <div className="mt-10 border-t border-gray-100 pt-8">
-                <div className="flex items-center mb-4">
-                  <Hash className="w-5 h-5 text-indigo-500 mr-2" />
-                  <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Conteúdo Programático (Edital)</h4>
-                </div>
-                <p className="text-xs text-gray-400 mb-6 font-medium">Selecione os subtemas que serão cobrados e vincule-os aos cargos específicos.</p>
-
-                <AsyncSelect
-                  instanceId="subtema-add-select"
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadSubtemaOptions}
-                  filterOption={(opt) => !selectedSubtemaIds.has(opt.value)}
-                  value={null}
-                  onChange={(opt: any) => { if (opt) addTopico(opt); }}
-                  placeholder="Adicionar subtema ao edital..."
-                  styles={selectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-
-                {formData.topicos.length > 0 && (
-                  <div className="mt-6 grid grid-cols-1 gap-6">
-                    {groupedTopicos.map((disciplinaGroup) => (
-                      <div key={disciplinaGroup.disciplina?.id ?? 0} className="bg-slate-50/50 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                        <div className="bg-slate-100/80 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-                          <span className="text-xs font-black text-slate-600 uppercase tracking-widest">
-                            {disciplinaGroup.disciplina?.nome || 'Sem disciplina'}
-                          </span>
-                        </div>
-
-                        <div className="divide-y divide-slate-100">
-                          {disciplinaGroup.temas.map((temaGroup) => (
-                            <div key={temaGroup.tema?.id ?? 0}>
-                              <div className="bg-white/40 px-5 py-2">
-                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-tighter">
-                                  Tema: {temaGroup.tema?.nome || 'Sem tema'}
-                                </span>
-                              </div>
-
-                              <div className="bg-white divide-y divide-gray-50">
-                                {temaGroup.topicos.map((topico) => (
-                                  <div key={topico.subtemaId} className="px-5 py-4 hover:bg-slate-50 transition-colors">
-                                    <div className="flex items-center justify-between mb-3">
-                                      <span className="text-sm font-bold text-gray-800">
-                                        {topico.subtemaLabel.split(' - ').pop()}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => removeTopico(topico.subtemaId)}
-                                        className="text-[10px] font-black text-red-400 hover:text-red-700 uppercase tracking-widest bg-red-50 px-2 py-1 rounded transition-all"
-                                      >
-                                        Remover
-                                      </button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-x-6 gap-y-2">
-                                      {formData.cargos.map((cargo: any) => (
-                                        <label key={cargo.value} className="inline-flex items-center text-[11px] font-bold text-gray-500 uppercase cursor-pointer hover:text-indigo-600 transition-all">
-                                          <input
-                                            type="checkbox"
-                                            checked={topico.cargoIds.includes(cargo.value)}
-                                            onChange={() => toggleTopicoCargo(topico.subtemaId, cargo.value)}
-                                            className="h-3.5 w-3.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-2"
-                                          />
-                                          {cargo.label.split(' - ')[0]}
-                                        </label>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {validationErrors.length > 0 && (
-              <div className="mt-8 bg-red-50 border-l-4 border-red-400 p-5 rounded-lg shadow-sm">
-                <div className="flex">
-                  <AlertCircle className="w-5 h-5 text-red-500 mr-3 shrink-0" />
-                  <div>
-                    <h5 className="text-[11px] font-black text-red-800 uppercase tracking-widest mb-2">Erros de validação</h5>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {validationErrors.map((error, index) => <li key={index} className="text-sm text-red-700 font-medium">{error}</li>)}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-10 flex justify-end space-x-4 border-t border-gray-100 pt-8">
-              <button
-                type="button"
-                onClick={resetForm}
-                disabled={localLoading}
-                className="px-6 py-2.5 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={localLoading}
-                className="px-10 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all min-w-[140px] flex justify-center items-center"
-              >
-                {localLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Salvar Prova'}
-              </button>
-            </div>
-          </form>
+          <div className="sm:col-span-6">
+            <label htmlFor="cargos" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+              Cargos Vinculados
+            </label>
+            <AsyncSelect
+              id="cargos"
+              instanceId="cargos-select"
+              isMulti
+              cacheOptions
+              defaultOptions
+              loadOptions={loadCargoOptions}
+              value={formData.cargos}
+              onChange={handleCargoChange}
+              placeholder="Pesquise cargos..."
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
+          </div>
         </div>
-      )}
+
+        {formData.cargos.length > 0 && (
+          <div className="mt-10 border-t border-gray-100 pt-8">
+            <div className="flex items-center mb-4">
+              <Hash className="w-5 h-5 text-indigo-500 mr-2" />
+              <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Conteúdo Programático (Edital)</h4>
+            </div>
+            <p className="text-xs text-gray-400 mb-6 font-medium">Selecione os subtemas que serão cobrados e vincule-os aos cargos específicos.</p>
+
+            <AsyncSelect
+              instanceId="subtema-add-select"
+              cacheOptions
+              defaultOptions
+              loadOptions={loadSubtemaOptions}
+              filterOption={(opt) => !selectedSubtemaIds.has(opt.value)}
+              value={null}
+              onChange={(opt: any) => { if (opt) addTopico(opt); }}
+              placeholder="Adicionar subtema ao edital..."
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
+
+            {formData.topicos.length > 0 && (
+              <div className="mt-6 grid grid-cols-1 gap-6">
+                {groupedTopicos.map((disciplinaGroup) => (
+                  <div key={disciplinaGroup.disciplina?.id ?? 0} className="bg-slate-50/50 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div className="bg-slate-100/80 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-600 uppercase tracking-widest">
+                        {disciplinaGroup.disciplina?.nome || 'Sem disciplina'}
+                      </span>
+                    </div>
+
+                    <div className="divide-y divide-slate-100">
+                      {disciplinaGroup.temas.map((temaGroup) => (
+                        <div key={temaGroup.tema?.id ?? 0}>
+                          <div className="bg-white/40 px-5 py-2">
+                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-tighter">
+                              Tema: {temaGroup.tema?.nome || 'Sem tema'}
+                            </span>
+                          </div>
+
+                          <div className="bg-white divide-y divide-gray-50">
+                            {temaGroup.topicos.map((topico) => (
+                              <div key={topico.subtemaId} className="px-5 py-4 hover:bg-slate-50 transition-colors">
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className="text-sm font-bold text-gray-800">
+                                    {topico.subtemaLabel.split(' - ').pop()}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeTopico(topico.subtemaId)}
+                                    className="text-[10px] font-black text-red-400 hover:text-red-700 uppercase tracking-widest bg-red-50 px-2 py-1 rounded transition-all"
+                                  >
+                                    Remover
+                                  </button>
+                                </div>
+                                <div className="flex flex-wrap gap-x-6 gap-y-2">
+                                  {formData.cargos.map((cargo: any) => (
+                                    <label key={cargo.value} className="inline-flex items-center text-[11px] font-bold text-gray-500 uppercase cursor-pointer hover:text-indigo-600 transition-all">
+                                      <input
+                                        type="checkbox"
+                                        checked={topico.cargoIds.includes(cargo.value)}
+                                        onChange={() => toggleTopicoCargo(topico.subtemaId, cargo.value)}
+                                        className="h-3.5 w-3.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-2"
+                                      />
+                                      {cargo.label.split(' - ')[0]}
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </FormModal>
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
         {loading ? (
@@ -848,16 +830,6 @@ export default function ConcursosAdminPage() {
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum concurso encontrado</h3>
             <p className="mt-1 text-sm text-gray-500">Comece criando um novo concurso para o sistema.</p>
-            {!showForm && (
-              <div className="mt-6">
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 font-sans"
-                >
-                  Novo Concurso
-                </button>
-              </div>
-            )}
           </div>
         ) : concursos.length === 0 ? (
           <div className="flex flex-col justify-center items-center h-48 text-center px-4">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
+import FormModal from '@/components/ui/FormModal';
 import { instituicaoService } from '@/services/api';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
@@ -24,7 +25,7 @@ export default function InstituicoesPage() {
   const [instituicoes, setInstituicoes] = useState<InstituicaoDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InstituicaoDto | null>(null);
   const [formData, setFormData] = useState<{ nome: string, area: string }>({ nome: '', area: '' });
   const [localLoading, setLocalLoading] = useState(false);
@@ -99,10 +100,7 @@ export default function InstituicoesPage() {
   const handleEdit = (item: InstituicaoDto) => {
     setEditingItem(item);
     setFormData({ nome: item.nome, area: item.area });
-    setShowForm(true);
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    setModalOpen(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -123,8 +121,15 @@ export default function InstituicoesPage() {
   const resetForm = () => {
     setFormData({ nome: '', area: '' });
     setEditingItem(null);
-    setShowForm(false);
+    setModalOpen(false);
     setSubmissionError(null);
+  };
+
+  const openNewForm = () => {
+    setFormData({ nome: '', area: '' });
+    setEditingItem(null);
+    setSubmissionError(null);
+    setModalOpen(true);
   };
 
   const handleFilterSubmit = () => {
@@ -151,10 +156,7 @@ export default function InstituicoesPage() {
         actions={
           (!loading && !error) ? (
             <button
-              onClick={() => {
-                resetForm();
-                setShowForm(true);
-              }}
+              onClick={openNewForm}
               disabled={localLoading}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
@@ -197,83 +199,60 @@ export default function InstituicoesPage() {
       </div>
       )}
 
-      {showForm && (
-        <div className="bg-white shadow-md rounded-lg p-6 mb-6 border border-gray-100 animate-in fade-in slide-in-from-top-4 duration-200">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            {editingItem ? 'Editar Instituição' : 'Nova Instituição'}
-          </h3>
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome
-                </label>
-                <input
-                  type="text"
-                  id="nome"
-                  autoComplete="off"
-                  value={formData.nome}
-                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
-                  required
-                  maxLength={255}
-                />
-              </div>
-              <div>
-                <label htmlFor="area" className="block text-sm font-medium text-gray-700 mb-1">
-                  Área
-                </label>
-                <input
-                  type="text"
-                  id="area"
-                  autoComplete="off"
-                  value={formData.area}
-                  onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
-                  required
-                  maxLength={255}
-                />
-              </div>
-            </div>
-
-            {submissionError && (
-              <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4 rounded">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <AlertCircle className="h-5 w-5 text-red-400" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-700 font-medium">{submissionError}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                disabled={localLoading}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                disabled={localLoading}
-              >
-                {localLoading ? (
-                  <>
-                    <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" />
-                    Salvando...
-                  </>
-                ) : editingItem ? 'Atualizar' : 'Salvar'}
-              </button>
-            </div>
-          </form>
+      <FormModal
+        isOpen={modalOpen}
+        onClose={resetForm}
+        onSubmit={handleSubmit}
+        title={editingItem ? 'Editar Instituição' : 'Nova Instituição'}
+        loading={localLoading}
+        submitLabel={editingItem ? 'Atualizar' : 'Salvar'}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-1">
+              Nome
+            </label>
+            <input
+              type="text"
+              id="nome"
+              autoComplete="off"
+              value={formData.nome}
+              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+              className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+              required
+              maxLength={255}
+            />
+          </div>
+          <div>
+            <label htmlFor="area" className="block text-sm font-medium text-gray-700 mb-1">
+              Área
+            </label>
+            <input
+              type="text"
+              id="area"
+              autoComplete="off"
+              value={formData.area}
+              onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+              className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+              required
+              maxLength={255}
+            />
+          </div>
         </div>
-      )}
+
+        {submissionError && (
+          <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4 rounded">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700 font-medium">{submissionError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </FormModal>
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
         {loading ? (
@@ -300,16 +279,6 @@ export default function InstituicoesPage() {
             <Library className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma instituição encontrada</h3>
             <p className="mt-1 text-sm text-gray-500">Crie a primeira instituição para começar.</p>
-            {!showForm && (
-              <div className="mt-6">
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  Nova Instituição
-                </button>
-              </div>
-            )}
           </div>
         ) : instituicoes.length === 0 && filterNome ? (
           <div className="flex flex-col justify-center items-center h-48 text-center px-4">

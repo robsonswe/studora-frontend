@@ -2,16 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
+import FormModal from '@/components/ui/FormModal';
 import { useForm } from 'react-hook-form';
 import AsyncSelect from 'react-select/async';
 import { temaService, disciplinaService } from '@/services/api';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
-import { 
-  Tag, 
-  Plus, 
-  Pencil, 
-  Trash2, 
+import {
+  Tag,
+  Plus,
+  Pencil,
+  Trash2,
   ChevronLeft,
   ChevronRight,
   AlertCircle,
@@ -26,7 +27,7 @@ export default function TemasPage() {
   const [temas, setTemas] = useState<TemaDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<TemaDto | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [localLoading, setLocalLoading] = useState(false);
@@ -133,10 +134,7 @@ export default function TemasPage() {
       setEditingItem(item);
       setValue('disciplina', { value: detail.disciplina.id, label: detail.disciplina.nome });
       setValue('nome', detail.nome);
-      setShowForm(true);
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+      setModalOpen(true);
     } catch (err: any) {
       console.error('Erro ao carregar detalhes do tema:', err);
       alert(err.message || 'Erro ao carregar detalhes para edição.');
@@ -166,8 +164,18 @@ export default function TemasPage() {
       nome: ''
     });
     setEditingItem(null);
-    setShowForm(false);
+    setModalOpen(false);
     setSubmissionError(null);
+  };
+
+  const openNewForm = () => {
+    reset({
+      disciplina: null,
+      nome: ''
+    });
+    setEditingItem(null);
+    setSubmissionError(null);
+    setModalOpen(true);
   };
 
   const handleFilterSubmit = () => {
@@ -190,6 +198,8 @@ export default function TemasPage() {
   };
 
   const selectStyles = {
+    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+    menu: (base: any) => ({ ...base, zIndex: 9999 }),
     control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, padding: '2px' }),
     placeholder: (base: any) => ({ ...base, color: '#9ca3af', fontSize: '0.875rem' }),
     singleValue: (base: any) => ({ ...base, color: '#111827', fontSize: '0.875rem', fontWeight: '500' })
@@ -203,10 +213,7 @@ export default function TemasPage() {
         actions={
           (!loading && !error) ? (
             <button
-              onClick={() => {
-                resetForm();
-                setShowForm(true);
-              }}
+              onClick={openNewForm}
               disabled={localLoading}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
@@ -271,88 +278,64 @@ export default function TemasPage() {
       </div>
       )}
 
-      {showForm && (
-        <div className="bg-white shadow-md rounded-lg p-6 mb-6 border border-gray-100 animate-in fade-in slide-in-from-top-4 duration-200">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            {editingItem ? 'Editar Tema' : 'Novo Tema'}
-          </h3>
+      <FormModal
+        isOpen={modalOpen}
+        onClose={resetForm}
+        onSubmit={handleSubmit(onSubmit)}
+        title={editingItem ? 'Editar Tema' : 'Novo Tema'}
+        loading={localLoading}
+        submitLabel={editingItem ? 'Atualizar' : 'Salvar'}
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="disciplina" className="block text-sm font-medium text-gray-700 mb-1">
+              Disciplina
+            </label>
+            <AsyncSelect
+              id="disciplina"
+              instanceId="disciplina-select"
+              cacheOptions
+              defaultOptions
+              loadOptions={loadDisciplinaOptions}
+              value={watchedFields.disciplina}
+              onChange={(val) => setValue('disciplina', val)}
+              placeholder="Selecione..."
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
+          </div>
 
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
-              <div>
-                <label htmlFor="disciplina" className="block text-sm font-medium text-gray-700 mb-1">
-                  Disciplina
-                </label>
-                <AsyncSelect
-                  id="disciplina"
-                  instanceId="disciplina-select"
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadDisciplinaOptions}
-                  value={watchedFields.disciplina}
-                  onChange={(val) => setValue('disciplina', val)}
-                  placeholder="Selecione..."
-                  styles={selectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome
-                </label>
-                <input
-                  type="text"
-                  id="nome"
-                  autoComplete="off"
-                  {...register('nome', { 
-                    required: 'Nome é obrigatório',
-                    maxLength: { value: 255, message: 'Nome muito longo' }
-                  })}
-                  className={`shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border ${errors.nome ? 'border-red-300' : 'border-gray-300'}`}
-                />
-                {errors.nome && <p className="mt-1 text-xs text-red-600 font-bold">{errors.nome.message}</p>}
-              </div>
-            </div>
-
-            {submissionError && (
-              <div className="mb-4 bg-red-50 border-l-4 border-red-400 p-4 rounded">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <AlertCircle className="h-5 w-5 text-red-400" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-700 font-medium">{submissionError}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={resetForm}
-                disabled={localLoading}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={localLoading}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-              >
-                {localLoading ? (
-                  <>
-                    <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" />
-                    Salvando...
-                  </>
-                ) : editingItem ? 'Atualizar' : 'Salvar'}
-              </button>
-            </div>
-          </form>
+          <div>
+            <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-1">
+              Nome
+            </label>
+            <input
+              type="text"
+              id="nome"
+              autoComplete="off"
+              {...register('nome', {
+                required: 'Nome é obrigatório',
+                maxLength: { value: 255, message: 'Nome muito longo' }
+              })}
+              className={`shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border ${errors.nome ? 'border-red-300' : 'border-gray-300'}`}
+            />
+            {errors.nome && <p className="mt-1 text-xs text-red-600 font-bold">{errors.nome.message}</p>}
+          </div>
         </div>
-      )}
+
+        {submissionError && (
+          <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4 rounded">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700 font-medium">{submissionError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </FormModal>
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
         {loading ? (
@@ -379,16 +362,6 @@ export default function TemasPage() {
             <Tag className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum tema encontrado</h3>
             <p className="mt-1 text-sm text-gray-500">Crie o primeiro tema para começar.</p>
-            {!showForm && (
-              <div className="mt-6">
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  Novo Tema
-                </button>
-              </div>
-            )}
           </div>
         ) : temas.length === 0 && (filterNome || filterDisciplina) ? (
           <div className="flex flex-col justify-center items-center h-48 text-center px-4">
