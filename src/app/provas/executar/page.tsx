@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { questaoService, respostaService, concursoService } from '@/services/api';
-import { formatDificuldade, formatNivel } from '@/utils/formatters';
+import { formatNivel } from '@/utils/formatters';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import {

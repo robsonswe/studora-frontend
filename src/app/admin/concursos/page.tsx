@@ -443,7 +443,7 @@ export default function ConcursosAdminPage() {
         subtitle="Gerenciamento de editais e provas"
         breadcrumbs={[{ label: 'Concursos' }]}
         actions={
-          (!loading && !error && (concursos.length > 0 || showForm)) ? (
+          (!loading && !error) ? (
             <button
               onClick={() => {
                 if (showForm) resetForm();
@@ -462,7 +462,7 @@ export default function ConcursosAdminPage() {
         } 
       />
 
-      {!loading && !error && (concursos.length > 0 || showForm) && (
+      {!loading && !error && (concursos.length > 0 || showForm || watchedFields.selectedBanca || watchedFields.selectedInstituicao || watchedFields.selectedCargoNivel || watchedFields.selectedInstituicaoArea || watchedFields.selectedCargoArea) && (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-8 overflow-hidden">
         <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-slate-50 bg-slate-50/20">
           <div className="flex items-center justify-between">
@@ -843,7 +843,7 @@ export default function ConcursosAdminPage() {
               </button>
             </div>
           </div>
-        ) : concursos.length === 0 ? (
+        ) : concursos.length === 0 && !watchedFields.selectedBanca && !watchedFields.selectedInstituicao && !watchedFields.selectedCargoNivel && !watchedFields.selectedInstituicaoArea && !watchedFields.selectedCargoArea ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum concurso encontrado</h3>
@@ -858,6 +858,12 @@ export default function ConcursosAdminPage() {
                 </button>
               </div>
             )}
+          </div>
+        ) : concursos.length === 0 ? (
+          <div className="flex flex-col justify-center items-center h-48 text-center px-4">
+            <SlidersHorizontal className="mx-auto h-10 w-10 text-gray-300" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum resultado encontrado</h3>
+            <p className="mt-1 text-sm text-gray-500">Tente ajustar os filtros para encontrar o que procura.</p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-200 font-sans">

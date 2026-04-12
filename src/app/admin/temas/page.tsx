@@ -32,6 +32,7 @@ export default function TemasPage() {
   const [localLoading, setLocalLoading] = useState(false);
   
   const [filterNome, setFilterNome] = useState('');
+  const [filterInput, setFilterInput] = useState('');
   const [filterDisciplina, setFilterDisciplina] = useState<{ value: number, label: string } | null>(null);
 
   const [pagination, setPagination] = useState<Types.PageResponse<TemaDto>>({
@@ -55,13 +56,13 @@ export default function TemasPage() {
 
   usePageTitle('Temas', 'Admin');
 
-  const loadTemas = useCallback(async (page: number = 0, nome: string = filterNome, discId?: number) => {
+  const loadTemas = useCallback(async (page: number = 0, nome?: string, discId?: number) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await temaService.getAll({ 
-        page, 
-        size: 20, 
+      const data = await temaService.getAll({
+        page,
+        size: 20,
         nome: nome || undefined,
         disciplinaIds: discId || undefined
       });
@@ -77,14 +78,12 @@ export default function TemasPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterNome]);
+  }, []);
 
+  // Initial load
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadTemas(0, filterNome, filterDisciplina?.value);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [filterNome, filterDisciplina, loadTemas]);
+    loadTemas(0);
+  }, [loadTemas]);
 
   const loadDisciplinaOptions = async (inputValue: string) => {
     try {
@@ -171,6 +170,25 @@ export default function TemasPage() {
     setSubmissionError(null);
   };
 
+  const handleFilterSubmit = () => {
+    setFilterNome(filterInput);
+    loadTemas(0, filterInput, filterDisciplina?.value);
+  };
+
+  const handleFilterKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleFilterSubmit();
+    }
+  };
+
+  const handleFilterClear = () => {
+    setFilterInput('');
+    setFilterNome('');
+    setFilterDisciplina(null);
+    loadTemas(0);
+  };
+
   const selectStyles = {
     control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, padding: '2px' }),
     placeholder: (base: any) => ({ ...base, color: '#9ca3af', fontSize: '0.875rem' }),
@@ -183,7 +201,7 @@ export default function TemasPage() {
         title="Temas"
         breadcrumbs={[{ label: 'Temas' }]}
         actions={
-          (!loading && !error && temas.length > 0) ? (
+          (!loading && !error) ? (
             <button
               onClick={() => {
                 resetForm();
@@ -198,33 +216,57 @@ export default function TemasPage() {
         } 
       />
 
-      {!loading && !error && temas.length > 0 && (
-      <div className="bg-white shadow-sm rounded-lg p-4 mb-6 border border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-gray-400" />
+      {(!loading && !error && (temas.length > 0 || filterNome || filterDisciplina)) && (
+      <div className="bg-white shadow-sm rounded-lg p-4 mb-6 border border-gray-200">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Nome</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Filtrar..."
+                value={filterInput}
+                onChange={(e) => setFilterInput(e.target.value)}
+                onKeyDown={handleFilterKeyDown}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
           </div>
-          <input
-            type="text"
-            placeholder="Filtrar por nome..."
-            value={filterNome}
-            onChange={(e) => setFilterNome(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          />
-        </div>
-        <div>
-          <AsyncSelect
-            instanceId="filter-disciplina-select"
-            cacheOptions
-            defaultOptions
-            loadOptions={loadDisciplinaOptions}
-            value={filterDisciplina}
-            onChange={(val) => setFilterDisciplina(val)}
-            placeholder="Filtrar por disciplina..."
-            isClearable
-            styles={selectStyles}
-            menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-          />
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Disciplina</label>
+            <AsyncSelect
+              instanceId="filter-disciplina-select"
+              cacheOptions
+              defaultOptions
+              loadOptions={loadDisciplinaOptions}
+              value={filterDisciplina}
+              onChange={(val) => setFilterDisciplina(val)}
+              placeholder="Filtrar por disciplina..."
+              isClearable
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
+          </div>
+          <div className="flex gap-2 items-center">
+            <button
+              onClick={handleFilterSubmit}
+              className="inline-flex items-center px-4 py-[9px] border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition-colors whitespace-nowrap"
+            >
+              <Search className="h-4 w-4 mr-1.5" />
+              Buscar
+            </button>
+            {(filterNome || filterDisciplina) && (
+              <button
+                onClick={handleFilterClear}
+                className="text-sm text-gray-500 hover:text-gray-700 font-medium whitespace-nowrap"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
         </div>
       </div>
       )}
@@ -332,7 +374,7 @@ export default function TemasPage() {
               </button>
             </div>
           </div>
-        ) : temas.length === 0 ? (
+        ) : temas.length === 0 && !filterNome && !filterDisciplina ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
             <Tag className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum tema encontrado</h3>
@@ -347,6 +389,12 @@ export default function TemasPage() {
                 </button>
               </div>
             )}
+          </div>
+        ) : temas.length === 0 && (filterNome || filterDisciplina) ? (
+          <div className="flex flex-col justify-center items-center h-48 text-center px-4">
+            <Search className="mx-auto h-10 w-10 text-gray-300" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum resultado encontrado</h3>
+            <p className="mt-1 text-sm text-gray-500">Tente ajustar os filtros para encontrar o que procura.</p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-200">

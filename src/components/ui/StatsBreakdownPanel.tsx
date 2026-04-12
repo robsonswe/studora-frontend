@@ -215,7 +215,7 @@ export default function StatsBreakdownPanel({
       {/* Slice rows — highlighted entries sort to top */}
       {activeDim && (
         <div className="space-y-0.5">
-          {activeDim.slices
+          {[...activeDim.slices]
             .sort((a, b) => {
               // Highlighted first, then by respondidas
               if (a.highlighted !== b.highlighted) return a.highlighted ? -1 : 1;

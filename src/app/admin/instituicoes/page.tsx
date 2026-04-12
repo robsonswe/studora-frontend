@@ -30,6 +30,7 @@ export default function InstituicoesPage() {
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [filterNome, setFilterNome] = useState('');
+  const [filterInput, setFilterInput] = useState('');
 
   usePageTitle('Instituições', 'Admin');
 
@@ -43,7 +44,7 @@ export default function InstituicoesPage() {
   });
   const [currentPage, setCurrentPage] = useState(0);
 
-  const loadInstituicoes = useCallback(async (page: number = 0, nome: string = filterNome) => {
+  const loadInstituicoes = useCallback(async (page: number = 0, nome?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -60,11 +61,11 @@ export default function InstituicoesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterNome]);
+  }, []);
 
   useEffect(() => {
-    loadInstituicoes(0);
-  }, [loadInstituicoes]);
+    loadInstituicoes(0, filterNome);
+  }, [filterNome, loadInstituicoes]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,13 +127,29 @@ export default function InstituicoesPage() {
     setSubmissionError(null);
   };
 
+  const handleFilterSubmit = () => {
+    setFilterNome(filterInput);
+  };
+
+  const handleFilterKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleFilterSubmit();
+    }
+  };
+
+  const handleFilterClear = () => {
+    setFilterInput('');
+    setFilterNome('');
+  };
+
   return (
     <div className="max-w-7xl mx-auto pb-12 font-sans">
       <PageHeader
         title="Instituições"
         breadcrumbs={[{ label: 'Instituições' }]}
         actions={
-          (!loading && !error && instituicoes.length > 0) ? (
+          (!loading && !error) ? (
             <button
               onClick={() => {
                 resetForm();
@@ -147,7 +164,7 @@ export default function InstituicoesPage() {
         }
       />
 
-      {!loading && !error && instituicoes.length > 0 && (
+      {(!loading && !error && (instituicoes.length > 0 || filterNome)) && (
       <div className="bg-white shadow-sm rounded-lg p-4 mb-6 border border-gray-200 flex items-center gap-4">
         <div className="relative flex-1">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -156,14 +173,22 @@ export default function InstituicoesPage() {
           <input
             type="text"
             placeholder="Filtrar por nome..."
-            value={filterNome}
-            onChange={(e) => setFilterNome(e.target.value)}
+            value={filterInput}
+            onChange={(e) => setFilterInput(e.target.value)}
+            onKeyDown={handleFilterKeyDown}
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
+        <button
+          onClick={handleFilterSubmit}
+          className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+        >
+          <Search className="h-4 w-4 mr-1.5" />
+          Buscar
+        </button>
         {filterNome && (
           <button
-            onClick={() => setFilterNome('')}
+            onClick={handleFilterClear}
             className="text-sm text-gray-500 hover:text-gray-700 font-medium"
           >
             Limpar
@@ -270,10 +295,10 @@ export default function InstituicoesPage() {
               </button>
             </div>
           </div>
-        ) : instituicoes.length === 0 ? (
+        ) : instituicoes.length === 0 && !filterNome ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
             <Library className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum órgão encontrado</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma instituição encontrada</h3>
             <p className="mt-1 text-sm text-gray-500">Crie a primeira instituição para começar.</p>
             {!showForm && (
               <div className="mt-6">
@@ -285,6 +310,12 @@ export default function InstituicoesPage() {
                 </button>
               </div>
             )}
+          </div>
+        ) : instituicoes.length === 0 && filterNome ? (
+          <div className="flex flex-col justify-center items-center h-48 text-center px-4">
+            <Search className="mx-auto h-10 w-10 text-gray-300" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum resultado encontrado</h3>
+            <p className="mt-1 text-sm text-gray-500">Tente ajustar os filtros para encontrar o que procura.</p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-200">

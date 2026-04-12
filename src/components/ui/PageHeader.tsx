@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useBreadcrumbs, Breadcrumb } from '@/components/layout/BreadcrumbContext';
 
 interface PageHeaderProps {
@@ -10,15 +10,17 @@ interface PageHeaderProps {
 
 const PageHeader = ({ title, subtitle, actions, breadcrumbs }: PageHeaderProps) => {
   const { setBreadcrumbs, clearBreadcrumbs } = useBreadcrumbs();
+  const didSetBreadcrumbsRef = useRef(false);
 
   useEffect(() => {
     if (breadcrumbs) {
       setBreadcrumbs(breadcrumbs);
+      didSetBreadcrumbsRef.current = true;
     }
     return () => {
-      // We only clear if this component was the one setting them
-      // This is a simple heuristic; in a more complex app we might use an ID
-      clearBreadcrumbs();
+      if (didSetBreadcrumbsRef.current) {
+        clearBreadcrumbs();
+      }
     };
   }, [breadcrumbs, setBreadcrumbs, clearBreadcrumbs]);
 

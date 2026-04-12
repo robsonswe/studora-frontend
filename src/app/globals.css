@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: var(--font-mono), 'JetBrains Mono', monospace;
+  /* Map Tailwind font utilities to our stacks (built in @layer base below) */
+  --font-sans: var(--font-sans-stack);
+  --font-mono: var(--font-mono-stack);
 
   /* Brand Indigo */
   --color-indigo-50: oklch(97% 0.02 264);
@@ -155,12 +156,17 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  :root {
+    --font-sans-stack: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono-stack: var(--font-mono), 'JetBrains Mono', monospace;
+  }
+
   body {
-    font-family: var(--font-sans);
+    font-family: var(--font-sans-stack);
   }
 
   .font-mono {
-    font-family: var(--font-mono);
+    font-family: var(--font-mono-stack);
     font-variant-numeric: tabular-nums;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     letter-spacing: -0.01em;
