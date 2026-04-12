@@ -1,5 +1,7 @@
-import { CheckCircle, XCircle } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle, XCircle, Clock, Sparkles } from 'lucide-react';
 import { formatNivel, formatDificuldade } from '@/utils/formatters';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import * as Types from '@/types';
 
 // ─── Taxonomy Display ────────────────────────────────────────────────────────
@@ -134,10 +136,10 @@ export const AlternativesList = ({ alternativas, selectedAlternativa, feedback, 
 
         if (showFeedback) {
           if (isCorrect) {
-            containerClass += 'bg-emerald-50 border-emerald-300 ';
+            containerClass += 'bg-emerald-50 border-emerald-300 animate-success-pop ';
             badgeClass += 'bg-emerald-500 text-white';
           } else if (isSelected && !isCorrect) {
-            containerClass += 'bg-red-50 border-red-300 ';
+            containerClass += 'bg-red-50 border-red-300 animate-error-shake ';
             badgeClass += 'bg-red-400 text-white';
           } else {
             containerClass += 'bg-slate-50 border-slate-100 opacity-50 ';
@@ -287,6 +289,20 @@ interface QuestionCardBodyProps {
   statsSummary?: React.ReactNode;
 }
 
+const SUCCESS_MESSAGES = [
+  "Excelente! Base teórica consolidada neste tópico.",
+  "Na mosca! Taxa de acerto mantida com alta precisão.",
+  "Fundamento técnico validado. Siga para a próxima etapa do ciclo.",
+  "Excelente aproveitamento. Domínio demonstrado neste assunto."
+];
+
+const ENCOURAGING_MESSAGES = [
+  "Rendimento abaixo do esperado. Recomendamos reforço de conteúdo.",
+  "Falha no diagnóstico. Analise o gabarito para ajustar sua base.",
+  "Ponto de atenção: Ciclo de revisão sugerido para este tópico.",
+  "Atenção aos detalhes. Recomendamos nova bateria de questões."
+];
+
 export const QuestionCard = ({
   concurso,
   cargos,
@@ -309,131 +325,221 @@ export const QuestionCard = ({
   onVerify,
   postSubmit,
   statsSummary,
-}: QuestionCardBodyProps) => (
-  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    {/* Header */}
-    <QuestionHeader concurso={concurso} cargos={cargos} anulada={anulada} desatualizada={desatualizada} autoral={autoral} />
+}: QuestionCardBodyProps) => {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [randomMessage, setRandomMessage] = useState("");
 
-    {/* Body */}
-    <div className="p-6 md:p-8">
-      <p className="text-lg leading-relaxed text-slate-800 whitespace-pre-wrap break-words mb-8">
-        {enunciado}
-      </p>
+  const handleVerifyRequest = () => {
+    if (isVerifyDisabled) return;
+    setShowConfirm(true);
+  };
 
-      {imageUrl && (
-        <div className="mb-8 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 p-2">
-          <img src={imageUrl} alt="Imagem da questão" className="max-w-full h-auto mx-auto rounded" />
-        </div>
-      )}
+  const handleConfirm = () => {
+    setShowConfirm(false);
+    onVerify();
+  };
+  
+  // Choose message when feedback appears
+  const statusMessage = feedback?.correta 
+    ? SUCCESS_MESSAGES[Math.floor(feedback.id % SUCCESS_MESSAGES.length)] 
+    : ENCOURAGING_MESSAGES[Math.floor(feedback?.id || 0 % ENCOURAGING_MESSAGES.length)];
+  
+  // --- Strategist Insights Engine ---
+  const getStrategistInsight = (fb: Types.RespostaDetailDto) => {
+    const isFast = fb.tempoRespostaSegundos < 30;
+    const isVeryFast = fb.tempoRespostaSegundos < 15;
+    const isSlow = fb.tempoRespostaSegundos > 120;
+    const isCorrect = fb.correta;
+    const dif = fb.dificuldade; // 'FACIL', 'MEDIA', 'DIFICIL', 'CHUTE'
 
-      {/* Alternatives */}
-      <div className="mb-10">
-        <AlternativesList
-          alternativas={alternativas}
-          selectedAlternativa={selectedAlternativa}
-          feedback={feedback}
-          onSelect={onAlternativaSelect}
-        />
-      </div>
+    if (dif === 'CHUTE') {
+      return isCorrect 
+        ? "Acerto no chute? Registre a dúvida e revise a fundamentação para consolidar este ponto."
+        : "O chute não converteu. Recomendada revisão teórica profunda deste tópico.";
+    }
 
-      {/* Taxonomy - only shown after answering */}
-      {feedback && subtemas && subtemas.length > 0 && <TaxonomyDisplay subtemas={subtemas} />}
+    if (!isCorrect) {
+      if (isVeryFast) return "Atenção: Ritmo extremamente acelerado. Verifique se houve erro por falta de atenção na leitura.";
+      if (isFast) return "Ritmo apressado. O tempo de resposta sugere leitura superficial das alternativas.";
+      if (dif === 'FACIL') return "Gap de percepção: Este tema exige maior rigor técnico do que o inicialmente previsto.";
+      if ((dif === 'MEDIA' || dif === 'DIFICIL') && fb.tempoRespostaSegundos < 45) 
+        return "Cuidado: Tópico complexo respondido com rapidez atípica. Revise as pegadinhas da banca.";
+    } else {
+      if (dif === 'DIFICIL') return "Excelente! Você demonstrou domínio técnico em um tópico de alta complexidade.";
+      if (isSlow) return "Bom acerto, mas atenção à eficiência: o tempo de resposta superou a margem ideal de 2 min.";
+      if (isFast && (dif === 'MEDIA' || dif === 'DIFICIL')) return "Ótimo desempenho! Resposta rápida e precisa em um tópico desafiador.";
+    }
 
-      {/* Bottom panel */}
-      <div className="border-t border-slate-100 pt-8">
-        {!feedback ? (
-          /* Pre-submit */
-          <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Justificativa */}
-              <div>
-                <label htmlFor="justificativa" className="block text-xs font-medium text-slate-600 mb-1.5">
-                  Justificativa <span className="text-indigo-500">*</span>
-                </label>
-                <textarea
-                  id="justificativa"
-                  value={justificativa}
-                  onChange={(e) => onJustificativaChange(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded-lg p-3 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
-                  rows={4}
-                  placeholder="Escreva o fundamento da sua resposta antes de verificar o gabarito."
-                  maxLength={2000}
-                  aria-required="true"
-                />
-                <div className="flex justify-between mt-1 items-center">
-                  {selectedAlternativa && !justificativa.trim() ? (
-                    <p className="text-xs text-indigo-600">Escreva a justificativa para habilitar.</p>
-                  ) : (
-                    <span />
-                  )}
-                  <span className="text-[11px] text-slate-400 font-mono ms-auto">
-                    {justificativa.length}/2000
-                  </span>
-                </div>
-              </div>
+    return null;
+  };
 
-              {/* Dificuldade */}
-              <DifficultySelector value={dificuldade} onChange={onDificuldadeChange} />
-            </div>
+  const insight = feedback ? getStrategistInsight(feedback) : null;
 
-            <div className="flex justify-end">
-              <button
-                onClick={onVerify}
-                disabled={isVerifyDisabled}
-                className={`inline-flex items-center gap-2 px-7 py-3 rounded-lg text-sm font-semibold text-white transition-all ${
-                  isVerifyDisabled
-                    ? 'bg-slate-300 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98]'
-                }`}
-              >
-                {processingAnswer ? (
-                  <>
-                    <div className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    Verificando...
-                  </>
-                ) : (
-                  'Verificar resposta'
-                )}
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Post-submit */
-          <div>
-            {/* Result summary line */}
-            <div className="flex items-center justify-between mb-5">
-              <span
-                className={`font-mono text-sm font-medium ${
-                  feedback.correta ? 'text-emerald-600' : 'text-red-500'
-                }`}
-              >
-                {feedback.correta ? 'Correta.' : 'Ponto de Atenção.'}
-                {' · '}
-                {formatTime(feedback.tempoRespostaSegundos)}
-                {' · '}
-                {formatDificuldade(feedback.dificuldade)}
-              </span>
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      {/* Header */}
+      <QuestionHeader concurso={concurso} cargos={cargos} anulada={anulada} desatualizada={desatualizada} autoral={autoral} />
 
-              {statsSummary}
-            </div>
+      {/* Body */}
+      <div className="p-6 md:p-8">
+        <p className="text-lg leading-relaxed text-slate-800 whitespace-pre-wrap break-words mb-8">
+          {enunciado}
+        </p>
 
-            {/* User's justificativa */}
-            {feedback.justificativa && (
-              <div className="mb-6 ps-3 border-l-2 border-slate-200">
-                <span className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">
-                  Minha justificativa
-                </span>
-                <p className="text-sm text-slate-600 italic">"{feedback.justificativa}"</p>
-              </div>
-            )}
-
-            {postSubmit}
+        {imageUrl && (
+          <div className="mb-8 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 p-2">
+            <img src={imageUrl} alt="Imagem da questão" className="max-w-full h-auto mx-auto rounded" />
           </div>
         )}
+
+        {/* Alternatives */}
+        <div className="mb-6">
+          <AlternativesList
+            alternativas={alternativas}
+            selectedAlternativa={selectedAlternativa}
+            feedback={feedback}
+            onSelect={onAlternativaSelect}
+          />
+        </div>
+
+        {/* Taxonomy - only shown after answering */}
+        {feedback && subtemas && subtemas.length > 0 && <TaxonomyDisplay subtemas={subtemas} />}
+
+        {/* Bottom panel */}
+        <div className="border-t border-slate-100 pt-5">
+          {!feedback ? (
+            /* Pre-submit */
+            <div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                {/* Justificativa */}
+                <div>
+                  <label htmlFor="justificativa" className="block text-xs font-medium text-slate-600 mb-1.5">
+                    Justificativa <span className="text-indigo-500">*</span>
+                  </label>
+                  <textarea
+                    id="justificativa"
+                    value={justificativa}
+                    onChange={(e) => onJustificativaChange(e.target.value)}
+                    className="w-full text-sm border border-slate-300 rounded-lg p-3 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+                    rows={4}
+                    placeholder="Escreva o fundamento da sua resposta antes de verificar o gabarito."
+                    maxLength={2000}
+                    aria-required="true"
+                  />
+                  <div className="flex justify-between mt-1 items-center">
+                    {selectedAlternativa && !justificativa.trim() ? (
+                      <p className="text-xs text-indigo-600">Escreva a justificativa para habilitar.</p>
+                    ) : (
+                      <span />
+                    )}
+                    <span className="text-[11px] text-slate-400 font-mono ms-auto">
+                      {justificativa.length}/2000
+                    </span>
+                  </div>
+                </div>
+
+                {/* Dificuldade */}
+                <DifficultySelector value={dificuldade} onChange={onDificuldadeChange} />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleVerifyRequest}
+                  disabled={isVerifyDisabled}
+                  className={`inline-flex items-center gap-2 px-7 py-3 rounded-lg text-sm font-semibold text-white transition-all ${
+                    isVerifyDisabled
+                      ? 'bg-slate-300 cursor-not-allowed'
+                      : 'bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98]'
+                  }`}
+                >
+                  {processingAnswer ? (
+                    <>
+                      <div className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      Verificando...
+                    </>
+                  ) : (
+                    'Verificar resposta'
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Post-submit */
+            <div className="animate-fade-in-up space-y-6">
+              {/* 1. Diagnostic Summary - THE RECORD */}
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`font-mono text-sm font-bold tracking-tight uppercase leading-none ${
+                        feedback.correta ? 'text-sage-700' : 'text-terracotta-700'
+                    }`}
+                  >
+                    {statusMessage}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-3 font-mono text-[11px] uppercase tracking-[0.15em] text-slate-500/70 py-1">
+                  <div className="flex items-center gap-2">
+                    <span className="opacity-50 font-sans font-bold italic">tempo:</span>
+                    <span className="text-slate-900 font-medium tabular-nums">{formatTime(feedback.tempoRespostaSegundos)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="opacity-50 font-sans font-bold italic">nível:</span>
+                    <span className="text-slate-900 font-medium">{formatDificuldade(feedback.dificuldade)}</span>
+                  </div>
+                  {statsSummary && (
+                    <div className="flex items-center gap-2 pl-4 border-l border-slate-200">
+                      <span className="opacity-50 font-sans font-bold italic uppercase">performance:</span>
+                      <span className="text-slate-900 font-medium">{statsSummary}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Strategist Insight */}
+                {insight && (
+                  <div className="flex items-center gap-2.5 px-3 py-2 bg-indigo-50/50 rounded-lg border border-indigo-100/50 w-fit animate-fade-in">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-500 fill-indigo-500/10" />
+                    <span className="text-[11px] font-semibold text-indigo-700/90 tracking-tight leading-none">
+                      {insight}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. User Reflection (Justificativa) */}
+              {feedback.justificativa && (
+                <div className="max-w-3xl bg-slate-50/50 rounded-xl p-5 border border-slate-100">
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-3">
+                    Justificativa
+                  </span>
+                  <p className="text-sm text-slate-700 leading-relaxed italic font-medium">
+                    "{feedback.justificativa}"
+                  </p>
+                </div>
+              )}
+
+              {/* 3. Progression Zone */}
+              <div className="pt-2">
+                {postSubmit}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={handleConfirm}
+        title="Enviar resposta?"
+        message="Confirma o envio da sua alternativa e justificativa? Esta ação não pode ser desfeita após a verificação do gabarito."
+        type="info"
+        confirmLabel="Enviar"
+        cancelLabel="Revisar"
+      />
     </div>
-  </div>
-);
+  );
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

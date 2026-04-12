@@ -144,6 +144,37 @@
 .animate-enter-4 { animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.28s both; }
 .animate-enter-5 { animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.36s both; }
 
+/* Delight Animations (Identity Aligned) */
+@keyframes success-pop {
+  0% { transform: scale(0.98); opacity: 0; }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes error-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+@keyframes shimmer-border {
+  0% { border-color: oklch(90% 0.010 264); }
+  50% { border-color: oklch(75% 0.12 150); }
+  100% { border-color: oklch(90% 0.010 264); }
+}
+
+.animate-success-pop {
+  animation: success-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.animate-error-shake {
+  animation: error-shake 0.3s ease-in-out;
+}
+
+.border-shimmer-success {
+  animation: shimmer-border 2s infinite ease-in-out;
+}
+
 /* Hero dot-grid texture — brand "Focus & Intersection" concept */
 .hero-grid {
   background-image: radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px);

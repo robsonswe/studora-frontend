@@ -566,7 +566,7 @@ export default function QuestaoPracticePage() {
           statsSummary={
             sessionTotal > 0 && (
               <span className="font-mono text-xs text-slate-400">
-                Sessão: {sessionTotal} {sessionTotal === 1 ? 'questão' : 'questões'} · {sessionAccuracy}% de acerto
+                {sessionTotal} {sessionTotal === 1 ? 'questão' : 'questões'} · {sessionAccuracy}% de acerto
               </span>
             )
           }
