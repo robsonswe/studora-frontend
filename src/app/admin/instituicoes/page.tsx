@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import FormModal from '@/components/ui/FormModal';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { instituicaoService } from '@/services/api';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
@@ -32,6 +33,20 @@ export default function InstituicoesPage() {
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [filterNome, setFilterNome] = useState('');
   const [filterInput, setFilterInput] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    itemId: number | null;
+    type: 'danger' | 'info';
+    alertOnly?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    itemId: null,
+    type: 'danger'
+  });
 
   usePageTitle('Instituições', 'Admin');
 
@@ -103,18 +118,37 @@ export default function InstituicoesPage() {
     setModalOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (typeof window !== 'undefined' && window.confirm('Tem certeza que deseja excluir esta instituição? Concursos e questões associadas poderão ser afetados.')) {
-      setLocalLoading(true);
-      try {
-        await instituicaoService.delete(id);
-        await loadInstituicoes(currentPage);
-      } catch (err: any) {
-        console.error('Erro ao excluir instituição:', err);
-        alert(err.message || 'Erro ao excluir instituição. O item pode estar sendo usado por outras entidades.');
-      } finally {
-        setLocalLoading(false);
-      }
+  const handleDelete = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Excluir Instituição',
+      message: 'Tem certeza que deseja excluir esta instituição? Concursos e questões associadas poderão ser afetados e esta ação não pode ser desfeita.',
+      itemId: id,
+      type: 'danger',
+      alertOnly: false
+    });
+  };
+
+  const onConfirmDelete = async () => {
+    if (!confirmModal.itemId) return;
+    
+    setLocalLoading(true);
+    try {
+      await instituicaoService.delete(confirmModal.itemId);
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      await loadInstituicoes(currentPage);
+    } catch (err: any) {
+      console.error('Erro ao excluir instituição:', err);
+      setConfirmModal({
+        isOpen: true,
+        title: 'Não foi possível excluir',
+        message: err.message || 'Esta instituição não pode ser removida pois está sendo utilizada em outras partes do sistema.',
+        itemId: null,
+        type: 'danger',
+        alertOnly: true
+      });
+    } finally {
+      setLocalLoading(false);
     }
   };
 
@@ -253,6 +287,18 @@ export default function InstituicoesPage() {
           </div>
         )}
       </FormModal>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.alertOnly ? () => setConfirmModal(prev => ({ ...prev, isOpen: false })) : onConfirmDelete}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        loading={localLoading}
+        alertOnly={confirmModal.alertOnly}
+        confirmLabel={confirmModal.alertOnly ? 'Ok, entendi' : 'Confirmar Exclusão'}
+      />
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
         {loading ? (

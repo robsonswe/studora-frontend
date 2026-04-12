@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import FormModal from '@/components/ui/FormModal';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useForm } from 'react-hook-form';
 import AsyncSelect from 'react-select/async';
 import { temaService, disciplinaService } from '@/services/api';
@@ -35,6 +36,20 @@ export default function TemasPage() {
   const [filterNome, setFilterNome] = useState('');
   const [filterInput, setFilterInput] = useState('');
   const [filterDisciplina, setFilterDisciplina] = useState<{ value: number, label: string } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    itemId: number | null;
+    type: 'danger' | 'info';
+    alertOnly?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    itemId: null,
+    type: 'danger'
+  });
 
   const [pagination, setPagination] = useState<Types.PageResponse<TemaDto>>({
     content: [],
@@ -137,24 +152,50 @@ export default function TemasPage() {
       setModalOpen(true);
     } catch (err: any) {
       console.error('Erro ao carregar detalhes do tema:', err);
-      alert(err.message || 'Erro ao carregar detalhes para edição.');
+      setConfirmModal({
+        isOpen: true,
+        title: 'Erro ao carregar',
+        message: err.message || 'Não foi possível carregar os detalhes para edição. Verifique sua conexão.',
+        itemId: null,
+        type: 'danger',
+        alertOnly: true
+      });
     } finally {
       setLocalLoading(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (typeof window !== 'undefined' && window.confirm('Tem certeza que deseja excluir este tema? Todas os subtemas e questões associadas poderão ser afetados.')) {
-      setLocalLoading(true);
-      try {
-        await temaService.delete(id);
-        await loadTemas(currentPage);
-      } catch (err: any) {
-        console.error('Erro ao excluir tema:', err);
-        alert(err.message || 'Erro ao excluir tema. O item pode estar sendo usado por outras entidades.');
-      } finally {
-        setLocalLoading(false);
-      }
+  const handleDelete = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Excluir Tema',
+      message: 'Tem certeza que deseja excluir este tema? Todas os subtemas e questões associadas poderão ser afetados e esta ação não pode ser desfeita.',
+      itemId: id,
+      type: 'danger',
+      alertOnly: false
+    });
+  };
+
+  const onConfirmDelete = async () => {
+    if (!confirmModal.itemId) return;
+    
+    setLocalLoading(true);
+    try {
+      await temaService.delete(confirmModal.itemId);
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      await loadTemas(currentPage);
+    } catch (err: any) {
+      console.error('Erro ao excluir tema:', err);
+      setConfirmModal({
+        isOpen: true,
+        title: 'Não foi possível excluir',
+        message: err.message || 'Este tema não pode ser removido pois está sendo utilizado em outras partes do sistema.',
+        itemId: null,
+        type: 'danger',
+        alertOnly: true
+      });
+    } finally {
+      setLocalLoading(false);
     }
   };
 
@@ -336,6 +377,18 @@ export default function TemasPage() {
           </div>
         )}
       </FormModal>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.alertOnly ? () => setConfirmModal(prev => ({ ...prev, isOpen: false })) : onConfirmDelete}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        loading={localLoading}
+        alertOnly={confirmModal.alertOnly}
+        confirmLabel={confirmModal.alertOnly ? 'Ok, entendi' : 'Confirmar Exclusão'}
+      />
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
         {loading ? (

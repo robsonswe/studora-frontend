@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
+import Drawer from '@/components/ui/Drawer';
 import { useForm } from 'react-hook-form';
 import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
@@ -421,131 +422,113 @@ export default function ConcursosPage() {
       </div>
 
       {/* Mobile filter drawer */}
-      {showMobileFilters && (
-        <div className="sm:hidden fixed inset-0 z-50">
-          <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+      <Drawer
+        isOpen={showMobileFilters}
+        onClose={() => setShowMobileFilters(false)}
+        title="Todos os filtros"
+        footer={
+          <button
             onClick={() => setShowMobileFilters(false)}
-          />
-          <div className="fixed bottom-0 inset-x-0 bg-white rounded-t-2xl max-h-[85vh] flex flex-col animate-slide-up" style={{ margin: 0 }}>
-            <div className="shrink-0 bg-white px-5 pt-3 pb-2 border-b border-slate-100">
-              <div className="w-10 h-1 rounded-full bg-slate-200 mx-auto mb-4" />
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-slate-900 tracking-tight">Todos os filtros</h3>
-                <button
-                  onClick={() => setShowMobileFilters(false)}
-                  className="p-2 -mr-2 rounded-lg hover:bg-slate-100 active:scale-95 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
-                >
-                  <X className="w-5 h-5 text-slate-400" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Banca Organizadora</label>
-                <AsyncSelect
-                  instanceId="mobile-banca-select"
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadBancaOptions}
-                  value={watchedFields.selectedBanca}
-                  onChange={(val) => setValue('selectedBanca', val)}
-                  isClearable
-                  placeholder="Pesquisar banca..."
-                  styles={selectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Instituição</label>
-                <AsyncSelect
-                  instanceId="mobile-instituicao-select"
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadInstituicaoOptions}
-                  value={watchedFields.selectedInstituicao}
-                  onChange={(val) => setValue('selectedInstituicao', val)}
-                  isClearable
-                  placeholder="Pesquisar instituição..."
-                  styles={selectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Nível de Escolaridade</label>
-                <Select
-                  instanceId="mobile-nivel-select"
-                  options={[
-                    { value: '', label: 'Todos os níveis' },
-                    { value: 'FUNDAMENTAL', label: 'Fundamental' },
-                    { value: 'MEDIO', label: 'Médio' },
-                    { value: 'SUPERIOR', label: 'Superior' }
-                  ]}
-                  value={watchedFields.selectedCargoNivel ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) } : { value: '', label: 'Todos os níveis' }}
-                  onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')}
-                  styles={selectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Minhas Inscrições</label>
-                <Select
-                  instanceId="mobile-inscrito-select"
-                  options={[
-                    { value: '', label: 'Todos' },
-                    { value: 'true', label: 'Já inscrito' },
-                    { value: 'false', label: 'Não inscrito' }
-                  ]}
-                  value={watchedFields.selectedInscrito ? { value: watchedFields.selectedInscrito, label: watchedFields.selectedInscrito === 'true' ? 'Já inscrito' : 'Não inscrito' } : { value: '', label: 'Todos' }}
-                  onChange={(opt) => setValue('selectedInscrito', opt?.value || '')}
-                  styles={selectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Área de Atuação (Instituição)</label>
-                <AsyncSelect
-                  instanceId="mobile-instituicao-area-select"
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadInstituicaoAreaOptions}
-                  value={watchedFields.selectedInstituicaoArea}
-                  onChange={(val) => setValue('selectedInstituicaoArea', val)}
-                  isClearable
-                  placeholder="Filtrar por área..."
-                  styles={selectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Área de Atuação (Cargo)</label>
-                <AsyncSelect
-                  instanceId="mobile-cargo-area-select"
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadCargoAreaOptions}
-                  value={watchedFields.selectedCargoArea}
-                  onChange={(val) => setValue('selectedCargoArea', val)}
-                  isClearable
-                  placeholder="Filtrar por área do cargo..."
-                  styles={selectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
-              </div>
-            </div>
-
-            <div className="shrink-0 bg-white border-t border-slate-100 px-5 py-4">
-              <button
-                onClick={() => setShowMobileFilters(false)}
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-sm min-h-[48px]"
-              >
-                Aplicar filtros
-              </button>
-            </div>
+            className="w-full py-3.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-sm min-h-[48px]"
+          >
+            Aplicar filtros
+          </button>
+        }
+      >
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Banca Organizadora</label>
+            <AsyncSelect
+              instanceId="mobile-banca-select"
+              cacheOptions
+              defaultOptions
+              loadOptions={loadBancaOptions}
+              value={watchedFields.selectedBanca}
+              onChange={(val) => setValue('selectedBanca', val)}
+              isClearable
+              placeholder="Pesquisar banca..."
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Instituição</label>
+            <AsyncSelect
+              instanceId="mobile-instituicao-select"
+              cacheOptions
+              defaultOptions
+              loadOptions={loadInstituicaoOptions}
+              value={watchedFields.selectedInstituicao}
+              onChange={(val) => setValue('selectedInstituicao', val)}
+              isClearable
+              placeholder="Pesquisar instituição..."
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nível de Escolaridade</label>
+            <Select
+              instanceId="mobile-nivel-select"
+              options={[
+                { value: '', label: 'Todos os níveis' },
+                { value: 'FUNDAMENTAL', label: 'Fundamental' },
+                { value: 'MEDIO', label: 'Médio' },
+                { value: 'SUPERIOR', label: 'Superior' }
+              ]}
+              value={watchedFields.selectedCargoNivel ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) } : { value: '', label: 'Todos os níveis' }}
+              onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')}
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Minhas Inscrições</label>
+            <Select
+              instanceId="mobile-inscrito-select"
+              options={[
+                { value: '', label: 'Todos' },
+                { value: 'true', label: 'Já inscrito' },
+                { value: 'false', label: 'Não inscrito' }
+              ]}
+              value={watchedFields.selectedInscrito ? { value: watchedFields.selectedInscrito, label: watchedFields.selectedInscrito === 'true' ? 'Já inscrito' : 'Não inscrito' } : { value: '', label: 'Todos' }}
+              onChange={(opt) => setValue('selectedInscrito', opt?.value || '')}
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Área (Instituição)</label>
+            <AsyncSelect
+              instanceId="mobile-instituicao-area-select"
+              cacheOptions
+              defaultOptions
+              loadOptions={loadInstituicaoAreaOptions}
+              value={watchedFields.selectedInstituicaoArea}
+              onChange={(val) => setValue('selectedInstituicaoArea', val)}
+              isClearable
+              placeholder="Filtrar por área..."
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Área (Cargo)</label>
+            <AsyncSelect
+              instanceId="mobile-cargo-area-select"
+              cacheOptions
+              defaultOptions
+              loadOptions={loadCargoAreaOptions}
+              value={watchedFields.selectedCargoArea}
+              onChange={(val) => setValue('selectedCargoArea', val)}
+              isClearable
+              placeholder="Filtrar por área do cargo..."
+              styles={selectStyles}
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+            />
           </div>
         </div>
-      )}
+      </Drawer>
 
       {/* Results */}
       <div className="space-y-6">

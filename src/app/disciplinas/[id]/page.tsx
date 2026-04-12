@@ -6,6 +6,8 @@ import PageHeader from '@/components/ui/PageHeader';
 import { disciplinaService, subtemaService, ApiError } from '@/services/api';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import StatsBreakdownPanel from '@/components/ui/StatsBreakdownPanel';
+import Modal from '@/components/ui/Modal';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import * as Types from '@/types';
 import {
   ArrowLeft,
@@ -37,6 +39,11 @@ interface TemaWithSubtemas extends Types.TemaSummaryDto {
 interface DeleteConfirmation {
   subtemaId: number;
   estudoId: number;
+  subtemaNome: string;
+}
+
+interface RegisterConfirmation {
+  subtemaId: number;
   subtemaNome: string;
 }
 
@@ -269,6 +276,7 @@ export default function DisciplinaDetailPage() {
   const [expandedTemas, setExpandedTemas] = useState<number[]>([]);
   const [addingEstudo, setAddingEstudo] = useState<number | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null);
+  const [registerConfirmation, setRegisterConfirmation] = useState<RegisterConfirmation | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [historyModal, setHistoryModal] = useState<SubtemaWithEstudos | null>(null);
   const [loadingHistory, setLoadingHistory] = useState<number | null>(null);
@@ -338,12 +346,23 @@ export default function DisciplinaDetailPage() {
     );
   };
 
-  const handleAddEstudo = async (subtemaId: number) => {
+  const handleAddEstudo = (subtemaId: number) => {
+    const subtema = temas.flatMap((t) => t.subtemas).find((s) => s.id === subtemaId);
+    if (subtema) {
+      setRegisterConfirmation({ subtemaId, subtemaNome: subtema.nome });
+    }
+  };
+
+  const confirmRegistration = async () => {
+    if (!registerConfirmation) return;
+    const { subtemaId } = registerConfirmation;
+    
     setAddingEstudo(subtemaId);
     setActionError(null);
     try {
       await subtemaService.addEstudo(subtemaId);
       await loadDisciplina(parseInt(id!), false);
+      setRegisterConfirmation(null);
       if (historyModal && historyModal.id === subtemaId) {
         setHistoryModal(null);
       }
@@ -436,49 +455,72 @@ export default function DisciplinaDetailPage() {
         </div>
       )}
 
-      {/* Delete Modal */}
-      {deleteConfirmation && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setDeleteConfirmation(null)}>
-          <div role="dialog" aria-modal="true" className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Remover sessão?</h3>
-            <p className="text-sm text-slate-500 mb-6 leading-relaxed">Esta ação removerá permanentemente o registro de estudo deste tópico.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteConfirmation(null)} className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Cancelar</button>
-              <button onClick={confirmDelete} className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-rose-500 rounded-xl hover:bg-rose-600 transition-colors flex justify-center items-center">
-                {addingEstudo === deleteConfirmation.subtemaId ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "Remover"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirmation}
+        onClose={() => setDeleteConfirmation(null)}
+        onConfirm={confirmDelete}
+        title="Remover sessão?"
+        message="Esta ação removerá permanentemente o registro de estudo deste tópico."
+        type="danger"
+        confirmLabel="Remover"
+        cancelLabel="Cancelar"
+        loading={addingEstudo === deleteConfirmation?.subtemaId}
+      />
 
-      {/* Custom History Modal */}
-      {historyModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setHistoryModal(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setHistoryModal(null)} className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition-colors rounded-md hover:bg-slate-100 p-1"><X className="w-5 h-5" /></button>
-            <div className="mb-5 pr-8">
-              <h3 className="text-lg font-bold text-slate-900 leading-tight mb-1">Histórico de Estudos</h3>
-              <p className="text-sm text-slate-500 leading-snug">{historyModal.nome}</p>
-            </div>
-            {historyModal.estudos && historyModal.estudos.length > 0 ? (
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                {historyModal.estudos.map((estudo) => (
-                  <div key={estudo.id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm">
-                    <div className="flex items-center gap-2.5 text-slate-600 font-medium">
-                      <Calendar className="w-4 h-4 text-slate-400" />
-                      {new Date(estudo.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                    <button onClick={() => handleDeleteEstudo(historyModal.id, estudo.id)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+      {/* Register Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!registerConfirmation}
+        onClose={() => setRegisterConfirmation(null)}
+        onConfirm={confirmRegistration}
+        title="Registrar estudo?"
+        message={`Confirmar novo registro de estudo para "${registerConfirmation?.subtemaNome}"?`}
+        type="info"
+        confirmLabel="Registrar"
+        cancelLabel="Voltar"
+        loading={addingEstudo === registerConfirmation?.subtemaId}
+      />
+
+      {/* History Modal */}
+      <Modal
+        isOpen={!!historyModal}
+        onClose={() => setHistoryModal(null)}
+        title="Histórico de Estudos"
+        subtitle={historyModal?.nome}
+        size="md"
+      >
+        <div className="p-6">
+          {historyModal?.estudos && historyModal.estudos.length > 0 ? (
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              {historyModal.estudos.map((estudo) => (
+                <div key={estudo.id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm">
+                  <div className="flex items-center gap-2.5 text-slate-600 font-medium">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    {new Date(estudo.createdAt).toLocaleString('pt-BR', { 
+                      day: '2-digit', 
+                      month: '2-digit', 
+                      year: 'numeric', 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-slate-400 italic py-4 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">Nenhum estudo registrado</p>
-            )}
-          </div>
+                  <button 
+                    onClick={() => handleDeleteEstudo(historyModal.id, estudo.id)} 
+                    className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                    title="Remover registro"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400 italic py-8 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+              Nenhum estudo registrado
+            </p>
+          )}
         </div>
-      )}
+      </Modal>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* DASHBOARD STRIP: Only shown if Temas exist */}

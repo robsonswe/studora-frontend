@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
+import Modal from '@/components/ui/Modal';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { analyticsService } from '@/services/api';
 import * as Types from '@/types';
@@ -522,108 +523,88 @@ export default function PerformancePage() {
       </div>
 
       {/* Detail Modal */}
-      {selectedDiscId !== null && (
-        <div className="relative z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          {/* Backdrop */}
-          <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={closeDetail}></div>
-          
-          {/* Scroll container */}
-          <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
-            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0" onClick={closeDetail}>
-              <div className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-sm transition-all sm:my-8 sm:w-full sm:max-w-6xl" onClick={(e) => e.stopPropagation()}>
-                <div className="sticky top-0 bg-indigo-600 px-6 py-5 flex items-center justify-between border-b border-indigo-500 z-10">
-                  <h2 className="text-xl font-bold text-white flex items-center">
-                    <BookOpen className="w-6 h-6 mr-3" />
-                    {discDetail?.nome || 'Detalhes da Disciplina'}
-                  </h2>
-                  <button
-                    onClick={closeDetail}
-                    className="text-white hover:bg-indigo-700 p-2 rounded-lg transition-colors"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
+      <Modal
+        isOpen={selectedDiscId !== null}
+        onClose={closeDetail}
+        title={discDetail?.nome || 'Detalhes da Disciplina'}
+        size="6xl"
+      >
+        <div className="p-6">
+          {detailLoading ? (
+            <div className="py-20 flex justify-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-600"></div>
+            </div>
+          ) : discDetail ? (
+            <div className="space-y-8">
+              {/* Detailed Stats Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 font-mono">
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Questões</span>
+                  <span className="text-xl font-bold text-gray-800">{discDetail.totalAttempts}</span>
                 </div>
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 font-mono">
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Acertos</span>
+                  <span className="text-xl font-bold text-green-600">{discDetail.correctAttempts}</span>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 font-mono">
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tempo Médio</span>
+                  <span className="text-xl font-bold text-blue-600">{discDetail.avgTimeSeconds.toFixed(1)}s</span>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 font-mono">
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Domínio Final</span>
+                  <span className="text-xl font-bold text-indigo-600">{discDetail.masteryScore.toFixed(1)}%</span>
+                </div>
+              </div>
 
-                <div className="p-6">
-                  {detailLoading ? (
-                    <div className="py-20 flex justify-center">
-                      <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-600"></div>
-                    </div>
-                  ) : discDetail ? (
-                    <div className="space-y-8">
-                      {/* Detailed Stats Row */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 font-mono">
-                          <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Questões</span>
-                          <span className="text-xl font-bold text-gray-800">{discDetail.totalAttempts}</span>
-                        </div>
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 font-mono">
-                          <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Acertos</span>
-                          <span className="text-xl font-bold text-green-600">{discDetail.correctAttempts}</span>
-                        </div>
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 font-mono">
-                          <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tempo Médio</span>
-                          <span className="text-xl font-bold text-blue-600">{discDetail.avgTimeSeconds.toFixed(1)}s</span>
-                        </div>
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 font-mono">
-                          <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Domínio Final</span>
-                          <span className="text-xl font-bold text-indigo-600">{discDetail.masteryScore.toFixed(1)}%</span>
-                        </div>
+              {/* Summary Difficulty Breakdown */}
+              <div className="bg-indigo-50/30 p-4 rounded-2xl border border-indigo-100/50">
+                <span className="block text-[10px] font-extrabold text-indigo-400 uppercase mb-3 tracking-widest">Distribuição por Dificuldade</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {['FACIL', 'MEDIA', 'DIFICIL', 'CHUTE'].map(diff => {
+                    const s = discDetail!.difficultyStats[diff];
+                    const label = diff === 'FACIL' ? 'Fácil' : diff === 'MEDIA' ? 'Média' : diff === 'DIFICIL' ? 'Difícil' : 'Chute';
+                    const color = diff === 'CHUTE' ? 'text-orange-600' : 'text-indigo-700';
+                    
+                    return (
+                      <div key={diff} className="flex flex-col">
+                        <span className="text-[10px] font-bold text-gray-500">{label}</span>
+                        <span className={`text-sm font-bold font-mono ${color}`}>
+                          {s ? `${s.correct}/${s.total}` : '0/0'}
+                        </span>
+                        {s && s.total > 0 && (
+                          <div className="w-full bg-gray-200 h-1 mt-1 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full ${diff === 'CHUTE' ? 'bg-orange-400' : (s.correct/s.total >= 0.7 ? 'bg-green-500' : s.correct/s.total >= 0.5 ? 'bg-yellow-500' : 'bg-red-500')}`} 
+                              style={{ width: `${(s.correct/s.total) * 100}%` }}
+                            />
+                          </div>
+                        )}
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-                      {/* Summary Difficulty Breakdown */}
-                      <div className="bg-indigo-50/30 p-4 rounded-2xl border border-indigo-100/50">
-                        <span className="block text-[10px] font-extrabold text-indigo-400 uppercase mb-3 tracking-widest">Distribuição por Dificuldade</span>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                          {['FACIL', 'MEDIA', 'DIFICIL', 'CHUTE'].map(diff => {
-                            const s = discDetail!.difficultyStats[diff];
-                            const label = diff === 'FACIL' ? 'Fácil' : diff === 'MEDIA' ? 'Média' : diff === 'DIFICIL' ? 'Difícil' : 'Chute';
-                            const color = diff === 'CHUTE' ? 'text-orange-600' : 'text-indigo-700';
-                            
-                            return (
-                              <div key={diff} className="flex flex-col">
-                                <span className="text-[10px] font-bold text-gray-500">{label}</span>
-                                <span className={`text-sm font-bold font-mono ${color}`}>
-                                  {s ? `${s.correct}/${s.total}` : '0/0'}
-                                </span>
-                                {s && s.total > 0 && (
-                                  <div className="w-full bg-gray-200 h-1 mt-1 rounded-full overflow-hidden">
-                                    <div 
-                                      className={`h-full rounded-full ${diff === 'CHUTE' ? 'bg-orange-400' : (s.correct/s.total >= 0.7 ? 'bg-green-500' : s.correct/s.total >= 0.5 ? 'bg-yellow-500' : 'bg-red-500')}`} 
-                                      style={{ width: `${(s.correct/s.total) * 100}%` }}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Hierarchy Section */}
-                      <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-                        <div className="bg-gray-50/50 px-4 py-3 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-widest">
-                          Temas e Subtemas
-                        </div>
-                        <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
-                          {discDetail!.children && discDetail!.children.map(tema => (
-                            <MasteryRow key={tema.id} item={tema} />
-                          ))}
-                          {(!discDetail!.children || discDetail!.children.length === 0) && (
-                            <div className="p-10 text-center text-gray-400 text-sm italic">Nenhum tema detalhado disponível.</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-10 text-center text-red-500 font-medium">Erro ao carregar detalhes.</div>
+              {/* Hierarchy Section */}
+              <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-gray-50/50 px-4 py-3 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-widest">
+                  Temas e Subtemas
+                </div>
+                <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
+                  {discDetail!.children && discDetail!.children.map(tema => (
+                    <MasteryRow key={tema.id} item={tema} />
+                  ))}
+                  {(!discDetail!.children || discDetail!.children.length === 0) && (
+                    <div className="p-10 text-center text-gray-400 text-sm italic">Nenhum tema detalhado disponível.</div>
                   )}
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="p-10 text-center text-rose-500 font-medium font-sans">Erro ao carregar detalhes da disciplina.</div>
+          )}
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

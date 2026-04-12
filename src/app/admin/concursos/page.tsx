@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import PageHeader from '@/components/ui/PageHeader';
 import FormModal from '@/components/ui/FormModal';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { concursoService, bancaService, instituicaoService, cargoService, subtemaService } from '@/services/api';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
@@ -126,6 +127,20 @@ export default function ConcursosAdminPage() {
     last: true
   });
   const [currentPage, setCurrentPage] = useState(0);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    itemId: number | null;
+    type: 'danger' | 'info';
+    alertOnly?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    itemId: null,
+    type: 'danger'
+  });
 
   usePageTitle('Concursos', 'Admin');
 
@@ -389,24 +404,50 @@ export default function ConcursosAdminPage() {
       setModalOpen(true);
     } catch (err: any) {
       console.error('Erro ao carregar detalhes para edição:', err);
-      alert(err.message || 'Erro ao carregar detalhes para edição.');
+      setConfirmModal({
+        isOpen: true,
+        title: 'Erro ao carregar',
+        message: err.message || 'Não foi possível carregar os detalhes do concurso para edição. Verifique sua conexão.',
+        itemId: null,
+        type: 'danger',
+        alertOnly: true
+      });
     } finally {
       setLocalLoading(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (typeof window !== 'undefined' && window.confirm('Tem certeza que deseja excluir este concurso? Todas as questões e simulados associados serão afetados.')) {
-      setLocalLoading(true);
-      try {
-        await concursoService.delete(id);
-        await loadConcursos(currentPage);
-      } catch (err: any) {
-        console.error('Erro ao excluir concurso:', err);
-        alert(err.message || 'Erro ao excluir concurso. O item pode estar sendo usado por outras entidades.');
-      } finally {
-        setLocalLoading(false);
-      }
+  const handleDelete = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Excluir Concurso',
+      message: 'Tem certeza que deseja excluir este concurso? Todas as questões e simulados associados serão afetados e esta ação não pode ser desfeita.',
+      itemId: id,
+      type: 'danger',
+      alertOnly: false
+    });
+  };
+
+  const onConfirmDelete = async () => {
+    if (!confirmModal.itemId) return;
+    
+    setLocalLoading(true);
+    try {
+      await concursoService.delete(confirmModal.itemId);
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      await loadConcursos(currentPage);
+    } catch (err: any) {
+      console.error('Erro ao excluir concurso:', err);
+      setConfirmModal({
+        isOpen: true,
+        title: 'Não foi possível excluir',
+        message: err.message || 'Este concurso não pode ser removido pois está sendo utilizado em outras partes do sistema.',
+        itemId: null,
+        type: 'danger',
+        alertOnly: true
+      });
+    } finally {
+      setLocalLoading(false);
     }
   };
 
@@ -843,6 +884,18 @@ export default function ConcursosAdminPage() {
           )}
         </div>
       </FormModal>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.alertOnly ? () => setConfirmModal(prev => ({ ...prev, isOpen: false })) : onConfirmDelete}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        loading={localLoading}
+        alertOnly={confirmModal.alertOnly}
+        confirmLabel={confirmModal.alertOnly ? 'Ok, entendi' : 'Confirmar Exclusão'}
+      />
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
         {loading ? (

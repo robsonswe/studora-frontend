@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import QuestaoFormModal from '@/components/ui/QuestaoFormModal';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useForm, Controller } from 'react-hook-form';
 import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
@@ -67,6 +68,20 @@ export default function SearchBrowsePage() {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [alternativeErrors, setAlternativeErrors] = useState<string>('');
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    itemId: number | null;
+    type: 'danger' | 'info';
+    alertOnly?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    itemId: null,
+    type: 'danger'
+  });
 
   const [currentAlternativas, setCurrentAlternativas] = useState<Types.AlternativaDto[]>([]);
   const [novaAlternativa, setNovaAlternativa] = useState<Omit<Types.AlternativaDto, 'id' | 'questaoId'>>({
@@ -196,24 +211,50 @@ export default function SearchBrowsePage() {
       }
     } catch (err: any) {
       console.error('Erro ao carregar detalhes da questão:', err);
-      alert(err.message || 'Erro ao carregar detalhes para edição.');
+      setConfirmModal({
+        isOpen: true,
+        title: 'Erro ao carregar',
+        message: err.message || 'Não foi possível carregar os detalhes da questão para edição.',
+        itemId: null,
+        type: 'danger',
+        alertOnly: true
+      });
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleDeleteQuestao = async (id: number) => {
-    if (window.confirm('Tem certeza que deseja excluir esta questão? Esta ação não pode ser desfeita.')) {
-      setFormLoading(true);
-      try {
-        await questaoService.delete(id);
-        await filterQuestoes(currentPage);
-      } catch (err: any) {
-        console.error('Erro ao excluir questão:', err);
-        alert(err.message || 'Erro ao excluir questão. O item pode estar sendo usado por outras entidades.');
-      } finally {
-        setFormLoading(false);
-      }
+  const handleDeleteQuestao = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Excluir Questão',
+      message: 'Tem certeza que deseja excluir esta questão? Esta ação não pode ser desfeita e removerá permanentemente todos os gabaritos e estatísticas associados.',
+      itemId: id,
+      type: 'danger',
+      alertOnly: false
+    });
+  };
+
+  const onConfirmDelete = async () => {
+    if (!confirmModal.itemId) return;
+    
+    setFormLoading(true);
+    try {
+      await questaoService.delete(confirmModal.itemId);
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      await filterQuestoes(currentPage);
+    } catch (err: any) {
+      console.error('Erro ao excluir questão:', err);
+      setConfirmModal({
+        isOpen: true,
+        title: 'Não foi possível excluir',
+        message: err.message || 'Erro ao excluir questão. O item pode estar sendo usado por outras entidades do sistema.',
+        itemId: null,
+        type: 'danger',
+        alertOnly: true
+      });
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -862,6 +903,18 @@ export default function SearchBrowsePage() {
         onMoverAlternativaParaCima={moverAlternativaParaCima}
         onMoverAlternativaParaBaixo={moverAlternativaParaBaixo}
         alternativeErrors={alternativeErrors}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.alertOnly ? () => setConfirmModal(prev => ({ ...prev, isOpen: false })) : onConfirmDelete}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        loading={formLoading}
+        alertOnly={confirmModal.alertOnly}
+        confirmLabel={confirmModal.alertOnly ? 'Ok, entendi' : 'Confirmar Exclusão'}
       />
     </div>
   );

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { UseFormReturn } from 'react-hook-form';
 import AsyncSelect from 'react-select/async';
 import Select from 'react-select/async';
@@ -12,6 +11,7 @@ import {
 import * as Types from '@/types';
 import { formatNivel } from '@/utils/formatters';
 import { concursoService, subtemaService } from '@/services/api';
+import BaseModal from './BaseModal';
 
 interface QuestaoFormData {
   concurso: { value: number; label: string } | null;
@@ -59,22 +59,10 @@ export default function QuestaoFormModal({
   onMoverAlternativaParaBaixo,
   alternativeErrors
 }: QuestaoFormModalProps) {
-  const [mounted, setMounted] = useState(false);
   const [availableCargos, setAvailableCargos] = useState<Types.CargoSummaryDto[]>([]);
   const [activeTab, setActiveTab] = useState<'dados' | 'alternativas'>('dados');
   const crudWatchedFields = crudForm.watch();
 
-  useEffect(() => {
-    setMounted(true);
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
 
   // Error indicators for mobile tabs
   const hasDadosErrors = validationErrors.length > 0 || Object.keys(crudForm.formState.errors).length > 0;
@@ -133,16 +121,14 @@ export default function QuestaoFormModal({
     multiValueRemove: (base: any) => ({ ...base, color: '#6366f1', ':hover': { backgroundColor: '#c7d2fe', color: '#312e81' } }),
   };
 
-  if (!mounted || !isOpen) return null;
-
-  const modalContent = (
-    <div
-      className="fixed inset-[-1px] z-[9999] flex items-center justify-center bg-black/45 backdrop-blur-[2px] p-4 overflow-y-auto"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+  return (
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="5xl"
+      className="lg:h-[min(88vh,680px)] flex flex-col"
+      preventBackdropClick={formLoading}
     >
-      <div
-        className="bg-white w-full h-full lg:h-[min(88vh,680px)] lg:max-w-5xl lg:rounded-xl shadow-2xl flex flex-col animate-in fade-in slide-in-from-top-3 duration-200 overflow-hidden"
-      >
         {/* ── Header ── */}
         <div className="flex-shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-indigo-100/60 bg-white">
           <div className="flex items-center gap-3">
@@ -534,9 +520,6 @@ export default function QuestaoFormModal({
           </div>
         </div>
 
-      </div>
-    </div>
+    </BaseModal>
   );
-
-  return createPortal(modalContent, document.body);
 }

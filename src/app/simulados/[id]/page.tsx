@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import { QuestionCard } from '@/components/practice/QuestionCard';
+import Modal from '@/components/ui/Modal';
 import { simuladoService, respostaService } from '@/services/api';
 import { formatDificuldade, formatNivel } from '@/utils/formatters';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -399,40 +400,65 @@ export default function SimuladoDetailPage() {
       </div>
 
       {/* Results Modal */}
-      {showResultsModal && (
-        <div className="relative z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-          <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
-            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0" onClick={() => setShowResultsModal(false)}>
-              <div className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-sm transition-all sm:my-8 sm:w-full sm:max-w-md" onClick={(e) => e.stopPropagation()}>
-                <div className="bg-white px-4 pt-5 pb-4 sm:p-8">
-                  <div className="sm:flex sm:items-start justify-center">
-                    <div className="mt-3 text-center sm:mt-0 sm:text-center w-full">
-                      <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6 ring-8 ring-green-50"><Award className="h-10 w-10 text-green-600" /></div>
-                      <h3 className="text-2xl leading-6 font-bold text-gray-900 mb-2">Simulado Finalizado.</h3>
-                      <p className="text-gray-500 text-sm mb-6">Você respondeu a todas as questões.</p>
-                      <div className="bg-gray-50 rounded-xl p-6 mb-6 border border-gray-200">
-                        <div className="grid grid-cols-2 gap-4 border-b border-gray-200 pb-4 mb-4">
-                           <div><span className="block text-green-600 text-xs uppercase font-bold tracking-wider">Acertos</span><span className="block text-4xl font-extrabold text-green-700">{stats.correct}</span></div>
-                           <div><span className="block text-gray-500 text-xs uppercase font-bold tracking-wider">Total</span><span className="block text-4xl font-extrabold text-gray-800">{stats.total}</span></div>
-                        </div>
-                        <div>
-                           <div className="flex justify-between text-sm text-gray-600 mb-1 font-medium"><span>Aproveitamento</span><span className="text-indigo-600 font-mono">{Math.round((stats.correct / stats.total) * 100)}%</span></div>
-                           <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden"><div className={`h-full rounded-full ${(stats.correct / stats.total) >= 0.7 ? 'bg-green-500' : (stats.correct / stats.total) >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${(stats.correct / stats.total) * 100}%` }}></div></div>
-                        </div>
-                      </div>
-                      <div className="mt-5 sm:mt-6 grid grid-cols-1 gap-3">
-                        <button type="button" className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-3 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700" onClick={() => router.push('/simulados')}>Sair para Meus Simulados</button>
-                        <button type="button" className="w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-3 bg-white text-base font-medium text-gray-700 hover:bg-gray-50" onClick={() => setShowResultsModal(false)}>Revisar Gabarito</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+      <Modal
+        isOpen={showResultsModal}
+        onClose={() => setShowResultsModal(false)}
+        title="Simulado Finalizado"
+        size="md"
+      >
+        <div className="p-6 sm:p-8">
+          <div className="text-center w-full">
+            <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6 ring-8 ring-green-50">
+              <Award className="h-10 w-10 text-green-600" />
+            </div>
+            
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Simulado Finalizado.</h3>
+            <p className="text-gray-500 text-sm mb-8">Você respondeu a todas as questões.</p>
+            
+            <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-200 shadow-inner">
+              <div className="grid grid-cols-2 gap-4 border-b border-gray-200 pb-4 mb-4">
+                 <div>
+                   <span className="block text-green-600 text-[10px] uppercase font-bold tracking-widest mb-1">Acertos</span>
+                   <span className="block text-4xl font-black text-green-700 font-mono">{stats.correct}</span>
+                 </div>
+                 <div>
+                   <span className="block text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-1">Total</span>
+                   <span className="block text-4xl font-black text-gray-800 font-mono">{stats.total}</span>
+                 </div>
               </div>
+              <div>
+                 <div className="flex justify-between text-xs text-gray-600 mb-2 font-bold uppercase tracking-tight">
+                   <span>Aproveitamento</span>
+                   <span className="text-indigo-600 font-mono">{Math.round((stats.correct / stats.total) * 100)}%</span>
+                 </div>
+                 <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden shadow-inner">
+                   <div 
+                    className={`h-full rounded-full transition-all duration-1000 ${(stats.correct / stats.total) >= 0.7 ? 'bg-green-500' : (stats.correct / stats.total) >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                    style={{ width: `${(stats.correct / stats.total) * 100}%` }}
+                   />
+                 </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-3">
+              <button 
+                type="button" 
+                className="w-full inline-flex justify-center rounded-xl border border-transparent px-4 py-3.5 bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-all active:scale-[0.98]" 
+                onClick={() => router.push('/simulados')}
+              >
+                Sair para Meus Simulados
+              </button>
+              <button 
+                type="button" 
+                className="w-full inline-flex justify-center rounded-xl border border-gray-200 px-4 py-3.5 bg-white text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all active:scale-[0.98]" 
+                onClick={() => setShowResultsModal(false)}
+              >
+                Revisar Gabarito
+              </button>
             </div>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
