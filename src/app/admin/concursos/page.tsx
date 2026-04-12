@@ -77,6 +77,7 @@ export default function ConcursosAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ConcursoDto | null>(null);
+  const [formTab, setFormTab] = useState<'dados' | 'conteudo'>('dados');
 
   // Filter state
   const { setValue, watch, reset: resetFilters } = useForm({
@@ -605,8 +606,34 @@ export default function ConcursosAdminPage() {
           </div>
         ) : undefined}
       >
-        <div className="grid grid-cols-1 gap-y-6 gap-x-8 sm:grid-cols-6">
-          <div className="sm:col-span-3">
+        {/* Unified Tab Switcher (Mobile & Desktop) */}
+        <div className="sticky top-[-24.5px] z-20 flex border-b border-indigo-100/60 bg-white shadow-sm flex-shrink-0 -mx-6 -mt-6.5 pt-0.5 mb-8 backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => setFormTab('dados')}
+            className={`flex-1 py-4 text-[11px] font-bold uppercase tracking-widest transition-all relative flex items-center justify-center gap-2 ${
+              formTab === 'dados' ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-400'
+            }`}
+          >
+            Dados Gerais
+            {formTab === 'dados' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 animate-in fade-in slide-in-from-bottom-1" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormTab('conteudo')}
+            className={`flex-1 py-4 text-[11px] font-bold uppercase tracking-widest transition-all relative flex items-center justify-center gap-2 ${
+              formTab === 'conteudo' ? 'text-indigo-600' : 'text-slate-400'
+            }`}
+          >
+            Conteúdo
+            {formData.topicos.length > 0 && <span className="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 tabular-nums">{formData.topicos.length}</span>}
+            {formTab === 'conteudo' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 animate-in fade-in slide-in-from-bottom-1" />}
+          </button>
+        </div>
+
+        <div className={formTab === 'dados' ? 'block' : 'hidden'}>
+          <div className="grid grid-cols-1 lg:grid-cols-6 gap-y-7 gap-x-8">
+            <div className="lg:col-span-3">
             <label htmlFor="instituicao" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
               Instituição
             </label>
@@ -624,7 +651,7 @@ export default function ConcursosAdminPage() {
             />
           </div>
 
-          <div className="sm:col-span-3">
+          <div className="lg:col-span-3">
             <label htmlFor="banca" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
               Banca Examinadora
             </label>
@@ -642,37 +669,40 @@ export default function ConcursosAdminPage() {
             />
           </div>
 
-          <div className="sm:col-span-2">
-            <label htmlFor="ano" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-              Ano
-            </label>
-            <input
-              type="number"
-              id="ano"
-              value={formData.ano}
-              onChange={(e) => setFormData({...formData, ano: parseInt(e.target.value) || new Date().getFullYear()})}
-              className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
-              required
-            />
-          </div>
+            {/* Ano & Mês - Grouped side-by-side on mobile */}
+            <div className="lg:col-span-4 grid grid-cols-2 gap-4 lg:grid-cols-2 lg:contents">
+              <div className="lg:col-span-2">
+                <label htmlFor="ano" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                  Ano
+                </label>
+                <input
+                  type="number"
+                  id="ano"
+                  value={formData.ano}
+                  onChange={(e) => setFormData({...formData, ano: parseInt(e.target.value) || new Date().getFullYear()})}
+                  className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
+                  required
+                />
+              </div>
 
-          <div className="sm:col-span-2">
-            <label htmlFor="mes" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-              Mês do Edital
-            </label>
-            <input
-              type="number"
-              id="mes"
-              min="1"
-              max="12"
-              value={formData.mes}
-              onChange={(e) => setFormData({...formData, mes: parseInt(e.target.value) || 1})}
-              className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
-              required
-            />
-          </div>
+              <div className="lg:col-span-2">
+                <label htmlFor="mes" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                  Mês do Edital
+                </label>
+                <input
+                  type="number"
+                  id="mes"
+                  min="1"
+                  max="12"
+                  value={formData.mes}
+                  onChange={(e) => setFormData({...formData, mes: parseInt(e.target.value) || 1})}
+                  className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
+                  required
+                />
+              </div>
+            </div>
 
-          <div className="sm:col-span-2">
+          <div className="lg:col-span-2">
             <label htmlFor="dataProva" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
               Data de Aplicação
             </label>
@@ -685,7 +715,7 @@ export default function ConcursosAdminPage() {
             />
           </div>
 
-          <div className="sm:col-span-6">
+          <div className="lg:col-span-6">
             <label htmlFor="edital" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
               Link do Edital / Detalhes
             </label>
@@ -703,7 +733,7 @@ export default function ConcursosAdminPage() {
             </div>
           </div>
 
-          <div className="sm:col-span-6">
+          <div className="lg:col-span-6">
             <label htmlFor="cargos" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
               Cargos Vinculados
             </label>
@@ -722,14 +752,16 @@ export default function ConcursosAdminPage() {
             />
           </div>
         </div>
+      </div>
 
-        {formData.cargos.length > 0 && (
-          <div className="mt-10 border-t border-gray-100 pt-8">
+      <div className={formTab === 'conteudo' ? 'block' : 'hidden'}>
+          {formData.cargos.length > 0 && (
+          <div className="pt-2">
             <div className="flex items-center mb-4">
               <Hash className="w-5 h-5 text-indigo-500 mr-2" />
-              <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Conteúdo Programático (Edital)</h4>
+              <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Conteúdo Programático</h4>
             </div>
-            <p className="text-xs text-gray-400 mb-6 font-medium">Selecione os subtemas que serão cobrados e vincule-os aos cargos específicos.</p>
+            <p className="text-xs text-gray-400 mb-6 font-medium leading-relaxed">Vincule subtemas aos cargos para definir o edital da prova.</p>
 
             <AsyncSelect
               instanceId="subtema-add-select"
@@ -746,63 +778,70 @@ export default function ConcursosAdminPage() {
 
             {formData.topicos.length > 0 && (
               <div className="mt-6 grid grid-cols-1 gap-6">
-                {groupedTopicos.map((disciplinaGroup) => (
-                  <div key={disciplinaGroup.disciplina?.id ?? 0} className="bg-slate-50/50 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                    <div className="bg-slate-100/80 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-600 uppercase tracking-widest">
-                        {disciplinaGroup.disciplina?.nome || 'Sem disciplina'}
-                      </span>
-                    </div>
+                {groupedTopicos.map((disciplinaGroup) => {
+                  return (
+                    <div key={disciplinaGroup.disciplina?.id ?? 0} className="bg-slate-50/50 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                      <div className="bg-slate-100/80 px-4 sm:px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-600 uppercase tracking-widest">
+                          {disciplinaGroup.disciplina?.nome || 'Sem disciplina'}
+                        </span>
+                      </div>
 
-                    <div className="divide-y divide-slate-100">
-                      {disciplinaGroup.temas.map((temaGroup) => (
-                        <div key={temaGroup.tema?.id ?? 0}>
-                          <div className="bg-white/40 px-5 py-2">
-                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-tighter">
-                              Tema: {temaGroup.tema?.nome || 'Sem tema'}
-                            </span>
-                          </div>
-
-                          <div className="bg-white divide-y divide-gray-50">
-                            {temaGroup.topicos.map((topico) => (
-                              <div key={topico.subtemaId} className="px-5 py-4 hover:bg-slate-50 transition-colors">
-                                <div className="flex items-center justify-between mb-3">
-                                  <span className="text-sm font-bold text-gray-800">
-                                    {topico.subtemaLabel.split(' - ').pop()}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeTopico(topico.subtemaId)}
-                                    className="text-[10px] font-black text-red-400 hover:text-red-700 uppercase tracking-widest bg-red-50 px-2 py-1 rounded transition-all"
-                                  >
-                                    Remover
-                                  </button>
-                                </div>
-                                <div className="flex flex-wrap gap-x-6 gap-y-2">
-                                  {formData.cargos.map((cargo: any) => (
-                                    <label key={cargo.value} className="inline-flex items-center text-[11px] font-bold text-gray-500 uppercase cursor-pointer hover:text-indigo-600 transition-all">
-                                      <input
-                                        type="checkbox"
-                                        checked={topico.cargoIds.includes(cargo.value)}
-                                        onChange={() => toggleTopicoCargo(topico.subtemaId, cargo.value)}
-                                        className="h-3.5 w-3.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-2"
-                                      />
-                                      {cargo.label.split(' - ')[0]}
-                                    </label>
-                                  ))}
-                                </div>
+                      <div className="divide-y divide-slate-100">
+                        {disciplinaGroup.temas.map((temaGroup) => {
+                          return (
+                            <div key={temaGroup.tema?.id ?? 0}>
+                              <div className="bg-white/40 px-4 sm:px-5 py-2">
+                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-tighter">
+                                  Tema: {temaGroup.tema?.nome || 'Sem tema'}
+                                </span>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+
+                              <div className="bg-white divide-y divide-gray-50">
+                                {temaGroup.topicos.map((topico) => {
+                                  return (
+                                    <div key={topico.subtemaId} className="px-4 sm:px-5 py-5 sm:py-4 hover:bg-slate-50 transition-colors">
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-3">
+                                        <span className="text-sm font-bold text-gray-800 leading-tight">
+                                          {topico.subtemaLabel.split(' - ').pop()}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeTopico(topico.subtemaId)}
+                                          className="text-[10px] font-black text-red-500 hover:text-red-700 uppercase tracking-widest bg-red-50 border border-red-100/50 px-3 py-1.5 sm:px-2 sm:py-1 rounded-lg sm:rounded transition-all w-max"
+                                        >
+                                          Remover
+                                        </button>
+                                      </div>
+                                      <div className="flex flex-wrap gap-x-6 gap-y-3 sm:gap-y-2">
+                                        {formData.cargos.map((cargo: any) => (
+                                          <label key={cargo.value} className="inline-flex items-center text-[11px] font-bold text-gray-500 uppercase cursor-pointer hover:text-indigo-600 transition-all py-1">
+                                            <input
+                                              type="checkbox"
+                                              checked={topico.cargoIds.includes(cargo.value)}
+                                              onChange={() => toggleTopicoCargo(topico.subtemaId, cargo.value)}
+                                              className="h-4 w-4 sm:h-3.5 sm:w-3.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-2.5 sm:mr-2"
+                                            />
+                                            {cargo.label.split(' - ')[0]}
+                                          </label>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
-        )}
+          )}
+        </div>
       </FormModal>
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">

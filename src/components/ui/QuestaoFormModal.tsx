@@ -61,7 +61,13 @@ export default function QuestaoFormModal({
   alternativeErrors
 }: QuestaoFormModalProps) {
   const [availableCargos, setAvailableCargos] = useState<Types.CargoSummaryDto[]>([]);
+  const [activeTab, setActiveTab] = useState<'dados' | 'alternativas'>('dados');
   const crudWatchedFields = crudForm.watch();
+
+  // Error indicators for mobile tabs
+  const hasDadosErrors = validationErrors.length > 0 || Object.keys(crudForm.formState.errors).length > 0;
+  const hasAlternativasErrors = currentAlternativas.length < 2 || 
+                                (currentAlternativas.filter(a => a.correta).length !== 1 && !crudWatchedFields.anulada);
 
   useEffect(() => {
     if (crudWatchedFields.concurso?.value) {
@@ -123,8 +129,7 @@ export default function QuestaoFormModal({
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-5xl flex flex-col animate-in fade-in slide-in-from-top-3 duration-200 overflow-hidden"
-        style={{ height: 'min(88vh, 680px)' }}
+        className="bg-white w-full h-full lg:h-[min(88vh,680px)] lg:max-w-5xl lg:rounded-xl shadow-2xl flex flex-col animate-in fade-in slide-in-from-top-3 duration-200 overflow-hidden"
       >
         {/* ── Header ── */}
         <div className="flex-shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-indigo-100/60 bg-white">
@@ -148,15 +153,42 @@ export default function QuestaoFormModal({
           </button>
         </div>
 
+        {/* ── Mobile Tabs ── */}
+        <div className="flex lg:hidden border-b border-indigo-100/60 bg-white shadow-sm flex-shrink-0 relative">
+          <button
+            type="button"
+            onClick={() => setActiveTab('dados')}
+            className={`flex-1 py-3.5 text-[11px] font-bold uppercase tracking-widest transition-all relative flex items-center justify-center gap-2 ${
+              activeTab === 'dados' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Questão
+            {hasDadosErrors && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm shadow-red-200" />}
+            {activeTab === 'dados' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 animate-in fade-in slide-in-from-bottom-1 duration-200" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('alternativas')}
+            className={`flex-1 py-3.5 text-[11px] font-bold uppercase tracking-widest transition-all relative flex items-center justify-center gap-2 ${
+              activeTab === 'alternativas' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Alternativas
+            {hasAlternativasErrors && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm shadow-red-200" />}
+            {activeTab === 'alternativas' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 animate-in fade-in slide-in-from-bottom-1 duration-200" />}
+          </button>
+        </div>
+
+
         {/* ── Two-panel body ── */}
         <form
           id="questao-crud-form"
           onSubmit={crudForm.handleSubmit(onSubmit)}
-          className="flex flex-1 min-h-0"
+          className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-y-auto lg:overflow-hidden scroll-smooth"
         >
           {/* ── LEFT: metadata fields ── */}
-          <div className="flex flex-col w-[46%] border-r border-slate-100 overflow-y-auto bg-slate-50/40">
-            <div className="flex-1 px-5 py-5 space-y-5">
+          <div className={`flex-shrink-0 flex-col w-full lg:w-[46%] border-b lg:border-b-0 lg:border-r border-slate-100 lg:overflow-y-auto bg-slate-50/40 ${activeTab === 'dados' ? 'flex' : 'hidden lg:flex'}`}>
+            <div className="flex-1 px-5 py-5 space-y-6">
 
               {/* Enunciado */}
               <div>
@@ -169,7 +201,7 @@ export default function QuestaoFormModal({
                   rows={5}
                   autoFocus
                   {...crudForm.register('enunciado', { required: 'O enunciado é obrigatório.' })}
-                  className="block w-full text-sm border border-slate-200 bg-white rounded-lg p-2.5 text-gray-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none transition-shadow duration-150 leading-relaxed"
+                  className="block w-full text-sm border border-slate-200 bg-white rounded-xl p-3.5 text-gray-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none transition-all duration-150 leading-relaxed shadow-sm"
                   placeholder="Digite o enunciado da questão…"
                 />
                 {crudForm.formState.errors.enunciado && (
@@ -177,89 +209,94 @@ export default function QuestaoFormModal({
                 )}
               </div>
 
-              {/* Flags */}
-              <div className="flex flex-wrap gap-x-5 gap-y-2 py-0.5">
-                <label className="flex items-center gap-1.5 cursor-pointer select-none group">
-                  <input
-                    type="checkbox"
-                    id="crud-autoral"
-                    {...crudForm.register('autoral')}
-                    disabled={!!editingItem}
-                    className="h-3.5 w-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-400 disabled:opacity-40 transition-colors"
-                  />
-                  <span className="text-xs text-slate-500 group-hover:text-slate-700 transition-colors">
-                    Autoral
-                  </span>
-                  {editingItem && (
-                    <span className="text-[10px] text-slate-400 italic">— não editável</span>
-                  )}
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer select-none group">
-                  <input
-                    type="checkbox"
-                    id="crud-anulada"
-                    {...crudForm.register('anulada')}
-                    className="h-3.5 w-3.5 text-amber-500 border-slate-300 rounded focus:ring-amber-400 transition-colors"
-                  />
-                  <span className={`text-xs transition-colors ${crudWatchedFields.anulada ? 'text-amber-600 font-semibold' : 'text-slate-500 group-hover:text-slate-700'}`}>
-                    Anulada
-                  </span>
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer select-none group">
-                  <input
-                    type="checkbox"
-                    id="crud-desatualizada"
-                    {...crudForm.register('desatualizada')}
-                    className="h-3.5 w-3.5 text-amber-500 border-slate-300 rounded focus:ring-amber-400 transition-colors"
-                  />
-                  <span className={`text-xs transition-colors ${crudWatchedFields.desatualizada ? 'text-amber-600 font-semibold' : 'text-slate-500 group-hover:text-slate-700'}`}>
-                    Desatualizada
-                  </span>
-                </label>
-              </div>
+              {/* Flags & Content Group */}
+              <div className="p-4 rounded-xl bg-indigo-50/40 border border-indigo-100/50 space-y-6">
+                <div>
+                  <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-[0.2em] mb-3 leading-none">Status da Questão</p>
+                  <div className="flex flex-wrap gap-x-5 gap-y-3">
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                      <input
+                        type="checkbox"
+                        id="crud-autoral"
+                        {...crudForm.register('autoral')}
+                        disabled={!!editingItem}
+                        className="h-3.5 w-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-400 disabled:opacity-40 transition-colors"
+                      />
+                      <span className="text-xs text-slate-500 group-hover:text-slate-700 transition-colors tracking-tight">
+                        Questão Autoral
+                      </span>
+                      {editingItem && (
+                        <span className="text-[10px] text-slate-400 italic">— não editável</span>
+                      )}
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                      <input
+                        type="checkbox"
+                        id="crud-anulada"
+                        {...crudForm.register('anulada')}
+                        className="h-3.5 w-3.5 text-amber-500 border-slate-300 rounded focus:ring-amber-400 transition-colors"
+                      />
+                      <span className={`text-xs transition-colors tracking-tight ${crudWatchedFields.anulada ? 'text-amber-600 font-semibold' : 'text-slate-500 group-hover:text-slate-700'}`}>
+                        Questão Anulada
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                      <input
+                        type="checkbox"
+                        id="crud-desatualizada"
+                        {...crudForm.register('desatualizada')}
+                        className="h-3.5 w-3.5 text-amber-500 border-slate-300 rounded focus:ring-amber-400 transition-colors"
+                      />
+                      <span className={`text-xs transition-colors tracking-tight ${crudWatchedFields.desatualizada ? 'text-amber-600 font-semibold' : 'text-slate-500 group-hover:text-slate-700'}`}>
+                        Questão Desatualizada
+                      </span>
+                    </label>
+                  </div>
+                </div>
 
-              {/* Origem (conditional on non-autoral) */}
-              {!crudWatchedFields.autoral && (
-                <>
-                  <div>
-                    <label className="block text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
-                      Concurso
-                    </label>
-                    <AsyncSelect
-                      id="crud-concurso"
-                      instanceId="crud-concurso-select"
-                      cacheOptions
-                      defaultOptions
-                      loadOptions={loadConcursoOptions}
-                      value={crudWatchedFields.concurso}
-                      onChange={(val) => { crudForm.setValue('concurso', val); crudForm.setValue('cargos', []); }}
-                      placeholder="Busque pelo ano, instituição ou banca…"
-                      styles={crudSelectStyles}
-                      menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                    />
+                {/* Origem (conditional on non-autoral) */}
+                {!crudWatchedFields.autoral && (
+                  <div className="space-y-4 pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
+                        Concurso
+                      </label>
+                      <AsyncSelect
+                        id="crud-concurso"
+                        instanceId="crud-concurso-select"
+                        cacheOptions
+                        defaultOptions
+                        loadOptions={loadConcursoOptions}
+                        value={crudWatchedFields.concurso}
+                        onChange={(val) => { crudForm.setValue('concurso', val); crudForm.setValue('cargos', []); }}
+                        placeholder="Busque pelo ano, instituição ou banca…"
+                        styles={crudSelectStyles}
+                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
+                        Cargos
+                      </label>
+                      <Select
+                        id="crud-cargos"
+                        instanceId="crud-cargos-select"
+                        isMulti
+                        options={availableCargos.map(c => ({ value: c.id, label: `${c.nome} — ${c.area} (${formatNivel(c.nivel)})` }))}
+                        value={crudWatchedFields.cargos.map(id => {
+                          const cargo = availableCargos.find(c => c.id === id);
+                          return { value: id, label: cargo ? `${cargo.nome} — ${cargo.area} (${formatNivel(cargo.nivel)})` : `Cargo ID: ${id}` };
+                        })}
+                        onChange={(sel) => crudForm.setValue('cargos', sel ? sel.map(o => o.value) : [])}
+                        placeholder={crudWatchedFields.concurso ? 'Selecione um ou mais cargos…' : 'Selecione um concurso primeiro'}
+                        isDisabled={!crudWatchedFields.concurso}
+                        styles={crudSelectStyles}
+                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
-                      Cargos
-                    </label>
-                    <Select
-                      id="crud-cargos"
-                      instanceId="crud-cargos-select"
-                      isMulti
-                      options={availableCargos.map(c => ({ value: c.id, label: `${c.nome} — ${c.area} (${formatNivel(c.nivel)})` }))}
-                      value={crudWatchedFields.cargos.map(id => {
-                        const cargo = availableCargos.find(c => c.id === id);
-                        return { value: id, label: cargo ? `${cargo.nome} — ${cargo.area} (${formatNivel(cargo.nivel)})` : `Cargo ID: ${id}` };
-                      })}
-                      onChange={(sel) => crudForm.setValue('cargos', sel ? sel.map(o => o.value) : [])}
-                      placeholder={crudWatchedFields.concurso ? 'Selecione um ou mais cargos…' : 'Selecione um concurso primeiro'}
-                      isDisabled={!crudWatchedFields.concurso}
-                      styles={crudSelectStyles}
-                      menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                    />
-                  </div>
-                </>
-              )}
+                )}
+              </div>
 
               {/* Subtemas */}
               <div>
@@ -311,7 +348,7 @@ export default function QuestaoFormModal({
           </div>
 
           {/* ── RIGHT: alternativas ── */}
-          <div className="flex flex-col flex-1 min-w-0 bg-white">
+          <div className={`flex-col flex-1 min-w-0 bg-white lg:overflow-y-auto ${activeTab === 'alternativas' ? 'flex' : 'hidden lg:flex'}`}>
 
             {/* Add new alternative */}
             <div className="flex-shrink-0 px-5 py-4 border-b border-slate-100 space-y-2.5">
@@ -330,69 +367,72 @@ export default function QuestaoFormModal({
                 )}
               </div>
 
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={novaAlternativa.texto}
-                  onChange={(e) => onNovaAlternativaChange({...novaAlternativa, texto: e.target.value})}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAdicionarAlternativa(); } }}
-                  className={`flex-1 text-sm border rounded-lg px-2.5 py-[7px] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-shadow duration-150 ${
-                    alternativeErrors ? 'border-red-300 bg-red-50 placeholder-red-300' : 'border-slate-200 placeholder-slate-300'
-                  }`}
-                  placeholder="Texto da alternativa… (Enter para adicionar)"
-                />
-                <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer whitespace-nowrap px-1 hover:text-slate-700 transition-colors select-none">
+              <div className="flex flex-col gap-2.5">
+                <div className="flex gap-2 items-center">
                   <input
-                    type="checkbox"
-                    checked={novaAlternativa.correta}
-                    onChange={(e) => onNovaAlternativaChange({...novaAlternativa, correta: e.target.checked})}
-                    className="h-3.5 w-3.5 text-green-600 border-slate-300 rounded focus:ring-green-400"
+                    type="text"
+                    value={novaAlternativa.texto}
+                    onChange={(e) => onNovaAlternativaChange({...novaAlternativa, texto: e.target.value})}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAdicionarAlternativa(); } }}
+                    className={`flex-1 text-sm border rounded-lg px-2.5 py-[7px] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-shadow duration-150 ${
+                      alternativeErrors ? 'border-red-300 bg-red-50 placeholder-red-300' : 'border-slate-200 placeholder-slate-300'
+                    }`}
+                    placeholder="Texto da alternativa… (Enter para adicionar)"
                   />
-                  Correta
-                </label>
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer whitespace-nowrap px-1 hover:text-slate-700 transition-colors select-none">
+                    <input
+                      type="checkbox"
+                      checked={novaAlternativa.correta}
+                      onChange={(e) => onNovaAlternativaChange({...novaAlternativa, correta: e.target.checked})}
+                      className="h-3.5 w-3.5 text-green-600 border-slate-300 rounded focus:ring-green-400"
+                    />
+                    Correta
+                  </label>
+                </div>
+
+                {alternativeErrors && (
+                  <p className="text-[11px] text-red-500 font-medium">{alternativeErrors}</p>
+                )}
+
+                <textarea
+                  rows={2}
+                  value={novaAlternativa.justificativa || ''}
+                  onChange={(e) => onNovaAlternativaChange({...novaAlternativa, justificativa: e.target.value})}
+                  className="block w-full text-sm border border-slate-200 rounded-lg px-2.5 py-2 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none transition-shadow duration-150"
+                  placeholder="Justificativa da alternativa — por que está correta ou errada (opcional)…"
+                />
+
                 <button
                   type="button"
                   onClick={onAdicionarAlternativa}
                   title="Adicionar alternativa"
-                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-[7px] text-xs font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-colors duration-150"
+                  className="flex-shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-colors duration-150 w-full sm:w-max ml-auto"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Adicionar</span>
                 </button>
               </div>
-
-              {alternativeErrors && (
-                <p className="text-[11px] text-red-500 font-medium">{alternativeErrors}</p>
-              )}
-
-              <textarea
-                rows={2}
-                value={novaAlternativa.justificativa || ''}
-                onChange={(e) => onNovaAlternativaChange({...novaAlternativa, justificativa: e.target.value})}
-                className="block w-full text-sm border border-slate-200 rounded-lg px-2.5 py-2 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none transition-shadow duration-150"
-                placeholder="Justificativa da alternativa — por que está correta ou errada (opcional)…"
-              />
             </div>
 
-            {/* Alternative list — only this region scrolls */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5">
+            {/* Alternative list — only this region scrolls on desktop */}
+            <div className="flex-1 lg:overflow-y-auto px-5 py-6 space-y-4">
               {currentAlternativas.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center py-8 gap-1">
-                  <p className="text-xs text-slate-300 font-semibold">Nenhuma alternativa adicionada.</p>
-                  <p className="text-[11px] text-slate-300">São necessárias pelo menos 2 para salvar.</p>
+                <div className="flex flex-col items-center justify-center h-full text-center py-12 gap-1.5">
+                  <p className="text-xs text-slate-300 font-bold uppercase tracking-wider">Nenhuma alternativa</p>
+                  <p className="text-[11px] text-slate-400">Adicione pelo menos 2 alternativas.</p>
                 </div>
               ) : (
                 currentAlternativas.map((alt, index) => (
                   <div
                     key={index}
-                    className={`group flex items-start gap-2.5 px-3 py-2.5 rounded-lg border transition-all duration-150 ${
+                    className={`group flex items-start gap-2.5 px-3 py-3 rounded-lg border transition-all duration-150 ${
                       alt.correta
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-white border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/20'
+                        ? 'bg-emerald-50/50 border-emerald-200'
+                        : 'bg-white border-slate-200 hover:border-indigo-200 hover:bg-slate-50/50'
                     }`}
                   >
-                    <span className={`flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-black font-mono mt-0.5 transition-colors ${
-                      alt.correta ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-500'
+                    <span className={`flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-mono font-bold mt-0.5 transition-colors ${
+                      alt.correta ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200'
                     }`}>
                       {String.fromCharCode(65 + index)}
                     </span>
@@ -440,13 +480,13 @@ export default function QuestaoFormModal({
         </form>
 
         {/* ── Footer ── */}
-        <div className="flex-shrink-0 flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/60">
-          <p className={`text-[11px] font-medium tabular-nums transition-colors ${
+        <div className="flex-shrink-0 flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-4 border-t border-slate-100 bg-slate-50/60">
+          <p className={`text-[11px] font-mono font-bold tabular-nums transition-colors text-center sm:text-left ${
             currentAlternativas.length < 2
-              ? 'text-amber-500'
+              ? 'text-amber-600'
               : currentAlternativas.filter(a => a.correta).length !== 1 && !crudWatchedFields.anulada
-                ? 'text-amber-500'
-                : 'text-green-600'
+                ? 'text-amber-600'
+                : 'text-emerald-600'
           }`}>
             {currentAlternativas.length < 2
               ? `Adicione pelo menos ${2 - currentAlternativas.length} alternativa${2 - currentAlternativas.length > 1 ? 's' : ''} para continuar`
