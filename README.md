@@ -1,102 +1,147 @@
-# Studora — Aprovação por eficiência.
+# Studora
 
-**Studora** é um ecossistema de estudo unificado e de alta performance para *concurseiros*. O sistema integra acompanhamento de progresso, resolução de questões e mapeamento estratégico de editais em uma interface clínica, profissional e livre de distrações.
+> Plataforma de estudos para concursos públicos. Resolução de questões, simulados, mapa do edital e acompanhamento de desempenho.
 
 ![Studora Dashboard](screenshot.png)
 
 ---
 
-## 🧠 Metodologia Clínica
+## Stack
 
-Diferente de plataformas de produtividade genéricas, a Studora segue um modelo de ensino fundamentado em dados e ações concretas:
-
-- **Loop de Retenção Ativa:** O aluno deve escrever uma justificativa para cada resposta antes de revelar o gabarito. Isso força o raciocínio lógico sobre a alternativa escolhida.
-- **Análise Heurística de Comportamento:** O motor de analytics identifica padrões como *Speed Risk* (respostas rápidas com acerto baixo), *Zona de Conforto* (gap entre questões autorais e de banca) e *Stale Content* (conteúdo sem revisão há mais de 30 dias).
-- **Domínio por Dificuldade:** Métricas segmentadas por nível percebido (Fácil, Médio, Difícil, Chute) para calibrar a autoavaliação do aluno.
-
----
-
-## 💻 Ecossistema do Aluno
-
-### Navegação Principal
-
-| Rota | Descrição |
-|------|-----------|
-| `/praticar` | Bateria de questões com filtros avançados (Banca, Instituição, Área, Nível). Suporte a questões autorais. |
-| `/simulados` | Geração de simulados com configuração em 3 etapas: Estrutura → Conteúdo → Filtros. |
-| `/simulados/[id]` | Execução do simulado com timer por questão e navegação livre entre questões. |
-| `/provas/executar` | Simulação de prova real a partir de um concurso específico. Timer integrado e rastreamento de dificuldade percebida. |
-| `/concursos` | Catálogo de editais com gestão de inscrições, visualização de cargos e link para o edital oficial. |
-| `/concursos/[concursoId]/cargos/[cargoId]` | Detalhe do cargo com análise estratégica do edital (motor heurístico). |
-| `/disciplinas/[id]` | Árvore de progressão: Disciplina → Temas → Subtemas com estatísticas de domínio por tópico. |
-| `/desempenho` | Dashboard analítico com gráficos de evolução (Recharts), taxa de acerto por disciplina, consistência diária e detalhamento modal (F/M/D/Chute). |
-| `/perfil` | Dados do usuário e estatísticas gerais. |
-| `/configuracoes` | Preferências do sistema. |
+| Camada | Tecnologia |
+|--------|-----------|
+| Framework | Next.js 16 (App Router) |
+| Linguagem | TypeScript 5 |
+| Estilização | Tailwind CSS 4 |
+| Ícones | Lucide React |
+| Formulários | React Hook Form + React Select (Async) |
+| Gráficos | Recharts |
+| Tipografia | Plus Jakarta Sans (UI) · JetBrains Mono (dados) |
+| Package Manager | Bun |
 
 ---
 
-## 🔍 Motor de Análise Heurística
-
-O componente `EditalAnalysisReport.tsx`processa os Subtemas do edital e gera uma análise contextualizada. Calcula um *Readiness Score* (0-100), detecta padrões de risco (Speed Risk, Zona de Conforto, Stale Content) e gera recomendações priorizadas por urgência. A análise muda dinamicamente com base na data da prova e no status de inscrição.
-
----
-
-## 🎛️ Painel Administrativo (`/admin`)
-
-Sistema completo de curadoria e gestão de entidades:
-
-| Módulo | Função |
-|--------|--------|
-| `/admin/bancas` | Gestão de bancas organizadoras (FGV, Cebraspe, FCC, etc.) |
-| `/admin/instituicoes` | Gestão de órgãos e instituições (PF, PRF, STF, etc.) |
-| `/admin/cargos` | Cadastro de cargos por área e nível |
-| `/admin/concursos` | Vinculação de editais, datas de prova e vagas |
-| `/admin/disciplinas` | Criação e ordenação da árvore de disciplinas |
-| `/admin/temas` | Subtemas dentro de cada disciplina |
-| `/admin/subtemas` | Granularidade máxima do conteúdo programático |
-| `/admin/questoes` | Curadoria de questões com múltiplas alternativas, fundamentação teórica e tags de dificuldade |
-
----
-
-## 🛠️ Stack Técnica
-
-- **Framework:** Next.js 16 (App Router)
-- **Linguagem:** TypeScript 5
-- **Estilização:** Tailwind CSS 4
-- **Ícones:** Lucide React
-- **Formulários:** React Hook Form + React Select (Async)
-- **Visualização de Dados:** Recharts
-- **Tipografia:** Plus Jakarta Sans (UI) + JetBrains Mono (dados/tabular-nums)
-- **Package Manager:** Bun
-
----
-
-## ⚙️ Começando
+## Início rápido
 
 ```bash
-# Instalar dependências
 bun install
-
-# Iniciar servidor de desenvolvimento
-bun dev
-
-# Gerar build de produção
+bun dev          # http://localhost:3000
 bun build
-
-# Iniciar servidor de produção
 bun start
 ```
 
-O aplicativo será servido em `http://localhost:3000`.
+API backend em `http://localhost:4534/api/v1` (configurável em `src/services/api.ts`).
+
+Repositório do backend: [robsonswe/studora-backend](https://github.com/robsonswe/studora-backend)
 
 ---
 
-## 📂 Estrutura do Projeto
+## Rotas
+
+### Aluno
+
+| Rota | Descrição |
+|------|-----------|
+| `/` | Dashboard: simulados recentes, histórico de respostas, meta semanal |
+| `/praticar` | Bateria de questões aleatórias filtradas por disciplina, tema, subtema, banca, área e nível |
+| `/simulados` | Geração e listagem de simulados por disciplina, tema ou subtema |
+| `/simulados/[id]` | Execução do simulado: timer por questão, navegação entre questões, modal de resultado |
+| `/provas/executar` | Resolução de prova vinculada a um concurso e cargo específicos |
+| `/concursos` | Catálogo de editais com filtros e controle de inscrições por cargo |
+| `/concursos/[concursoId]/cargos/[cargoId]` | Conteúdo programático do cargo + análise de prontidão |
+| `/disciplinas` | Disciplinas com cobertura do edital, taxa de acerto e data de último estudo |
+| `/disciplinas/[id]` | Árvore Disciplina → Temas → Subtemas com registro de sessões e estatísticas por tópico |
+| `/desempenho` | Consistência diária, evolução temporal, domínio por disciplina, taxa de aprendizado |
+
+### Admin (`/admin`)
+
+| Módulo | Entidade |
+|--------|----------|
+| `/admin/bancas` | Bancas organizadoras |
+| `/admin/instituicoes` | Instituições/órgãos |
+| `/admin/cargos` | Cargos (nome, área, nível) |
+| `/admin/concursos` | Editais: cargos, datas e conteúdo programático por cargo |
+| `/admin/disciplinas` | Disciplinas |
+| `/admin/temas` | Temas |
+| `/admin/subtemas` | Subtemas |
+| `/admin/questoes` | Questões: enunciado, alternativas, gabarito, justificativas, taxonomia |
+
+---
+
+## Componentes principais
+
+### `QuestionCard`
+Exige justificativa escrita antes de revelar o gabarito. Após a resposta, exibe acerto/erro, tempo, dificuldade percebida e um insight baseado no comportamento (ex: resposta abaixo de 15s com acerto baixo, chute em questão de nível médio). O slot `postSubmit` é configurável — usado para navegação em simulados ou para carregar a próxima questão avulsa.
+
+### `EditalAnalysisReport`
+Analisa os subtemas de um cargo e calcula:
+- **Readiness Score** (0–100): cobertura do edital, taxa de acerto e uso do banco de questões
+- Alertas por disciplina: cobertura parcial, acerto abaixo de 45%, excesso de chutes, velocidade de resposta baixa, gap entre questões autorais e de concurso real
+- Padrões detectados no ciclo: banco subexplorado, desequilíbrio entre teoria e prática, inatividade prolongada
+- Recomendações ordenadas por urgência
+- Comparativo Autorais vs. Concurso e desempenho segmentado por banca, nível e área do cargo
+
+### `StatsBreakdownPanel`
+Exibe acertos/respondidas segmentados por banca, nível, instituição, área e cargo. Suporta highlights para marcar a dimensão relevante ao contexto atual (ex: banca do concurso em exibição).
+
+### `AppShell` / `BreadcrumbContext`
+Layout com sidebar responsiva. Detecta automaticamente se a rota é `/admin` e renderiza o painel correspondente. Breadcrumbs definidos por cada página via `PageHeader` e distribuídos via contexto React.
+
+---
+
+## Fluxo de resolução de questão
+
+```
+Selecionar alternativa
+  → Escrever justificativa (obrigatório)
+  → Avaliar dificuldade percebida (Fácil / Média / Difícil / Chute)
+  → Confirmar envio
+  → Gabarito revelado com justificativas por alternativa
+  → Insight de comportamento exibido
+  → Próxima questão
+```
+
+**Atalhos de teclado** (`/praticar` e `/provas/executar`): `A` `B` `C` `D` `E` selecionam alternativas.
+
+---
+
+## Serviços de API
+
+`src/services/api.ts` — todos os serviços tipados a partir de `src/types/index.ts`:
+
+| Service | Escopo |
+|---------|--------|
+| `disciplinaService` | Disciplinas, incluindo endpoint `/completo` com temas e subtemas aninhados |
+| `temaService` | Temas |
+| `subtemaService` | Subtemas e sessões de estudo (CRUD de estudos por subtema) |
+| `bancaService` | Bancas |
+| `instituicaoService` | Instituições e listagem de áreas |
+| `cargoService` | Cargos e listagem de áreas |
+| `concursoService` | Concursos e toggle de inscrição por cargo |
+| `questaoService` | Questões (CRUD, random, toggle desatualizada) |
+| `respostaService` | Respostas do usuário |
+| `simuladoService` | Geração, início, finalização e exclusão de simulados |
+| `analyticsService` | Consistência diária, domínio por disciplina, evolução semanal, taxa de aprendizado |
+| `operationalService` | Health check |
+
+Erros HTTP via `ApiError` com suporte a RFC 7807 (Problem Details) e erros de validação por campo.
+
+---
+
+## Estrutura de arquivos
 
 ```
 src/
-├── app/                           # Next.js App Router
-│   ├── admin/                     # 8 módulos de gestão
+├── app/
+│   ├── (aluno)/
+│   │   ├── page.tsx
+│   │   ├── praticar/
+│   │   ├── simulados/[id]/
+│   │   ├── provas/executar/
+│   │   ├── concursos/[concursoId]/cargos/[cargoId]/
+│   │   ├── disciplinas/[id]/
+│   │   └── desempenho/
+│   ├── admin/
 │   │   ├── bancas/
 │   │   ├── instituicoes/
 │   │   ├── cargos/
@@ -105,29 +150,36 @@ src/
 │   │   ├── temas/
 │   │   ├── subtemas/
 │   │   └── questoes/
-│   ├── concursos/                # Catálogo de editais
-│   │   └── [concursoId]/cargos/[cargoId]/   # Detalhe + análise heurística
-│   ├── disciplinas/               # Árvore de progresso
-│   ├── desempenho/                # Analytics completo
-│   ├── praticar/                  # Bateria de questões
-│   ├── simulado[s]/               # Geração e execução
-│   ├── provas/executar/           # Simulado real
-│   ├── perfil/
-│   └── configuracoes/
+│   ├── layout.tsx
+│   └── globals.css
 ├── components/
-│   ├── ui/                       # PageHeader, StatsBreakdownPanel
-│   ├── practice/                 # QuestionCard (componente central)
-│   ├── navigation/               # Sidebar, Navbar, AdminSidebar
-│   ├── layout/                   # AppShell, BreadcrumbContext
-│   └── concursos/                # EditalAnalysisReport (motor heurístico)
-├── services/                     # API client layer
-├── types/                        # DTOs sincronizados com backend
-├── hooks/                        # usePageTitle
-└── utils/                        # formatadores (data, nivel, dificuldade)
+│   ├── concursos/
+│   │   └── EditalAnalysisReport.tsx
+│   ├── layout/
+│   │   ├── AppShell.tsx
+│   │   ├── AdminSidebar.tsx
+│   │   └── BreadcrumbContext.tsx
+│   ├── navigation/
+│   │   ├── Sidebar.tsx
+│   │   └── Navbar.tsx
+│   ├── practice/
+│   │   └── QuestionCard.tsx
+│   └── ui/
+│       ├── BaseModal.tsx
+│       ├── FormModal.tsx
+│       ├── Modal.tsx
+│       ├── ConfirmModal.tsx
+│       ├── Drawer.tsx
+│       ├── Breadcrumbs.tsx
+│       ├── PageHeader.tsx
+│       ├── StatsBreakdownPanel.tsx
+│       └── QuestaoFormModal.tsx
+├── services/
+│   └── api.ts
+├── types/
+│   └── index.ts
+├── hooks/
+│   └── usePageTitle.ts
+└── utils/
+    └── formatters.ts
 ```
-
----
-
-## 🔑 Atalhos de Teclado
-
-Na tela de prática (`/praticar` e `/provas/executar`), utilize as teclas A, B, C, D, E para selecionar alternativas rapidamente sem usar o mouse.
