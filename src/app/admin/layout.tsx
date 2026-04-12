@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { AdminSidebar } from '@/components/navigation/AdminSidebar';
 import { Navbar } from '@/components/navigation/Navbar';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { BreadcrumbProvider, useBreadcrumbs } from '@/components/layout/BreadcrumbContext';
 
 function AdminLayoutContent({
@@ -51,32 +52,7 @@ function AdminLayoutContent({
         {/* Top bar */}
         <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 shadow-sm z-10 font-sans relative">
           <Navbar onMenuClick={() => setSidebarOpen(true)}>
-            <div className="hidden lg:flex items-center text-sm text-slate-500 font-medium ml-2">
-              <span>Admin</span>
-              {breadcrumbs.length > 0 ? (
-                breadcrumbs.map((crumb, idx) => (
-                  <React.Fragment key={idx}>
-                    <ChevronRight className="w-4 h-4 mx-2 text-slate-300 flex-shrink-0" />
-                    {crumb.href ? (
-                      <Link href={crumb.href} className="hover:text-indigo-600 transition-colors">
-                        {crumb.label}
-                      </Link>
-                    ) : (
-                      <span className={idx === breadcrumbs.length - 1 ? 'text-slate-900 font-bold' : ''}>
-                        {crumb.label}
-                      </span>
-                    )}
-                  </React.Fragment>
-                ))
-              ) : (
-                <>
-                  <ChevronRight className="w-4 h-4 mx-2 text-slate-300" />
-                  <span className="text-slate-900">
-                    {activeItem.label}
-                  </span>
-                </>
-              )}
-            </div>
+            <Breadcrumbs rootLabel="Admin" />
           </Navbar>
           
           <div className="flex items-center space-x-4">
