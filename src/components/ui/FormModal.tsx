@@ -1,5 +1,5 @@
-'use client';
-
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { XCircle, Loader2 } from 'lucide-react';
 
 interface FormModalProps {
@@ -33,11 +33,25 @@ export default function FormModal({
   footerExtra,
   size = 'md',
 }: FormModalProps) {
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => {
+    setMounted(true);
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  if (!mounted || !isOpen) return null;
+
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] sm:p-4"
+      className="fixed inset-[-1px] z-[9999] flex items-center justify-center bg-black/45 backdrop-blur-[2px] sm:p-4 overflow-y-auto"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
@@ -95,4 +109,6 @@ export default function FormModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

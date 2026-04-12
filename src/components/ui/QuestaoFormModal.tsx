@@ -1,6 +1,5 @@
-'use client';
-
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { UseFormReturn } from 'react-hook-form';
 import AsyncSelect from 'react-select/async';
 import Select from 'react-select/async';
@@ -60,9 +59,22 @@ export default function QuestaoFormModal({
   onMoverAlternativaParaBaixo,
   alternativeErrors
 }: QuestaoFormModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [availableCargos, setAvailableCargos] = useState<Types.CargoSummaryDto[]>([]);
   const [activeTab, setActiveTab] = useState<'dados' | 'alternativas'>('dados');
   const crudWatchedFields = crudForm.watch();
+
+  useEffect(() => {
+    setMounted(true);
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
 
   // Error indicators for mobile tabs
   const hasDadosErrors = validationErrors.length > 0 || Object.keys(crudForm.formState.errors).length > 0;
@@ -121,11 +133,11 @@ export default function QuestaoFormModal({
     multiValueRemove: (base: any) => ({ ...base, color: '#6366f1', ':hover': { backgroundColor: '#c7d2fe', color: '#312e81' } }),
   };
 
-  if (!isOpen) return null;
+  if (!mounted || !isOpen) return null;
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4"
+      className="fixed inset-[-1px] z-[9999] flex items-center justify-center bg-black/45 backdrop-blur-[2px] p-4 overflow-y-auto"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
@@ -525,4 +537,6 @@ export default function QuestaoFormModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
