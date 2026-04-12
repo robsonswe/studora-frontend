@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import QuestaoFormModal from '@/components/ui/QuestaoFormModal';
 import { useForm, Controller } from 'react-hook-form';
@@ -66,6 +66,7 @@ export default function SearchBrowsePage() {
   const [formLoading, setFormLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [alternativeErrors, setAlternativeErrors] = useState<string>('');
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [currentAlternativas, setCurrentAlternativas] = useState<Types.AlternativaDto[]>([]);
   const [novaAlternativa, setNovaAlternativa] = useState<Omit<Types.AlternativaDto, 'id' | 'questaoId'>>({
@@ -254,6 +255,7 @@ export default function SearchBrowsePage() {
 
   const filterQuestoes = useCallback(async (page: number = 0) => {
     setLocalLoading(true);
+    setFetchError(null);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -277,8 +279,10 @@ export default function SearchBrowsePage() {
       setQuestoes(data.content as any);
       setPagination(data);
       setCurrentPage(page);
+      setFetchError(null);
     } catch (error) {
       console.error('Erro ao filtrar questões:', error);
+      setFetchError('Não foi possível carregar as questões. Por favor, tente novamente.');
     } finally {
       setLocalLoading(false);
     }
@@ -381,6 +385,28 @@ export default function SearchBrowsePage() {
     setCurrentAlternativas(novasAlternativas);
   };
 
+  const hasActiveFilters = useMemo(() => {
+    return (
+      (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) ||
+      (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) ||
+      (watchedFields.selectedSubtema && watchedFields.selectedSubtema.value !== 0) ||
+      (watchedFields.selectedBanca && watchedFields.selectedBanca.value !== 0) ||
+      (watchedFields.selectedInstituicaoArea && watchedFields.selectedInstituicaoArea.value !== '') ||
+      (watchedFields.selectedCargoArea && watchedFields.selectedCargoArea.value !== '') ||
+      watchedFields.selectedCargoNivel ||
+      (watchedFields.selectedAutoral && watchedFields.selectedAutoral !== 'all')
+    );
+  }, [
+    watchedFields.selectedDisciplina,
+    watchedFields.selectedTema,
+    watchedFields.selectedSubtema,
+    watchedFields.selectedBanca,
+    watchedFields.selectedInstituicaoArea,
+    watchedFields.selectedCargoArea,
+    watchedFields.selectedCargoNivel,
+    watchedFields.selectedAutoral
+  ]);
+
   const selectStyles = {
     control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.5rem' }),
     singleValue: (base: any) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
@@ -391,9 +417,10 @@ export default function SearchBrowsePage() {
     <div className="min-h-screen bg-gray-50 pb-20 font-sans">
       <PageHeader
         title="Questões"
-        subtitle="Encontre questões por filtros"
+        subtitle={!fetchError && !localLoading && !hasActiveFilters && questoes.length === 0 ? undefined : "Encontre questões por filtros"}
         breadcrumbs={[{ label: 'Questões' }]}
         actions={
+          (!fetchError && !localLoading && (questoes.length > 0 || hasActiveFilters)) ? (
           <div className="flex items-center gap-3">
             {!showForm && (
               <button
@@ -416,22 +443,58 @@ export default function SearchBrowsePage() {
               Modo Spoiler: {adminMode ? 'ON' : 'OFF'}
             </button>
           </div>
+          ) : null
         }
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Filters Card */}
-        {!localLoading && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="flex items-center mb-6">
-            <div className="p-2 bg-indigo-100 rounded-lg mr-3">
-              <Filter className="w-5 h-5 text-indigo-700" />
-            </div>
-            <h2 className="text-lg font-semibold text-gray-900">Filtros de Pesquisa</h2>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* ── Error State ── */}
+        {fetchError ? (
+          <div className="flex flex-col justify-center items-center h-64 text-center px-4">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Erro ao carregar dados</h3>
+            <p className="mt-1 text-sm text-gray-500">{fetchError}</p>
+            <div className="mt-6">
+              <button
+                onClick={() => filterQuestoes(0)}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        ) : localLoading ? (
+          /* ── Initial Loading ── */
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+          </div>
+        ) : questoes.length === 0 && !hasActiveFilters ? (
+          /* ── Empty, no filters: onboard ── */
+          <div className="flex flex-col justify-center items-center h-64 text-center px-4">
+            <Filter className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma questão encontrada</h3>
+            <p className="mt-1 text-sm text-gray-500 mb-6">Crie a primeira questão para começar.</p>
+            <button
+              onClick={() => { resetQuestaoForm(); setShowForm(true); }}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Nova Questão
+            </button>
+          </div>
+        ) : (
+          /* ── Filters + Results (or empty with filters) ── */
+          <>
+            {/* Filters Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+              <div className="flex items-center mb-6">
+                <div className="p-2 bg-indigo-100 rounded-lg mr-3">
+                  <Filter className="w-5 h-5 text-indigo-700" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900">Filtros de Pesquisa</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Disciplina</label>
               <AsyncSelect 
@@ -552,17 +615,12 @@ export default function SearchBrowsePage() {
             </button>
           </div>
         </div>
-        )}
 
         {/* Results List */}
-        {localLoading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
-          </div>
-        ) : questoes.length === 0 ? (
+        {questoes.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <Filter className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhuma questão encontrada</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhum resultado encontrado</h3>
             <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
               Tente ajustar os filtros para encontrar questões ou crie uma nova questão.
             </p>
@@ -782,6 +840,8 @@ export default function SearchBrowsePage() {
                   <button onClick={() => filterQuestoes(currentPage + 1)} disabled={currentPage === pagination.totalPages - 1} className="relative inline-flex items-center px-4 py-3 text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors"><ChevronRight className="h-5 w-5" /></button>
              </nav>
           </div>
+        )}
+          </>
         )}
       </div>
 
