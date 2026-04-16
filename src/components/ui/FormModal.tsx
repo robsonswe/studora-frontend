@@ -13,7 +13,7 @@ interface FormModalProps {
   /** Optional extra content to render in the footer (e.g. validation errors) */
   footerExtra?: ReactNode;
   /** Size of the modal dialog */
-  size?: 'sm' | 'md' | 'lg' | '2xl' | 'full';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '5xl' | '6xl' | 'full';
 }
 
 export default function FormModal({

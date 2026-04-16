@@ -229,6 +229,8 @@ export interface SubtemaSummaryDto {
   ultimoEstudo?: string;
   /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
   questaoStats?: QuestaoStatsDto;
+  /** Estatísticas específicas de questões para este concurso e cargo. */
+  questoesConcursoCargo?: StatSliceDto;
 }
 
 /**
@@ -447,6 +449,8 @@ export interface ConcursoCargoSummaryDto {
   area: string;
   /** Indica se o usuário está inscrito para este cargo neste concurso. */
   inscrito: boolean;
+  /** Estatísticas específicas de questões para este concurso e cargo. */
+  questoesConcursoCargo?: StatSliceDto;
   /** Subtemas associados a este cargo neste concurso. Metric fields depend on `metrics` param. */
   topicos: SubtemaSummaryDto[];
 }
@@ -469,6 +473,8 @@ export interface ConcursoSummaryDto {
   edital?: string;
   /** Data e hora da prova do concurso (ISO string, UTC). */
   dataProva?: string;
+  /** Indica se o concurso já foi finalizado. */
+  finalizado: boolean;
   /** Lista de cargos associados ao concurso com status de inscrição. */
   cargos: ConcursoCargoSummaryDto[];
 }
@@ -494,6 +500,8 @@ export interface ConcursoCreateRequest {
   edital?: string;
   /** Data e hora da prova do concurso (ISO string, UTC). */
   dataProva?: string;
+  /** Indica se o concurso já foi finalizado. */
+  finalizado?: boolean;
   /** Lista de IDs dos cargos associados ao concurso. */
   cargos: number[];
   /**
@@ -520,6 +528,8 @@ export interface ConcursoUpdateRequest {
   edital?: string;
   /** Data e hora da prova do concurso (ISO string, UTC). */
   dataProva?: string;
+  /** Indica se o concurso já foi finalizado. */
+  finalizado?: boolean;
   /** Lista de IDs dos cargos associados ao concurso. */
   cargos: number[];
   /**
@@ -529,6 +539,20 @@ export interface ConcursoUpdateRequest {
    * Exemplo: { 12: [1, 2, 6], 5: [1, 2, 5] } — subtema 12 é associado aos cargos 1, 2 e 6.
    */
   topicos?: Record<number, number[]>;
+}
+
+/**
+ * DTO para filtragem de concursos.
+ */
+export interface ConcursoFilter {
+  bancaId?: number;
+  instituicaoId?: number;
+  cargoId?: number;
+  instituicaoArea?: string;
+  cargoArea?: string;
+  cargoNivel?: string;
+  inscrito?: boolean;
+  finalizado?: boolean;
 }
 
 /**

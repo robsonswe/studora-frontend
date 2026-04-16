@@ -285,6 +285,7 @@ export const concursoService = {
     cargoArea?: string;
     cargoNivel?: string;
     inscrito?: boolean;
+    finalizado?: boolean;
   }): Promise<Types.PageResponse<Types.ConcursoSummaryDto>> =>
     apiCall(`/concursos${buildQueryString(params)}`),
 
@@ -318,6 +319,12 @@ export const concursoService = {
    */
   toggleInscricao: (concursoCargoId: number): Promise<void> =>
     apiCall(`/concursos/cargos/${concursoCargoId}/inscricao`, { method: 'PATCH' }),
+
+  /**
+   * Alternar status de finalizado de um concurso.
+   */
+  toggleFinalizado: (id: number): Promise<void> =>
+    apiCall(`/concursos/${id}/finalizado`, { method: 'PATCH' }),
 };
 
 /**

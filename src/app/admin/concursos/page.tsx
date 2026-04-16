@@ -88,6 +88,7 @@ export default function ConcursosAdminPage() {
       selectedCargoNivel: '',
       selectedInstituicaoArea: null as { value: string, label: string } | null,
       selectedCargoArea: null as { value: string, label: string } | null,
+      selectedFinalizado: '',
     }
   });
   const watchedFields = watch();
@@ -100,6 +101,7 @@ export default function ConcursosAdminPage() {
     mes: 1,
     edital: '',
     dataProva: '',
+    finalizado: false,
     cargos: [] as { value: number, label: string }[],
     topicos: [] as TopicoEntry[]
   });
@@ -156,6 +158,7 @@ export default function ConcursosAdminPage() {
         instituicaoArea: watchedFields.selectedInstituicaoArea?.value || undefined,
         cargoArea: watchedFields.selectedCargoArea?.value || undefined,
         cargoNivel: watchedFields.selectedCargoNivel || undefined,
+        finalizado: watchedFields.selectedFinalizado !== '' ? watchedFields.selectedFinalizado === 'true' : undefined,
       };
 
       const data = await concursoService.getAll(params);
@@ -176,7 +179,8 @@ export default function ConcursosAdminPage() {
     watchedFields.selectedInstituicao,
     watchedFields.selectedInstituicaoArea,
     watchedFields.selectedCargoArea,
-    watchedFields.selectedCargoNivel
+    watchedFields.selectedCargoNivel,
+    watchedFields.selectedFinalizado
   ]);
 
   useEffect(() => {
@@ -342,6 +346,7 @@ export default function ConcursosAdminPage() {
         mes: formData.mes,
         edital: formData.edital.trim(),
         dataProva: localInputValueToUtc(formData.dataProva) ?? undefined,
+        finalizado: formData.finalizado,
         cargos: formData.cargos.map((c: any) => c.value),
         topicos: formData.topicos.reduce((acc: Record<number, number[]>, t: TopicoEntry) => {
           acc[t.subtemaId] = t.cargoIds;
@@ -360,6 +365,26 @@ export default function ConcursosAdminPage() {
     } catch (err: any) {
       console.error('Erro ao salvar concurso:', err);
       setValidationErrors([err.message || 'Erro inesperado ao salvar concurso. Verifique sua conexão.']);
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const handleToggleFinalizado = async (id: number) => {
+    setLocalLoading(true);
+    try {
+      await concursoService.toggleFinalizado(id);
+      await loadConcursos(currentPage);
+    } catch (err: any) {
+      console.error('Erro ao alternar status finalizado:', err);
+      setConfirmModal({
+        isOpen: true,
+        title: 'Erro',
+        message: err.message || 'Não foi possível alterar o status do concurso.',
+        itemId: null,
+        type: 'danger',
+        alertOnly: true
+      });
     } finally {
       setLocalLoading(false);
     }
@@ -397,6 +422,7 @@ export default function ConcursosAdminPage() {
         mes: detail.mes,
         edital: detail.edital || '',
         dataProva: utcToLocalInputValue(detail.dataProva),
+        finalizado: detail.finalizado,
         cargos: detail.cargos.map(c => ({ value: c.cargoId, label: `${c.cargoNome} - ${c.area} (${formatNivel(c.nivel)})` })),
         topicos: Array.from(topicoMap.values()),
       });
@@ -459,6 +485,7 @@ export default function ConcursosAdminPage() {
       mes: new Date().getMonth() + 1,
       edital: '',
       dataProva: '',
+      finalizado: false,
       cargos: [],
       topicos: []
     });
@@ -475,6 +502,7 @@ export default function ConcursosAdminPage() {
       mes: new Date().getMonth() + 1,
       edital: '',
       dataProva: '',
+      finalizado: false,
       cargos: [],
       topicos: []
     });
@@ -513,7 +541,7 @@ export default function ConcursosAdminPage() {
         }
       />
 
-      {!loading && !error && (concursos.length > 0 || watchedFields.selectedBanca || watchedFields.selectedInstituicao || watchedFields.selectedCargoNivel || watchedFields.selectedInstituicaoArea || watchedFields.selectedCargoArea) && (
+      {!loading && !error && (concursos.length > 0 || watchedFields.selectedBanca || watchedFields.selectedInstituicao || watchedFields.selectedCargoNivel || watchedFields.selectedInstituicaoArea || watchedFields.selectedCargoArea || watchedFields.selectedFinalizado !== '') && (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-8 overflow-hidden">
         <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-slate-50 bg-slate-50/20">
           <div className="flex items-center justify-between">
@@ -538,7 +566,7 @@ export default function ConcursosAdminPage() {
         </div>
 
         <div className="p-4 sm:p-6 lg:p-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <div className="space-y-2">
               <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Banca Organizadora</label>
               <AsyncSelect
@@ -580,6 +608,18 @@ export default function ConcursosAdminPage() {
                 <option value="FUNDAMENTAL">Fundamental</option>
                 <option value="MEDIO">Médio</option>
                 <option value="SUPERIOR">Superior</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Status</label>
+              <select
+                value={watchedFields.selectedFinalizado}
+                onChange={(e) => setValue('selectedFinalizado', e.target.value)}
+                className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+              >
+                <option value="">Todos os status</option>
+                <option value="true">Finalizado</option>
+                <option value="false">Em andamento</option>
               </select>
             </div>
           </div>
@@ -635,7 +675,7 @@ export default function ConcursosAdminPage() {
         title={editingItem ? 'Editar Concurso' : 'Nova Prova / Edital'}
         loading={localLoading}
         submitLabel={editingItem ? 'Atualizar' : 'Salvar Prova'}
-        size="lg"
+        size="5xl"
         footerExtra={validationErrors.length > 0 ? (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2.5">
             <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
@@ -754,6 +794,21 @@ export default function ConcursosAdminPage() {
               onChange={(e) => setFormData({...formData, dataProva: e.target.value})}
               className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
             />
+          </div>
+
+          <div className="lg:col-span-4 flex items-end">
+            <label className="flex items-center gap-3 cursor-pointer mb-2.5 group">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={formData.finalizado}
+                  onChange={(e) => setFormData({...formData, finalizado: e.target.checked})}
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-5.5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-indigo-600 transition-colors"></div>
+              </div>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-slate-700 transition-colors">Concurso Finalizado</span>
+            </label>
           </div>
 
           <div className="lg:col-span-6">
@@ -917,7 +972,7 @@ export default function ConcursosAdminPage() {
               </button>
             </div>
           </div>
-        ) : concursos.length === 0 && !watchedFields.selectedBanca && !watchedFields.selectedInstituicao && !watchedFields.selectedCargoNivel && !watchedFields.selectedInstituicaoArea && !watchedFields.selectedCargoArea ? (
+        ) : concursos.length === 0 && !watchedFields.selectedBanca && !watchedFields.selectedInstituicao && !watchedFields.selectedCargoNivel && !watchedFields.selectedInstituicaoArea && !watchedFields.selectedCargoArea && watchedFields.selectedFinalizado === '' ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum concurso encontrado</h3>
@@ -941,6 +996,11 @@ export default function ConcursosAdminPage() {
                     <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
                       <span className="font-mono tabular-nums text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-bold">ID #{concurso.id}</span>
                       <span className="truncate">{concurso.banca.nome} · <span className="font-mono tabular-nums">{concurso.mes.toString().padStart(2, '0')}/{concurso.ano}</span></span>
+                      {concurso.finalizado && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest bg-green-100 text-green-700">
+                          Finalizado
+                        </span>
+                      )}
                     </div>
                     {concurso.dataProva && (
                       <div className="text-xs text-gray-400 mt-1">
