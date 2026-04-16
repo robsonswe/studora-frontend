@@ -22,7 +22,11 @@ import {
   Link as LinkIcon,
   FileText,
   Archive,
+  ClipboardList,
+  Play,
+  Check,
 } from 'lucide-react';
+import SimuladoCargoModal from '@/components/concursos/SimuladoCargoModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -78,6 +82,8 @@ export default function ConcursoCargoDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [concurso, setConcurso] = useState<Types.ConcursoDetailDto | null>(null);
   const [cargo, setCargo] = useState<Types.ConcursoCargoSummaryDto | null>(null);
+
+  const [showSimuladoModal, setShowSimuladoModal] = useState(false);
 
   usePageTitle(cargo ? `${cargo.cargoNome} — ${concurso?.instituicao.nome}` : undefined);
 
@@ -166,7 +172,14 @@ export default function ConcursoCargoDetailPage() {
 
   return (
     <div className="space-y-8 pb-20">
-      {/* PageHeader + card omitted for brevity — unchanged from original */}
+      <PageHeader
+        title="Mapa do Edital"
+        breadcrumbs={[
+          { label: 'Concursos', href: '/concursos' },
+          { label: concurso.instituicao.nome, href: `/concursos/${concurso.id}` },
+          { label: cargo.cargoNome }
+        ]}
+      />
 
       {/* Concurso finalizado badge */}
       {concurso.finalizado && (
@@ -179,11 +192,18 @@ export default function ConcursoCargoDetailPage() {
       {/* Header card */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 sm:px-8 sm:py-5 border-b border-slate-100 flex items-start justify-between gap-4">
-          <div>
+          <div className="flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 mb-1">{concurso.banca.nome}</p>
             <h1 className="text-base font-black text-slate-900 leading-tight tracking-tight">{concurso.instituicao.nome}</h1>
             <p className="text-sm font-semibold text-slate-400 tracking-tight">{concurso.instituicao.area}</p>
           </div>
+          <button
+            onClick={() => setShowSimuladoModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition-all shrink-0"
+          >
+            <ClipboardList className="w-4 h-4" />
+            Gerar Simulado
+          </button>
         </div>
         <div className="px-6 py-4 sm:px-8 sm:py-5 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
           <div>
@@ -351,6 +371,13 @@ export default function ConcursoCargoDetailPage() {
           />
         )}
       </div>
+
+      <SimuladoCargoModal
+        isOpen={showSimuladoModal}
+        onClose={() => setShowSimuladoModal(false)}
+        concurso={concurso!}
+        cargo={cargo!}
+      />
     </div>
   );
 }
