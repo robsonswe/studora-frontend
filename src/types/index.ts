@@ -24,6 +24,16 @@ export interface DificuldadeStatDto {
 }
 
 /**
+ * DTO de resposta padrão para operações POST que retornam apenas ID e mensagem.
+ */
+export interface PostResponseDto {
+  /** ID do recurso criado. */
+  id: number;
+  /** Mensagem de sucesso. */
+  message: string;
+}
+
+/**
  * Fatia de estatísticas por dimensão (nível, banca, instituição, cargo, área).
  * Usado dentro de `QuestaoStatsDto` for each breakdown `por*`.
  */

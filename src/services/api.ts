@@ -150,7 +150,7 @@ export const disciplinaService = {
   /**
    * Criar nova disciplina.
    */
-  create: (data: Types.DisciplinaCreateRequest): Promise<void> =>
+  create: (data: Types.DisciplinaCreateRequest): Promise<Types.PostResponseDto> =>
     apiCall('/disciplinas', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
@@ -192,7 +192,7 @@ export const temaService = {
   /**
    * Criar novo tema.
    */
-  create: (data: Types.TemaCreateRequest): Promise<void> =>
+  create: (data: Types.TemaCreateRequest): Promise<Types.PostResponseDto> =>
     apiCall('/temas', { method: 'POST', body: JSON.stringify(data) }),
 
 
@@ -235,7 +235,7 @@ export const subtemaService = {
   /**
    * Criar novo subtema.
    */
-  create: (data: Types.SubtemaCreateRequest): Promise<void> =>
+  create: (data: Types.SubtemaCreateRequest): Promise<Types.PostResponseDto> =>
     apiCall('/subtemas', { method: 'POST', body: JSON.stringify(data) }),
 
 
@@ -254,7 +254,7 @@ export const subtemaService = {
   /**
    * Adicionar uma sessão de estudo para o subtema.
    */
-  addEstudo: (id: number): Promise<Types.EstudoSubtemaDto> =>
+  addEstudo: (id: number): Promise<Types.PostResponseDto> =>
     apiCall(`/subtemas/${id}/estudos`, { method: 'POST' }),
 
   /**
@@ -299,7 +299,7 @@ export const concursoService = {
   /**
    * Criar novo concurso.
    */
-  create: (data: Types.ConcursoCreateRequest): Promise<void> =>
+  create: (data: Types.ConcursoCreateRequest): Promise<Types.PostResponseDto> =>
     apiCall('/concursos', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
@@ -348,7 +348,7 @@ export const bancaService = {
   /**
    * Criar nova banca.
    */
-  create: (data: Types.BancaCreateRequest): Promise<void> =>
+  create: (data: Types.BancaCreateRequest): Promise<Types.PostResponseDto> =>
     apiCall('/bancas', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
@@ -391,7 +391,7 @@ export const instituicaoService = {
   /**
    * Criar nova instituição.
    */
-  create: (data: Types.InstituicaoCreateRequest): Promise<void> =>
+  create: (data: Types.InstituicaoCreateRequest): Promise<Types.PostResponseDto> =>
     apiCall('/instituicoes', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
@@ -434,7 +434,7 @@ export const cargoService = {
   /**
    * Criar novo cargo.
    */
-  create: (data: Types.CargoCreateRequest): Promise<void> =>
+  create: (data: Types.CargoCreateRequest): Promise<Types.PostResponseDto> =>
     apiCall('/cargos', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
@@ -503,7 +503,7 @@ export const questaoService = {
   /**
    * Criar nova questão.
    */
-  create: (data: Types.QuestaoCreateRequest): Promise<void> =>
+  create: (data: Types.QuestaoCreateRequest): Promise<Types.PostResponseDto> =>
     apiCall('/questoes', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
@@ -579,7 +579,7 @@ export const simuladoService = {
   /**
    * Gerar um novo simulado.
    */
-  gerar: (data: Types.SimuladoGenerationRequest): Promise<void> =>
+  gerar: (data: Types.SimuladoGenerationRequest): Promise<Types.PostResponseDto> =>
     apiCall('/simulados/gerar', { method: 'POST', body: JSON.stringify(data) }),
 
   /**
