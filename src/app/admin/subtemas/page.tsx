@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import FormModal from '@/components/ui/FormModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -19,12 +20,21 @@ import {
   AlertCircle,
   Loader2,
   Tag,
-  Search
+  Search,
+  XCircle
 } from 'lucide-react';
 
 type SubtemaDto = Types.SubtemaSummaryDto;
 
-export default function SubtemasPage() {
+function SubtemasContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const urlPage = Number(searchParams?.get('page')) || 0;
+  const urlNome = searchParams?.get('nome') || '';
+  const urlDisciplinaId = Number(searchParams?.get('disciplinaId')) || null;
+  const urlTemaId = Number(searchParams?.get('temaId')) || null;
+
   const [subtemas, setSubtemas] = useState<SubtemaDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,9 +42,9 @@ export default function SubtemasPage() {
   const [editingItem, setEditingItem] = useState<SubtemaDto | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [localLoading, setLocalLoading] = useState(false);
-  
-  const [filterNome, setFilterNome] = useState('');
-  const [filterInput, setFilterInput] = useState('');
+
+  const [filterNome, setFilterNome] = useState(urlNome);
+  const [filterInput, setFilterInput] = useState(urlNome);
   const [filterDisciplina, setFilterDisciplina] = useState<{ value: number, label: string } | null>(null);
   const [filterTema, setFilterTema] = useState<{ value: number, label: string } | null>(null);
   const [confirmModal, setConfirmModal] = useState<{
@@ -71,42 +81,6 @@ export default function SubtemasPage() {
 
   const watchedFields = watch();
 
-  usePageTitle('Subtemas', 'Admin');
-
-  const loadSubtemas = useCallback(async (page: number = 0, nome?: string, discId?: number, temaId?: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await subtemaService.getAll({
-        page,
-        size: 20,
-        nome: nome || undefined,
-        disciplinaIds: discId || undefined,
-        temaIds: temaId || undefined
-      });
-      setSubtemas(data.content);
-      setPagination(data);
-      setCurrentPage(page);
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    } catch (err: any) {
-      console.error('Erro ao carregar subtemas:', err);
-      setError(err.message || 'Não foi possível carregar os subtemas. Por favor, tente novamente.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Initial load
-  useEffect(() => {
-    loadSubtemas(0);
-  }, [loadSubtemas]);
-
-  useEffect(() => {
-    setFilterTema(null);
-  }, [filterDisciplina]);
-
   const loadDisciplinaOptions = async (inputValue: string) => {
     try {
       const data = await disciplinaService.getAll({ nome: inputValue, size: 20 });
@@ -133,6 +107,61 @@ export default function SubtemasPage() {
       return [];
     }
   };
+
+  usePageTitle('Subtemas', 'Admin');
+
+  const loadSubtemas = useCallback(async (page: number = 0, nome?: string, discId?: number, temaId?: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await subtemaService.getAll({
+        page,
+        size: 20,
+        nome: nome || undefined,
+        disciplinaIds: discId || undefined,
+        temaIds: temaId || undefined
+      });
+      setSubtemas(data.content);
+      setPagination(data);
+      setCurrentPage(page);
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } catch (err: any) {
+      console.error('Erro ao carregar subtemas:', err);
+      setError(err.message || 'Não foi possível carregar os subtemas. Por favor, tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
+  // Load data when URL params change
+  useEffect(() => {
+    loadSubtemas(urlPage, urlNome, urlDisciplinaId || undefined, urlTemaId || undefined);
+  }, [urlPage, urlNome, urlDisciplinaId, urlTemaId, loadSubtemas]);
+
+  useEffect(() => {
+    setFilterTema(null);
+  }, [filterDisciplina]);
+
+  // Sync select values from URL
+  useEffect(() => {
+    if (urlDisciplinaId && !filterDisciplina) {
+      loadDisciplinaOptions('').then(options => {
+        const found = options.find(o => o.value === urlDisciplinaId);
+        if (found) setFilterDisciplina(found);
+      });
+    }
+  }, [urlDisciplinaId]);
+
+  useEffect(() => {
+    if (urlTemaId && !filterTema) {
+      loadFilterTemaOptions('').then(options => {
+        const found = options.find(o => o.value === urlTemaId);
+        if (found) setFilterTema(found);
+      });
+    }
+  }, [urlTemaId]);
 
   const loadTemaOptions = async (inputValue: string) => {
     try {
@@ -167,7 +196,7 @@ export default function SubtemasPage() {
         await subtemaService.create(payload);
       }
 
-      await loadSubtemas(currentPage);
+      updateFilters(filterNome, filterDisciplina?.value, filterTema?.value, urlPage);
       resetForm();
     } catch (err: any) {
       console.error('Erro ao salvar subtema:', err);
@@ -222,7 +251,7 @@ export default function SubtemasPage() {
     try {
       await subtemaService.delete(confirmModal.itemId);
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      await loadSubtemas(currentPage);
+      updateFilters(filterNome, filterDisciplina?.value, filterTema?.value, currentPage);
     } catch (err: any) {
       console.error('Erro ao excluir subtema:', err);
       setConfirmModal({
@@ -258,9 +287,18 @@ export default function SubtemasPage() {
     setModalOpen(true);
   };
 
+  const updateFilters = (nome?: string, discId?: number | null, temaId?: number | null, page: number = 0) => {
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set('page', String(page));
+    if (nome) params.set('nome', nome); else params.delete('nome');
+    if (discId) params.set('disciplinaId', String(discId)); else params.delete('disciplinaId');
+    if (temaId) params.set('temaId', String(temaId)); else params.delete('temaId');
+    router.push(`/admin/subtemas?${params.toString()}`);
+  };
+
   const handleFilterSubmit = () => {
     setFilterNome(filterInput);
-    loadSubtemas(0, filterInput, filterDisciplina?.value, filterTema?.value);
+    updateFilters(filterInput, filterDisciplina?.value, filterTema?.value, 0);
   };
 
   const handleFilterKeyDown = (e: React.KeyboardEvent) => {
@@ -275,15 +313,25 @@ export default function SubtemasPage() {
     setFilterNome('');
     setFilterDisciplina(null);
     setFilterTema(null);
-    loadSubtemas(0);
+    updateFilters('', null, null, 0);
   };
 
   const selectStyles = {
     menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
     menu: (base: any) => ({ ...base, zIndex: 9999 }),
-    control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, padding: '2px' }),
-    placeholder: (base: any) => ({ ...base, color: '#9ca3af', fontSize: '0.875rem' }),
-    singleValue: (base: any) => ({ ...base, color: '#111827', fontSize: '0.875rem', fontWeight: '500' })
+    control: (base: any, state: any) => ({ 
+      ...base, 
+      borderColor: state.isFocused ? '#6366f1' : '#e2e8f0', 
+      boxShadow: state.isFocused ? '0 0 0 2px rgba(99, 102, 241, 0.2)' : 'none', 
+      '&:hover': { borderColor: state.isFocused ? '#6366f1' : '#cbd5e1', backgroundColor: '#f8fafc' }, 
+      padding: '2px', 
+      borderRadius: '0.5rem', 
+      backgroundColor: 'rgba(248, 250, 252, 0.5)',
+      transition: 'all 0.2s ease'
+    }),
+    placeholder: (base: any) => ({ ...base, color: '#94a3b8', fontSize: '0.875rem' }),
+    singleValue: (base: any) => ({ ...base, color: '#1e293b', fontSize: '0.875rem' }),
+    input: (base: any) => ({ ...base, color: '#1e293b', fontSize: '0.875rem' })
   };
 
   return (
@@ -305,26 +353,26 @@ export default function SubtemasPage() {
       />
 
       {(!loading && !error && (subtemas.length > 0 || filterNome || filterDisciplina || filterTema)) && (
-      <div className="bg-white shadow-sm rounded-lg p-4 mb-6 border border-gray-200">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-4 items-end">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Nome</label>
+            <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 mb-2">Nome</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
+                <Search className="h-4 w-4 text-slate-400" />
               </div>
               <input
                 type="text"
-                placeholder="Filtrar..."
+                placeholder="Buscar por nome..."
                 value={filterInput}
                 onChange={(e) => setFilterInput(e.target.value)}
                 onKeyDown={handleFilterKeyDown}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-slate-50/50 hover:bg-slate-50"
               />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Disciplina</label>
+            <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 mb-2">Disciplina</label>
             <AsyncSelect
               instanceId="filter-disciplina-select"
               cacheOptions
@@ -332,14 +380,14 @@ export default function SubtemasPage() {
               loadOptions={loadDisciplinaOptions}
               value={filterDisciplina}
               onChange={(val) => setFilterDisciplina(val)}
-              placeholder="Filtrar por disciplina..."
+              placeholder="Buscar por disciplina..."
               isClearable
               styles={selectStyles}
               menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Tema</label>
+            <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 mb-2">Tema</label>
             <AsyncSelect
               key={`filter-tema-${filterDisciplina?.value}`}
               instanceId="filter-tema-select"
@@ -348,28 +396,29 @@ export default function SubtemasPage() {
               loadOptions={loadFilterTemaOptions}
               value={filterTema}
               onChange={(val) => setFilterTema(val)}
-              placeholder="Filtrar por tema..."
+              placeholder="Buscar por tema..."
               isClearable
               styles={selectStyles}
               menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
             />
           </div>
-          <div className="flex gap-2 items-center">
-            <button
-              onClick={handleFilterSubmit}
-              className="inline-flex items-center px-4 py-[9px] border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition-colors whitespace-nowrap"
-            >
-              <Search className="h-4 w-4 mr-1.5" />
-              Buscar
-            </button>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             {(filterNome || filterDisciplina || filterTema) && (
               <button
                 onClick={handleFilterClear}
-                className="text-sm text-gray-500 hover:text-gray-700 font-medium whitespace-nowrap"
+                className="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2.5 border border-slate-200 shadow-sm text-sm font-medium rounded-lg text-slate-600 bg-white hover:bg-slate-50 hover:text-slate-900 transition-colors whitespace-nowrap"
               >
-                Limpar
+                <XCircle className="h-4 w-4 mr-2 text-slate-400" />
+                Limpar busca
               </button>
             )}
+            <button
+              onClick={handleFilterSubmit}
+              className="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2.5 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors whitespace-nowrap"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              Buscar
+            </button>
           </div>
         </div>
       </div>
@@ -552,7 +601,7 @@ export default function SubtemasPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => loadSubtemas(currentPage - 1)}
+                  onClick={() => updateFilters(filterNome, filterDisciplina?.value, filterTema?.value, currentPage - 1)}
                   disabled={currentPage === 0}
                   className={`p-1 rounded border transition-colors ${
                     currentPage === 0
@@ -566,7 +615,7 @@ export default function SubtemasPage() {
                   {currentPage + 1} / {pagination.totalPages}
                 </div>
                 <button
-                  onClick={() => loadSubtemas(currentPage + 1)}
+                  onClick={() => updateFilters(filterNome, filterDisciplina?.value, filterTema?.value, currentPage + 1)}
                   disabled={currentPage === pagination.totalPages - 1}
                   className={`p-1 rounded border transition-colors ${
                     currentPage === pagination.totalPages - 1
@@ -582,5 +631,13 @@ export default function SubtemasPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SubtemasPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div></div>}>
+      <SubtemasContent />
+    </Suspense>
   );
 }

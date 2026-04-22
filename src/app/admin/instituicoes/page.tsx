@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import FormModal from '@/components/ui/FormModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -17,12 +18,19 @@ import {
   AlertCircle,
   Loader2,
   MapPin,
-  Search
+  Search,
+  XCircle
 } from 'lucide-react';
 
 type InstituicaoDto = Types.InstituicaoSummaryDto;
 
-export default function InstituicoesPage() {
+function InstituicoesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const urlPage = Number(searchParams?.get('page')) || 0;
+  const urlNome = searchParams?.get('nome') || '';
+
   const [instituicoes, setInstituicoes] = useState<InstituicaoDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +39,8 @@ export default function InstituicoesPage() {
   const [formData, setFormData] = useState<{ nome: string, area: string }>({ nome: '', area: '' });
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const [filterNome, setFilterNome] = useState('');
-  const [filterInput, setFilterInput] = useState('');
+  const [filterNome, setFilterNome] = useState(urlNome);
+  const [filterInput, setFilterInput] = useState(urlNome);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -80,8 +88,13 @@ export default function InstituicoesPage() {
   }, []);
 
   useEffect(() => {
-    loadInstituicoes(0, filterNome);
-  }, [filterNome, loadInstituicoes]);
+    if (urlNome !== filterNome) setFilterNome(urlNome);
+    if (urlNome !== filterInput) setFilterInput(urlNome);
+  }, [urlNome]);
+
+  useEffect(() => {
+    loadInstituicoes(urlPage, urlNome);
+  }, [urlPage, urlNome, loadInstituicoes]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +115,7 @@ export default function InstituicoesPage() {
         await instituicaoService.create(payload);
       }
 
-      await loadInstituicoes(currentPage);
+      updateFilters(urlNome, urlPage);
       resetForm();
     } catch (err: any) {
       console.error('Erro ao salvar instituição:', err);
@@ -136,7 +149,7 @@ export default function InstituicoesPage() {
     try {
       await instituicaoService.delete(confirmModal.itemId);
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      await loadInstituicoes(currentPage);
+      updateFilters(urlNome, urlPage);
     } catch (err: any) {
       console.error('Erro ao excluir instituição:', err);
       setConfirmModal({
@@ -166,8 +179,16 @@ export default function InstituicoesPage() {
     setModalOpen(true);
   };
 
+  const updateFilters = (nome?: string, page: number = 0) => {
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set('page', String(page));
+    if (nome) params.set('nome', nome); else params.delete('nome');
+    router.push(`/admin/instituicoes?${params.toString()}`);
+  };
+
   const handleFilterSubmit = () => {
     setFilterNome(filterInput);
+    updateFilters(filterInput, 0);
   };
 
   const handleFilterKeyDown = (e: React.KeyboardEvent) => {
@@ -180,6 +201,7 @@ export default function InstituicoesPage() {
   const handleFilterClear = () => {
     setFilterInput('');
     setFilterNome('');
+    updateFilters('', 0);
   };
 
   return (
@@ -201,35 +223,40 @@ export default function InstituicoesPage() {
       />
 
       {(!loading && !error && (instituicoes.length > 0 || filterNome)) && (
-      <div className="bg-white shadow-sm rounded-lg p-4 mb-6 border border-gray-200 flex items-center gap-4">
-        <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-gray-400" />
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative flex-1 w-full">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-slate-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar por nome..."
+              value={filterInput}
+              onChange={(e) => setFilterInput(e.target.value)}
+              onKeyDown={handleFilterKeyDown}
+              className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-slate-50/50 hover:bg-slate-50"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Filtrar por nome..."
-            value={filterInput}
-            onChange={(e) => setFilterInput(e.target.value)}
-            onKeyDown={handleFilterKeyDown}
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          />
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            {filterNome && (
+              <button
+                onClick={handleFilterClear}
+                className="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2.5 border border-slate-200 shadow-sm text-sm font-medium rounded-lg text-slate-600 bg-white hover:bg-slate-50 hover:text-slate-900 transition-colors"
+              >
+                <XCircle className="h-4 w-4 mr-2 text-slate-400" />
+                Limpar busca
+              </button>
+            )}
+            <button
+              onClick={handleFilterSubmit}
+              className="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2.5 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              Buscar
+            </button>
+          </div>
         </div>
-        <button
-          onClick={handleFilterSubmit}
-          className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
-        >
-          <Search className="h-4 w-4 mr-1.5" />
-          Buscar
-        </button>
-        {filterNome && (
-          <button
-            onClick={handleFilterClear}
-            className="text-sm text-gray-500 hover:text-gray-700 font-medium"
-          >
-            Limpar
-          </button>
-        )}
       </div>
       )}
 
@@ -367,74 +394,82 @@ export default function InstituicoesPage() {
           </ul>
         )}
 
-        {/* Pagination Controls */}
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
-            <div className="flex flex-1 justify-between sm:hidden font-sans">
-              <button
-                onClick={() => loadInstituicoes(currentPage - 1)}
-                disabled={currentPage === 0}
-                className={`relative inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
-                  currentPage === 0
-                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                }`}
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => loadInstituicoes(currentPage + 1)}
-                disabled={currentPage === pagination.totalPages - 1}
-                className={`relative ml-3 inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
-                  currentPage === pagination.totalPages - 1
-                    ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                }`}
-              >
-                Próximo
-              </button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between font-sans">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Mostrando <span className="font-medium font-mono tabular-nums">{currentPage * pagination.pageSize + 1}</span> até{' '}
-                  <span className="font-medium font-mono tabular-nums">
-                    {Math.min((currentPage + 1) * pagination.pageSize, pagination.totalElements)}
-                  </span>{' '}
-                  de <span className="font-medium font-mono tabular-nums">{pagination.totalElements}</span> resultados
-                </p>
-              </div>
-              <div className="flex items-center space-x-2">
+{/* Pagination Controls */}
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+              <div className="flex flex-1 justify-between sm:hidden font-sans">
                 <button
-                  onClick={() => loadInstituicoes(currentPage - 1)}
+                  onClick={() => updateFilters(urlNome, currentPage - 1)}
                   disabled={currentPage === 0}
-                  className={`p-1 rounded border transition-colors ${
+                  className={`relative inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
                     currentPage === 0
-                      ? 'cursor-not-allowed text-gray-300 border-gray-200'
-                      : 'text-gray-600 border-gray-300 hover:bg-gray-50'
+                      ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
                   }`}
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  Anterior
                 </button>
-                <div className="text-sm font-mono font-medium px-2 py-1 bg-gray-50 border border-gray-200 rounded tabular-nums">
-                  {currentPage + 1} / {pagination.totalPages}
-                </div>
                 <button
-                  onClick={() => loadInstituicoes(currentPage + 1)}
+                  onClick={() => updateFilters(urlNome, currentPage + 1)}
                   disabled={currentPage === pagination.totalPages - 1}
-                  className={`p-1 rounded border transition-colors ${
+                  className={`relative ml-3 inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
                     currentPage === pagination.totalPages - 1
-                      ? 'cursor-not-allowed text-gray-300 border-gray-200'
-                      : 'text-gray-600 border-gray-300 hover:bg-gray-50'
+                      ? 'cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
                   }`}
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  Próximo
                 </button>
               </div>
+              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between font-sans">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Mostrando <span className="font-medium font-mono tabular-nums">{currentPage * pagination.pageSize + 1}</span> até{' '}
+                    <span className="font-medium font-mono tabular-nums">
+                      {Math.min((currentPage + 1) * pagination.pageSize, pagination.totalElements)}
+                    </span>{' '}
+                    de <span className="font-medium font-mono tabular-nums">{pagination.totalElements}</span> resultados
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => updateFilters(urlNome, currentPage - 1)}
+                    disabled={currentPage === 0}
+                    className={`p-1 rounded border transition-colors ${
+                      currentPage === 0
+                        ? 'cursor-not-allowed text-gray-300 border-gray-200'
+                        : 'text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+</button>
+                  <div className="text-sm font-mono font-medium px-2 py-1 bg-gray-50 border border-gray-200 rounded tabular-nums">
+                    {currentPage + 1} / {pagination.totalPages}
+                  </div>
+                  <button
+                    onClick={() => updateFilters(urlNome, currentPage + 1)}
+                    disabled={currentPage === pagination.totalPages - 1}
+                    className={`p-1 rounded border transition-colors ${
+                      currentPage === pagination.totalPages - 1
+                        ? 'cursor-not-allowed text-gray-300 border-gray-200'
+                        : 'text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+)}
+        </div>
     </div>
+  );
+}
+
+export default function InstituicoesPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div></div>}>
+      <InstituicoesContent />
+    </Suspense>
   );
 }
