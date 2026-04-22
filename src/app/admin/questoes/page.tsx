@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import QuestaoFormModal from '@/components/ui/QuestaoFormModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { questaoService, concursoService, instituicaoService, cargoService, bancaService, disciplinaService, temaService, subtemaService } from '@/services/api';
@@ -32,23 +33,60 @@ import {
 
 type QuestaoDto = Types.QuestaoDetailDto;
 
-export default function SearchBrowsePage() {
+// ─── Option type for AsyncSelect ────────────────────────────────────────────
+interface SelectOption { value: number | string; label: string; }
+
+function QuestoesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // ─── Read filter state from URL ───────────────────────────────────────────
+  const urlPage = Number(searchParams?.get('page')) || 0;
+  const urlDisciplinaId = Number(searchParams?.get('disciplinaId')) || 0;
+  const urlDisciplinaLabel = searchParams?.get('disciplinaLabel') || '';
+  const urlTemaId = Number(searchParams?.get('temaId')) || 0;
+  const urlTemaLabel = searchParams?.get('temaLabel') || '';
+  const urlSubtemaId = Number(searchParams?.get('subtemaId')) || 0;
+  const urlSubtemaLabel = searchParams?.get('subtemaLabel') || '';
+  const urlBancaId = Number(searchParams?.get('bancaId')) || 0;
+  const urlBancaLabel = searchParams?.get('bancaLabel') || '';
+  const urlInstituicaoArea = searchParams?.get('instituicaoArea') || '';
+  const urlCargoArea = searchParams?.get('cargoArea') || '';
+  const urlCargoNivel = searchParams?.get('cargoNivel') || '';
+  const urlAutoral = (searchParams?.get('autoral') || 'all') as 'all' | 'only' | 'exclude';
+
+  // ─── Derived select values from URL ──────────────────────────────────────
+  const selectedDisciplina: SelectOption | null = urlDisciplinaId
+    ? { value: urlDisciplinaId, label: urlDisciplinaLabel }
+    : null;
+  const selectedTema: SelectOption | null = urlTemaId
+    ? { value: urlTemaId, label: urlTemaLabel }
+    : null;
+  const selectedSubtema: SelectOption | null = urlSubtemaId
+    ? { value: urlSubtemaId, label: urlSubtemaLabel }
+    : null;
+  const selectedBanca: SelectOption | null = urlBancaId
+    ? { value: urlBancaId, label: urlBancaLabel }
+    : null;
+  const selectedInstituicaoArea: SelectOption | null = urlInstituicaoArea
+    ? { value: urlInstituicaoArea, label: urlInstituicaoArea }
+    : null;
+  const selectedCargoArea: SelectOption | null = urlCargoArea
+    ? { value: urlCargoArea, label: urlCargoArea }
+    : null;
+
+  // ─── Local filter state (updated by selectors, applied on button click) ───
+  const [localDisciplina, setLocalDisciplina] = useState<SelectOption | null>(selectedDisciplina);
+  const [localTema, setLocalTema] = useState<SelectOption | null>(selectedTema);
+  const [localSubtema, setLocalSubtema] = useState<SelectOption | null>(selectedSubtema);
+  const [localBanca, setLocalBanca] = useState<SelectOption | null>(selectedBanca);
+  const [localInstituicaoArea, setLocalInstituicaoArea] = useState<SelectOption | null>(selectedInstituicaoArea);
+  const [localCargoArea, setLocalCargoArea] = useState<SelectOption | null>(selectedCargoArea);
+  const [localCargoNivel, setLocalCargoNivel] = useState<string>(urlCargoNivel);
+  const [localAutoral, setLocalAutoral] = useState<string>(urlAutoral);
+
+  // ─── Page state ───────────────────────────────────────────────────────────
   const [adminMode, setAdminMode] = useState(false);
-  const { setValue, watch, reset } = useForm({
-    defaultValues: {
-      selectedDisciplina: { value: 0, label: 'Todas as disciplinas' } as { value: number, label: string } | null,
-      selectedTema: { value: 0, label: 'Todos os temas' } as { value: number, label: string } | null,
-      selectedSubtema: { value: 0, label: 'Todos os subtemas' } as { value: number, label: string } | null,
-      selectedBanca: { value: 0, label: 'Todas as bancas' } as { value: number, label: string } | null,
-      selectedInstituicaoArea: { value: '', label: 'Todas as áreas' } as { value: string, label: string } | null,
-      selectedCargoArea: { value: '', label: 'Todas as áreas' } as { value: string, label: string } | null,
-      selectedCargoNivel: '',
-      selectedAutoral: 'all' as 'all' | 'only' | 'exclude'
-    }
-  });
-
-  const watchedFields = watch();
-
   const [questoes, setQuestoes] = useState<QuestaoDto[]>([]);
   const [localLoading, setLocalLoading] = useState(true);
   const [pagination, setPagination] = useState<Types.PageResponse<any>>({
@@ -103,9 +141,141 @@ export default function SearchBrowsePage() {
       imageUrl: ''
     }
   });
-  const crudWatchedFields = crudForm.watch();
 
-  // ─── CRUD Functions ───────────────────────────────────────────────────────────
+  usePageTitle('Questões', 'Admin');
+
+  // ─── URL param helpers ────────────────────────────────────────────────────
+
+  const updateFilters = useCallback((overrides: Record<string, string | number | null>, page = 0) => {
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set('page', String(page));
+    const merged = { ...Object.fromEntries(params.entries()), ...overrides };
+    const next = new URLSearchParams();
+    next.set('page', String(page));
+    for (const [k, v] of Object.entries(merged)) {
+      if (k === 'page') continue;
+      if (v !== null && v !== '' && v !== 0 && v !== 'all' && v !== undefined) {
+        next.set(k, String(v));
+      }
+    }
+    router.push(`/admin/questoes?${next.toString()}`);
+  }, [searchParams, router]);
+
+  const clearAllFilters = useCallback(() => {
+    setLocalDisciplina(null);
+    setLocalTema(null);
+    setLocalSubtema(null);
+    setLocalBanca(null);
+    setLocalInstituicaoArea(null);
+    setLocalCargoArea(null);
+    setLocalCargoNivel('');
+    setLocalAutoral('all');
+    router.push('/admin/questoes?page=0');
+  }, [router]);
+
+  const applyFilters = useCallback(() => {
+    const filters: Record<string, string | number | null> = {};
+    if (localDisciplina) {
+      filters.disciplinaId = localDisciplina.value;
+      filters.disciplinaLabel = localDisciplina.label;
+      filters.temaId = null;
+      filters.temaLabel = null;
+      filters.subtemaId = null;
+      filters.subtemaLabel = null;
+    }
+    if (localTema) {
+      filters.temaId = localTema.value;
+      filters.temaLabel = localTema.label;
+      filters.subtemaId = null;
+      filters.subtemaLabel = null;
+    }
+    if (localSubtema) {
+      filters.subtemaId = localSubtema.value;
+      filters.subtemaLabel = localSubtema.label;
+    }
+    if (localBanca) {
+      filters.bancaId = localBanca.value;
+      filters.bancaLabel = localBanca.label;
+    }
+    if (localInstituicaoArea) {
+      filters.instituicaoArea = String(localInstituicaoArea.value);
+    }
+    if (localCargoArea) {
+      filters.cargoArea = String(localCargoArea.value);
+    }
+    if (localCargoNivel) {
+      filters.cargoNivel = localCargoNivel;
+    }
+    if (localAutoral && localAutoral !== 'all') {
+      filters.autoral = localAutoral;
+    }
+    updateFilters(filters, 0);
+  }, [localDisciplina, localTema, localSubtema, localBanca, localInstituicaoArea, localCargoArea, localCargoNivel, localAutoral, updateFilters]);
+
+  // ─── Data fetching ────────────────────────────────────────────────────────
+
+  const filterQuestoes = useCallback(async (page: number = 0) => {
+    setLocalLoading(true);
+    setFetchError(null);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    try {
+      const params: any = {
+        page,
+        size: 20,
+        admin: adminMode,
+        disciplinaId: urlDisciplinaId || undefined,
+        temaId: urlTemaId || undefined,
+        subtemaId: urlSubtemaId || undefined,
+        bancaId: urlBancaId || undefined,
+        instituicaoArea: urlInstituicaoArea || undefined,
+        cargoArea: urlCargoArea || undefined,
+        cargoNivel: urlCargoNivel || undefined,
+        autoral: urlAutoral === 'only' ? true : urlAutoral === 'exclude' ? false : undefined,
+      };
+
+      const data = await questaoService.getAll(params);
+      setQuestoes(data.content as any);
+      setPagination(data);
+      setCurrentPage(page);
+      setFetchError(null);
+    } catch (error) {
+      console.error('Erro ao filtrar questões:', error);
+      setFetchError('Não foi possível carregar as questões. Por favor, tente novamente.');
+    } finally {
+      setLocalLoading(false);
+    }
+  }, [
+    adminMode,
+    urlDisciplinaId,
+    urlTemaId,
+    urlSubtemaId,
+    urlBancaId,
+    urlInstituicaoArea,
+    urlCargoArea,
+    urlCargoNivel,
+    urlAutoral,
+  ]);
+
+  useEffect(() => {
+    filterQuestoes(urlPage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    urlPage,
+    urlDisciplinaId,
+    urlTemaId,
+    urlSubtemaId,
+    urlBancaId,
+    urlInstituicaoArea,
+    urlCargoArea,
+    urlCargoNivel,
+    urlAutoral,
+    adminMode,
+  ]);
+
+  // ─── CRUD Functions ───────────────────────────────────────────────────────
 
   const handleQuestaoSubmit = async (data: any) => {
     const errs: string[] = [];
@@ -290,101 +460,50 @@ export default function SearchBrowsePage() {
     })).filter(o => o.label.toLowerCase().includes(inputValue.toLowerCase()));
   };
 
-  // ─── Filter Option Loaders ───────────────────────────────────────────────────
-
-  usePageTitle('Questões', 'Admin');
-
-  const filterQuestoes = useCallback(async (page: number = 0) => {
-    setLocalLoading(true);
-    setFetchError(null);
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    try {
-      const params: any = {
-        page: page,
-        size: 20,
-        admin: adminMode,
-        disciplinaId: (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) ? watchedFields.selectedDisciplina.value : undefined,
-        temaId: (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) ? watchedFields.selectedTema.value : undefined,
-        subtemaId: (watchedFields.selectedSubtema && watchedFields.selectedSubtema.value !== 0) ? watchedFields.selectedSubtema.value : undefined,
-        bancaId: (watchedFields.selectedBanca && watchedFields.selectedBanca.value !== 0) ? watchedFields.selectedBanca.value : undefined,
-        instituicaoArea: (watchedFields.selectedInstituicaoArea && watchedFields.selectedInstituicaoArea.value !== '') ? watchedFields.selectedInstituicaoArea.value : undefined,
-        cargoArea: (watchedFields.selectedCargoArea && watchedFields.selectedCargoArea.value !== '') ? watchedFields.selectedCargoArea.value : undefined,
-        cargoNivel: watchedFields.selectedCargoNivel || undefined,
-        autoral: watchedFields.selectedAutoral === 'only' ? true : watchedFields.selectedAutoral === 'exclude' ? false : undefined,
-      };
-
-      const data = await questaoService.getAll(params);
-      setQuestoes(data.content as any);
-      setPagination(data);
-      setCurrentPage(page);
-      setFetchError(null);
-    } catch (error) {
-      console.error('Erro ao filtrar questões:', error);
-      setFetchError('Não foi possível carregar as questões. Por favor, tente novamente.');
-    } finally {
-      setLocalLoading(false);
-    }
-  }, [
-    adminMode,
-    watchedFields.selectedDisciplina,
-    watchedFields.selectedTema,
-    watchedFields.selectedSubtema,
-    watchedFields.selectedBanca,
-    watchedFields.selectedInstituicaoArea,
-    watchedFields.selectedCargoArea,
-    watchedFields.selectedCargoNivel,
-    watchedFields.selectedAutoral
-  ]);
-
-  useEffect(() => {
-    filterQuestoes(0);
-  }, [filterQuestoes]);
+  // ─── Filter Option Loaders ────────────────────────────────────────────────
 
   const loadBancaOptions = async (inputValue: string) => {
     const data = await bancaService.getAll({ nome: inputValue, size: 20 });
-    return [{ value: 0, label: 'Todas as bancas' }, ...data.content.map(b => ({ value: b.id, label: b.nome }))];
+    return data.content.map(b => ({ value: b.id, label: b.nome }));
   };
 
   const loadDisciplinaOptions = async (inputValue: string) => {
     const data = await disciplinaService.getAll({ nome: inputValue, size: 20 });
-    return [{ value: 0, label: 'Todas as disciplinas' }, ...data.content.map(d => ({ value: d.id, label: d.nome }))];
+    return data.content.map(d => ({ value: d.id, label: d.nome }));
   };
 
   const loadTemaOptions = async (inputValue: string) => {
-    if (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) {
+    if (localDisciplina?.value) {
       const data = await temaService.getAll({ 
-        disciplinaIds: watchedFields.selectedDisciplina.value,
+        disciplinaIds: localDisciplina.value,
         nome: inputValue,
         size: 100 
       });
-      return [{ value: 0, label: 'Todos os temas' }, ...data.content.map(t => ({ value: t.id, label: t.nome }))];
+      return data.content.map(t => ({ value: t.id, label: t.nome }));
     }
-    return [{ value: 0, label: 'Todos os temas' }];
+    return [];
   };
 
   const loadSubtemaOptions = async (inputValue: string) => {
-    if (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) {
+    if (localTema?.value) {
       const data = await subtemaService.getAll({ 
-        temaIds: watchedFields.selectedTema.value,
+        temaIds: localTema.value,
         nome: inputValue,
         size: 100 
       });
-      return [{ value: 0, label: 'Todos os subtemas' }, ...data.content.map(s => ({ value: s.id, label: s.nome }))];
+      return data.content.map(s => ({ value: s.id, label: s.nome }));
     }
-    return [{ value: 0, label: 'Todos os subtemas' }];
+    return [];
   };
 
   const loadInstituicaoAreaOptions = async (inputValue: string) => {
     const areas = await instituicaoService.getAreas(inputValue);
-    return [{ value: '', label: 'Todas as áreas' }, ...areas.map(area => ({ value: area, label: area }))];
+    return areas.map(area => ({ value: area, label: area }));
   };
 
   const loadCargoAreaOptions = async (inputValue: string) => {
     const areas = await cargoService.getAreas(inputValue);
-    return [{ value: '', label: 'Todas as áreas' }, ...areas.map(area => ({ value: area, label: area }))];
+    return areas.map(area => ({ value: area, label: area }));
   };
 
   const adicionarAlternativa = () => {
@@ -426,27 +545,16 @@ export default function SearchBrowsePage() {
     setCurrentAlternativas(novasAlternativas);
   };
 
-  const hasActiveFilters = useMemo(() => {
-    return (
-      (watchedFields.selectedDisciplina && watchedFields.selectedDisciplina.value !== 0) ||
-      (watchedFields.selectedTema && watchedFields.selectedTema.value !== 0) ||
-      (watchedFields.selectedSubtema && watchedFields.selectedSubtema.value !== 0) ||
-      (watchedFields.selectedBanca && watchedFields.selectedBanca.value !== 0) ||
-      (watchedFields.selectedInstituicaoArea && watchedFields.selectedInstituicaoArea.value !== '') ||
-      (watchedFields.selectedCargoArea && watchedFields.selectedCargoArea.value !== '') ||
-      watchedFields.selectedCargoNivel ||
-      (watchedFields.selectedAutoral && watchedFields.selectedAutoral !== 'all')
-    );
-  }, [
-    watchedFields.selectedDisciplina,
-    watchedFields.selectedTema,
-    watchedFields.selectedSubtema,
-    watchedFields.selectedBanca,
-    watchedFields.selectedInstituicaoArea,
-    watchedFields.selectedCargoArea,
-    watchedFields.selectedCargoNivel,
-    watchedFields.selectedAutoral
-  ]);
+  const hasActiveFilters = !!(
+    urlDisciplinaId ||
+    urlTemaId ||
+    urlSubtemaId ||
+    urlBancaId ||
+    urlInstituicaoArea ||
+    urlCargoArea ||
+    urlCargoNivel ||
+    (urlAutoral && urlAutoral !== 'all')
+  );
 
   const selectStyles = {
     control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.5rem' }),
@@ -543,8 +651,14 @@ export default function SearchBrowsePage() {
                 cacheOptions 
                 defaultOptions 
                 loadOptions={loadDisciplinaOptions} 
-                value={watchedFields.selectedDisciplina} 
-                onChange={(val) => { setValue('selectedDisciplina', val); setValue('selectedTema', { value: 0, label: 'Todos os temas' }); }} 
+                value={localDisciplina}
+                onChange={(val) => {
+                  setLocalDisciplina(val);
+                  setLocalTema(null);
+                  setLocalSubtema(null);
+                }}
+                isClearable
+                placeholder="Todas as disciplinas"
                 styles={selectStyles} 
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
@@ -553,13 +667,18 @@ export default function SearchBrowsePage() {
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tema</label>
               <AsyncSelect 
                 instanceId="tema-select"
-                key={`tema-${watchedFields.selectedDisciplina?.value}`} 
+                key={`tema-${localDisciplina?.value}`} 
                 cacheOptions 
                 defaultOptions 
                 loadOptions={loadTemaOptions} 
-                value={watchedFields.selectedTema} 
-                onChange={(val) => { setValue('selectedTema', val); setValue('selectedSubtema', { value: 0, label: 'Todos os subtemas' }); }} 
-                isDisabled={!watchedFields.selectedDisciplina || watchedFields.selectedDisciplina.value === 0} 
+                value={localTema}
+                onChange={(val) => {
+                  setLocalTema(val);
+                  setLocalSubtema(null);
+                }}
+                isClearable
+                isDisabled={!localDisciplina}
+                placeholder="Todos os temas"
                 styles={selectStyles} 
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
@@ -568,13 +687,15 @@ export default function SearchBrowsePage() {
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Subtema</label>
               <AsyncSelect 
                 instanceId="subtema-select"
-                key={`subtema-${watchedFields.selectedTema?.value}`} 
+                key={`subtema-${localTema?.value}`} 
                 cacheOptions 
                 defaultOptions 
                 loadOptions={loadSubtemaOptions} 
-                value={watchedFields.selectedSubtema} 
-                onChange={(val) => setValue('selectedSubtema', val)} 
-                isDisabled={!watchedFields.selectedTema || watchedFields.selectedTema.value === 0} 
+                value={localSubtema}
+                onChange={(val) => setLocalSubtema(val)}
+                isClearable
+                isDisabled={!localTema}
+                placeholder="Todos os subtemas"
                 styles={selectStyles} 
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
@@ -589,8 +710,10 @@ export default function SearchBrowsePage() {
                 cacheOptions 
                 defaultOptions 
                 loadOptions={loadBancaOptions} 
-                value={watchedFields.selectedBanca} 
-                onChange={(val) => setValue('selectedBanca', val)} 
+                value={localBanca}
+                onChange={(val) => setLocalBanca(val)}
+                isClearable
+                placeholder="Todas as bancas"
                 styles={selectStyles} 
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
@@ -602,8 +725,10 @@ export default function SearchBrowsePage() {
                 cacheOptions 
                 defaultOptions 
                 loadOptions={loadInstituicaoAreaOptions} 
-                value={watchedFields.selectedInstituicaoArea} 
-                onChange={(val) => setValue('selectedInstituicaoArea', val)} 
+                value={localInstituicaoArea}
+                onChange={(val) => setLocalInstituicaoArea(val)}
+                isClearable
+                placeholder="Todas as áreas"
                 styles={selectStyles} 
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
@@ -615,8 +740,10 @@ export default function SearchBrowsePage() {
                 cacheOptions 
                 defaultOptions 
                 loadOptions={loadCargoAreaOptions} 
-                value={watchedFields.selectedCargoArea} 
-                onChange={(val) => setValue('selectedCargoArea', val)} 
+                value={localCargoArea}
+                onChange={(val) => setLocalCargoArea(val)}
+                isClearable
+                placeholder="Todas as áreas"
                 styles={selectStyles} 
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
@@ -626,8 +753,8 @@ export default function SearchBrowsePage() {
               <Select
                 instanceId="nivel-select"
                 options={[{ value: '', label: 'Todos' }, { value: 'FUNDAMENTAL', label: 'Fundamental' }, { value: 'MEDIO', label: 'Médio' }, { value: 'SUPERIOR', label: 'Superior' }]}
-                value={watchedFields.selectedCargoNivel ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) } : { value: '', label: 'Todos' }}
-                onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')}
+                value={localCargoNivel ? { value: localCargoNivel, label: formatNivel(localCargoNivel) } : { value: '', label: 'Todos' }}
+                onChange={(opt) => setLocalCargoNivel(opt?.value || '')}
                 styles={selectStyles}
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
@@ -641,18 +768,22 @@ export default function SearchBrowsePage() {
                   { value: 'only', label: 'Apenas autorais' },
                   { value: 'exclude', label: 'Excluir autorais' }
                 ]}
-                value={{ value: watchedFields.selectedAutoral, label: watchedFields.selectedAutoral === 'all' ? 'Todas' : watchedFields.selectedAutoral === 'only' ? 'Apenas autorais' : 'Excluir autorais' }}
-                onChange={(opt) => setValue('selectedAutoral', (opt?.value as 'all' | 'only' | 'exclude') || 'all')}
+                value={{ value: localAutoral, label: localAutoral === 'all' ? 'Todas' : localAutoral === 'only' ? 'Apenas autorais' : 'Excluir autorais' }}
+                onChange={(opt) => setLocalAutoral(opt?.value || 'all')}
                 styles={selectStyles}
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
             </div>
           </div>
 
-          <div className="mt-6 flex justify-end">
-            <button onClick={() => reset()} className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+          <div className="mt-6 flex justify-end gap-3">
+            <button onClick={clearAllFilters} className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors">
               <Trash2 className="w-4 h-4 mr-2 text-gray-500" />
               Limpar filtros
+            </button>
+            <button onClick={applyFilters} className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+              <Filter className="w-4 h-4 mr-2" />
+              Filtrar
             </button>
           </div>
         </div>
@@ -874,11 +1005,11 @@ export default function SearchBrowsePage() {
         {pagination.totalPages > 1 && (
           <div className="flex items-center justify-center mt-12 font-sans">
              <nav className="isolate inline-flex -space-x-px rounded-lg shadow-sm border border-gray-200 bg-white overflow-hidden">
-                  <button onClick={() => filterQuestoes(currentPage - 1)} disabled={currentPage === 0} className="relative inline-flex items-center px-4 py-3 text-gray-400 hover:bg-gray-50 disabled:opacity-30 border-r border-gray-200 transition-colors"><ChevronLeft className="h-5 w-5" /></button>
+                  <button onClick={() => updateFilters({}, currentPage - 1)} disabled={currentPage === 0} className="relative inline-flex items-center px-4 py-3 text-gray-400 hover:bg-gray-50 disabled:opacity-30 border-r border-gray-200 transition-colors"><ChevronLeft className="h-5 w-5" /></button>
                   <div className="flex items-center px-6 py-2 bg-gray-50/50 border-r border-gray-200 text-sm font-mono font-medium text-gray-900 tabular-nums">
                     {currentPage + 1} / {pagination.totalPages}
                   </div>
-                  <button onClick={() => filterQuestoes(currentPage + 1)} disabled={currentPage === pagination.totalPages - 1} className="relative inline-flex items-center px-4 py-3 text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors"><ChevronRight className="h-5 w-5" /></button>
+                  <button onClick={() => updateFilters({}, currentPage + 1)} disabled={currentPage === pagination.totalPages - 1} className="relative inline-flex items-center px-4 py-3 text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors"><ChevronRight className="h-5 w-5" /></button>
              </nav>
           </div>
         )}
@@ -917,5 +1048,13 @@ export default function SearchBrowsePage() {
         confirmLabel={confirmModal.alertOnly ? 'Ok, entendi' : 'Confirmar Exclusão'}
       />
     </div>
+  );
+}
+
+export default function SearchBrowsePage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div></div>}>
+      <QuestoesContent />
+    </Suspense>
   );
 }

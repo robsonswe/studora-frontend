@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import FormModal from '@/components/ui/FormModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -72,27 +72,43 @@ const groupTopicos = (topicos: TopicoEntry[]): TopicosByDisciplina[] => {
   return Array.from(disciplinaMap.values());
 };
 
-export default function ConcursosAdminPage() {
+function ConcursosContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // ─── Read filter state from URL ───────────────────────────────────────────
+  const urlPage = Number(searchParams?.get('page')) || 0;
+  const urlBancaId = Number(searchParams?.get('bancaId')) || 0;
+  const urlBancaLabel = searchParams?.get('bancaLabel') || '';
+  const urlInstituicaoId = Number(searchParams?.get('instituicaoId')) || 0;
+  const urlInstituicaoLabel = searchParams?.get('instituicaoLabel') || '';
+  const urlCargoNivel = searchParams?.get('cargoNivel') || '';
+  const urlInstituicaoArea = searchParams?.get('instituicaoArea') || '';
+  const urlCargoArea = searchParams?.get('cargoArea') || '';
+  const urlFinalizado = searchParams?.get('finalizado') || '';
+  const urlShowAdvanced = searchParams?.get('advanced') === '1';
+
+  // ─── Derived select values from URL ──────────────────────────────────────
+  const selectedBanca = urlBancaId ? { value: urlBancaId, label: urlBancaLabel } : null;
+  const selectedInstituicao = urlInstituicaoId ? { value: urlInstituicaoId, label: urlInstituicaoLabel } : null;
+  const selectedInstituicaoArea = urlInstituicaoArea ? { value: urlInstituicaoArea, label: urlInstituicaoArea } : null;
+  const selectedCargoArea = urlCargoArea ? { value: urlCargoArea, label: urlCargoArea } : null;
+
+  // ─── Local filter state (updated by selectors, applied on button click) ───
+  const [localBanca, setLocalBanca] = useState<{ value: number, label: string } | null>(selectedBanca);
+  const [localInstituicao, setLocalInstituicao] = useState<{ value: number, label: string } | null>(selectedInstituicao);
+  const [localCargoNivel, setLocalCargoNivel] = useState<string>(urlCargoNivel);
+  const [localFinalizado, setLocalFinalizado] = useState<string>(urlFinalizado);
+  const [localInstituicaoArea, setLocalInstituicaoArea] = useState<{ value: string, label: string } | null>(selectedInstituicaoArea);
+  const [localCargoArea, setLocalCargoArea] = useState<{ value: string, label: string } | null>(selectedCargoArea);
+
+  // ─── Page state ───────────────────────────────────────────────────────────
   const [concursos, setConcursos] = useState<ConcursoDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ConcursoDto | null>(null);
   const [formTab, setFormTab] = useState<'dados' | 'conteudo'>('dados');
-
-  // Filter state
-  const { setValue, watch, reset: resetFilters } = useForm({
-    defaultValues: {
-      selectedBanca: null as { value: number, label: string } | null,
-      selectedInstituicao: null as { value: number, label: string } | null,
-      selectedCargoNivel: '',
-      selectedInstituicaoArea: null as { value: string, label: string } | null,
-      selectedCargoArea: null as { value: string, label: string } | null,
-      selectedFinalizado: '',
-    }
-  });
-  const watchedFields = watch();
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const [formData, setFormData] = useState<any>({
     instituicao: null as { value: number, label: string } | null,
@@ -146,6 +162,72 @@ export default function ConcursosAdminPage() {
 
   usePageTitle('Concursos', 'Admin');
 
+  // ─── URL param helpers ────────────────────────────────────────────────────
+
+  const updateFilters = useCallback((overrides: Record<string, string | number | null>, page = 0) => {
+    const current = new URLSearchParams(searchParams?.toString());
+    const next = new URLSearchParams();
+    next.set('page', String(page));
+    // Keep advanced panel state
+    if (current.get('advanced')) next.set('advanced', current.get('advanced')!);
+    // Merge current + overrides, dropping nulls/empty
+    const merged = { ...Object.fromEntries(current.entries()), ...overrides };
+    for (const [k, v] of Object.entries(merged)) {
+      if (k === 'page' || k === 'advanced') continue;
+      if (v !== null && v !== '' && v !== 0 && v !== undefined) {
+        next.set(k, String(v));
+      }
+    }
+    router.push(`/admin/concursos?${next.toString()}`);
+  }, [searchParams, router]);
+
+  const clearAllFilters = useCallback(() => {
+    setLocalBanca(null);
+    setLocalInstituicao(null);
+    setLocalCargoNivel('');
+    setLocalFinalizado('');
+    setLocalInstituicaoArea(null);
+    setLocalCargoArea(null);
+    router.push('/admin/concursos?page=0');
+  }, [router]);
+
+  const applyFilters = useCallback(() => {
+    const filters: Record<string, string | number | null> = {};
+    if (localBanca) {
+      filters.bancaId = localBanca.value;
+      filters.bancaLabel = localBanca.label;
+    }
+    if (localInstituicao) {
+      filters.instituicaoId = localInstituicao.value;
+      filters.instituicaoLabel = localInstituicao.label;
+    }
+    if (localCargoNivel) {
+      filters.cargoNivel = localCargoNivel;
+    }
+    if (localFinalizado) {
+      filters.finalizado = localFinalizado;
+    }
+    if (localInstituicaoArea) {
+      filters.instituicaoArea = String(localInstituicaoArea.value);
+    }
+    if (localCargoArea) {
+      filters.cargoArea = String(localCargoArea.value);
+    }
+    updateFilters(filters, 0);
+  }, [localBanca, localInstituicao, localCargoNivel, localFinalizado, localInstituicaoArea, localCargoArea, updateFilters]);
+
+  const toggleAdvanced = useCallback(() => {
+    const params = new URLSearchParams(searchParams?.toString());
+    if (urlShowAdvanced) {
+      params.delete('advanced');
+    } else {
+      params.set('advanced', '1');
+    }
+    router.push(`/admin/concursos?${params.toString()}`);
+  }, [searchParams, router, urlShowAdvanced]);
+
+  // ─── Data fetching ────────────────────────────────────────────────────────
+
   const loadConcursos = useCallback(async (page: number = 0) => {
     setLoading(true);
     setError(null);
@@ -153,12 +235,12 @@ export default function ConcursosAdminPage() {
       const params: Record<string, any> = {
         page,
         size: 20,
-        bancaId: watchedFields.selectedBanca?.value || undefined,
-        instituicaoId: watchedFields.selectedInstituicao?.value || undefined,
-        instituicaoArea: watchedFields.selectedInstituicaoArea?.value || undefined,
-        cargoArea: watchedFields.selectedCargoArea?.value || undefined,
-        cargoNivel: watchedFields.selectedCargoNivel || undefined,
-        finalizado: watchedFields.selectedFinalizado !== '' ? watchedFields.selectedFinalizado === 'true' : undefined,
+        bancaId: urlBancaId || undefined,
+        instituicaoId: urlInstituicaoId || undefined,
+        instituicaoArea: urlInstituicaoArea || undefined,
+        cargoArea: urlCargoArea || undefined,
+        cargoNivel: urlCargoNivel || undefined,
+        finalizado: urlFinalizado !== '' ? urlFinalizado === 'true' : undefined,
       };
 
       const data = await concursoService.getAll(params);
@@ -175,17 +257,28 @@ export default function ConcursosAdminPage() {
       setLoading(false);
     }
   }, [
-    watchedFields.selectedBanca,
-    watchedFields.selectedInstituicao,
-    watchedFields.selectedInstituicaoArea,
-    watchedFields.selectedCargoArea,
-    watchedFields.selectedCargoNivel,
-    watchedFields.selectedFinalizado
+    urlBancaId,
+    urlInstituicaoId,
+    urlInstituicaoArea,
+    urlCargoArea,
+    urlCargoNivel,
+    urlFinalizado,
   ]);
 
   useEffect(() => {
-    loadConcursos(0);
-  }, [loadConcursos]);
+    loadConcursos(urlPage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    urlPage,
+    urlBancaId,
+    urlInstituicaoId,
+    urlInstituicaoArea,
+    urlCargoArea,
+    urlCargoNivel,
+    urlFinalizado,
+  ]);
+
+  // ─── Async option loaders ─────────────────────────────────────────────────
 
   const loadInstituicaoOptions = async (inputValue: string) => {
     try {
@@ -251,6 +344,8 @@ export default function ConcursosAdminPage() {
       return [];
     }
   };
+
+  // ─── Form helpers ─────────────────────────────────────────────────────────
 
   const addTopico = (opt: any) => {
     if (formData.topicos.find((t: TopicoEntry) => t.subtemaId === opt.value)) return;
@@ -511,6 +606,15 @@ export default function ConcursosAdminPage() {
     setModalOpen(true);
   };
 
+  const hasActiveFilters = !!(
+    urlBancaId ||
+    urlInstituicaoId ||
+    urlCargoNivel ||
+    urlInstituicaoArea ||
+    urlCargoArea ||
+    urlFinalizado !== ''
+  );
+
   const selectedSubtemaIds = new Set(formData.topicos.map((t: TopicoEntry) => t.subtemaId));
   const groupedTopicos = groupTopicos(formData.topicos);
 
@@ -541,7 +645,7 @@ export default function ConcursosAdminPage() {
         }
       />
 
-      {!loading && !error && (concursos.length > 0 || watchedFields.selectedBanca || watchedFields.selectedInstituicao || watchedFields.selectedCargoNivel || watchedFields.selectedInstituicaoArea || watchedFields.selectedCargoArea || watchedFields.selectedFinalizado !== '') && (
+      {!loading && !error && (concursos.length > 0 || hasActiveFilters) && (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-8 overflow-hidden">
         <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-slate-50 bg-slate-50/20">
           <div className="flex items-center justify-between">
@@ -550,16 +654,16 @@ export default function ConcursosAdminPage() {
             </h2>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { resetFilters(); setShowAdvancedFilters(false); }}
+                onClick={clearAllFilters}
                 className="text-xs text-slate-400 hover:text-indigo-600 font-bold transition-colors active:scale-95 tracking-tight px-3 py-2 rounded-lg hover:bg-slate-50"
               >
                 Limpar filtros
               </button>
               <button
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                onClick={toggleAdvanced}
                 className="text-xs text-indigo-600 hover:text-indigo-700 font-bold bg-indigo-50/30 px-3 py-2 rounded-lg transition-all border border-indigo-100/30 hover:bg-indigo-50 active:scale-95 tracking-tight"
               >
-                {showAdvancedFilters ? 'Filtros básicos' : 'Mais opções'}
+                {urlShowAdvanced ? 'Filtros básicos' : 'Mais opções'}
               </button>
             </div>
           </div>
@@ -574,8 +678,8 @@ export default function ConcursosAdminPage() {
                 cacheOptions
                 defaultOptions
                 loadOptions={loadBancaOptions}
-                value={watchedFields.selectedBanca}
-                onChange={(val) => setValue('selectedBanca', val)}
+                value={localBanca}
+                onChange={(val) => setLocalBanca(val)}
                 isClearable
                 placeholder="Pesquisar banca..."
                 styles={selectStyles}
@@ -589,8 +693,8 @@ export default function ConcursosAdminPage() {
                 cacheOptions
                 defaultOptions
                 loadOptions={loadInstituicaoOptions}
-                value={watchedFields.selectedInstituicao}
-                onChange={(val) => setValue('selectedInstituicao', val)}
+                value={localInstituicao}
+                onChange={(val) => setLocalInstituicao(val)}
                 isClearable
                 placeholder="Pesquisar instituição..."
                 styles={selectStyles}
@@ -600,8 +704,8 @@ export default function ConcursosAdminPage() {
             <div className="space-y-2">
               <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Nível de Escolaridade</label>
               <select
-                value={watchedFields.selectedCargoNivel}
-                onChange={(e) => setValue('selectedCargoNivel', e.target.value)}
+                value={localCargoNivel}
+                onChange={(e) => setLocalCargoNivel(e.target.value)}
                 className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
               >
                 <option value="">Todos os níveis</option>
@@ -613,8 +717,8 @@ export default function ConcursosAdminPage() {
             <div className="space-y-2">
               <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Status</label>
               <select
-                value={watchedFields.selectedFinalizado}
-                onChange={(e) => setValue('selectedFinalizado', e.target.value)}
+                value={localFinalizado}
+                onChange={(e) => setLocalFinalizado(e.target.value)}
                 className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
               >
                 <option value="">Todos os status</option>
@@ -626,7 +730,7 @@ export default function ConcursosAdminPage() {
 
           <div
             className={`grid transition-all duration-300 ease-in-out ${
-              showAdvancedFilters ? 'grid-rows-[1fr] opacity-100 mt-6' : 'grid-rows-[0fr] opacity-0 mt-0'
+              urlShowAdvanced ? 'grid-rows-[1fr] opacity-100 mt-6' : 'grid-rows-[0fr] opacity-0 mt-0'
             }`}
           >
             <div className="overflow-hidden">
@@ -638,8 +742,8 @@ export default function ConcursosAdminPage() {
                     cacheOptions
                     defaultOptions
                     loadOptions={loadInstituicaoAreaOptions}
-                    value={watchedFields.selectedInstituicaoArea}
-                    onChange={(val) => setValue('selectedInstituicaoArea', val)}
+                    value={localInstituicaoArea}
+                    onChange={(val) => setLocalInstituicaoArea(val)}
                     isClearable
                     placeholder="Filtrar por área..."
                     styles={selectStyles}
@@ -653,8 +757,8 @@ export default function ConcursosAdminPage() {
                     cacheOptions
                     defaultOptions
                     loadOptions={loadCargoAreaOptions}
-                    value={watchedFields.selectedCargoArea}
-                    onChange={(val) => setValue('selectedCargoArea', val)}
+                    value={localCargoArea}
+                    onChange={(val) => setLocalCargoArea(val)}
                     isClearable
                     placeholder="Filtrar por área do cargo..."
                     styles={selectStyles}
@@ -663,6 +767,21 @@ export default function ConcursosAdminPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              onClick={clearAllFilters}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            >
+              Limpar filtros
+            </button>
+            <button
+              onClick={applyFilters}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+            >
+              Filtrar
+            </button>
           </div>
         </div>
       </div>
@@ -972,7 +1091,7 @@ export default function ConcursosAdminPage() {
               </button>
             </div>
           </div>
-        ) : concursos.length === 0 && !watchedFields.selectedBanca && !watchedFields.selectedInstituicao && !watchedFields.selectedCargoNivel && !watchedFields.selectedInstituicaoArea && !watchedFields.selectedCargoArea && watchedFields.selectedFinalizado === '' ? (
+        ) : concursos.length === 0 && !hasActiveFilters ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum concurso encontrado</h3>
@@ -1040,7 +1159,7 @@ export default function ConcursosAdminPage() {
           <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4 font-sans focus:outline-none">
             <div className="flex flex-1 justify-between sm:hidden">
               <button
-                onClick={() => loadConcursos(currentPage - 1)}
+                onClick={() => updateFilters({}, currentPage - 1)}
                 disabled={currentPage === 0}
                 className={`relative inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
                   currentPage === 0
@@ -1051,7 +1170,7 @@ export default function ConcursosAdminPage() {
                 Anterior
               </button>
               <button
-                onClick={() => loadConcursos(currentPage + 1)}
+                onClick={() => updateFilters({}, currentPage + 1)}
                 disabled={currentPage === pagination.totalPages - 1}
                 className={`relative ml-3 inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium ${
                   currentPage === pagination.totalPages - 1
@@ -1074,7 +1193,7 @@ export default function ConcursosAdminPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => loadConcursos(currentPage - 1)}
+                  onClick={() => updateFilters({}, currentPage - 1)}
                   disabled={currentPage === 0}
                   className={`p-1 rounded border transition-colors ${
                     currentPage === 0
@@ -1088,7 +1207,7 @@ export default function ConcursosAdminPage() {
                   {currentPage + 1} / {pagination.totalPages}
                 </div>
                 <button
-                  onClick={() => loadConcursos(currentPage + 1)}
+                  onClick={() => updateFilters({}, currentPage + 1)}
                   disabled={currentPage === pagination.totalPages - 1}
                   className={`p-1 rounded border transition-colors ${
                     currentPage === pagination.totalPages - 1
@@ -1104,5 +1223,13 @@ export default function ConcursosAdminPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ConcursosAdminPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div></div>}>
+      <ConcursosContent />
+    </Suspense>
   );
 }
