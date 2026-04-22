@@ -96,8 +96,10 @@ function DisciplinasContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const urlPage = Number(searchParams?.get('page')) || 0;
-  const urlQuery = searchParams?.get('q') || '';
+  // ─── Source of Truth (Local State) ────────────────────────────────────────
+  const [currentPage, setCurrentPage] = useState(Number(searchParams?.get('page')) || 0);
+  const [currentQuery, setCurrentQuery] = useState(searchParams?.get('q') || '');
+  const [inputValue, setInputValue] = useState(searchParams?.get('q') || '');
 
   const [disciplinas, setDisciplinas] = useState<Types.DisciplinaSummaryDto[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -108,13 +110,16 @@ function DisciplinasContent() {
 
   usePageTitle('Disciplinas');
 
-  // Local input value — only committed to URL on submit
-  const [inputValue, setInputValue] = useState(urlQuery);
-
-  // Sync input when URL query changes (e.g. browser back/forward)
+  // Sync state when URL changes (e.g. browser back button)
   useEffect(() => {
-    setInputValue(urlQuery);
-  }, [urlQuery]);
+    const p = Number(searchParams?.get('page')) || 0;
+    const q = searchParams?.get('q') || '';
+    if (p !== currentPage) setCurrentPage(p);
+    if (q !== currentQuery) {
+      setCurrentQuery(q);
+      setInputValue(q);
+    }
+  }, [searchParams]);
 
   const submitSearch = () => {
     const next = new URLSearchParams(searchParams?.toString());
@@ -124,18 +129,14 @@ function DisciplinasContent() {
       next.delete('q');
     }
     next.set('page', '0');
-    router.push(`/disciplinas?${next.toString()}`);
+    window.location.href = `/disciplinas?${next.toString()}`;
   };
 
   const clearSearch = () => {
-    setInputValue('');
-    const next = new URLSearchParams(searchParams?.toString());
-    next.delete('q');
-    next.set('page', '0');
-    router.push(`/disciplinas?${next.toString()}`);
+    window.location.href = '/disciplinas';
   };
 
-  // Fetch whenever URL page or query changes
+  // Fetch whenever local state changes
   useEffect(() => {
     let cancelled = false;
 
@@ -144,16 +145,18 @@ function DisciplinasContent() {
       setError(null);
       try {
         const res = await disciplinaService.getAll({
-          page: urlPage,
+          page: currentPage,
           size: 15,
-          nome: urlQuery || undefined,
+          nome: currentQuery || undefined,
           metrics: 'summary',
         });
         if (cancelled) return;
         setDisciplinas(res.content);
         setTotalPages(res.totalPages);
         setTotalElements(res.totalElements);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (typeof window !== 'undefined') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof ApiError ? err.message : 'Erro ao carregar disciplinas.');
@@ -164,17 +167,17 @@ function DisciplinasContent() {
 
     fetch();
     return () => { cancelled = true; };
-  }, [urlPage, urlQuery]);
+  }, [currentPage, currentQuery]);
 
-  const currentPage = urlPage;
   const hasResults = disciplinas.length > 0;
-  const isSearching = urlQuery.length > 0;
-  const showToolbar = !loading && (hasResults || isSearching);
+  const isSearching = currentQuery.length > 0;
+  const showToolbar = !error && (hasResults || isSearching || loading);
 
   const goToPage = (p: number) => {
+    setCurrentPage(p);
     const next = new URLSearchParams(searchParams?.toString());
     next.set('page', String(p));
-    router.push(`/disciplinas?${next.toString()}`);
+    router.push(`/disciplinas?${next.toString()}`, { scroll: false });
   };
 
   const retry = () => {
@@ -241,7 +244,7 @@ function DisciplinasContent() {
             <>
               <p className="text-base font-medium text-slate-900 mb-1">Nenhuma disciplina encontrada</p>
               <p className="text-sm text-slate-500 max-w-sm mx-auto">
-                Nenhuma disciplina corresponde a "<span className="font-medium">{urlQuery}</span>". Tente outro termo.
+                Nenhuma disciplina corresponde a "<span className="font-medium">{currentQuery}</span>". Tente outro termo.
               </p>
             </>
           ) : (
