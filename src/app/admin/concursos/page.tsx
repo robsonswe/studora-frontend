@@ -182,14 +182,8 @@ function ConcursosContent() {
   }, [searchParams, router]);
 
   const clearAllFilters = useCallback(() => {
-    setLocalBanca(null);
-    setLocalInstituicao(null);
-    setLocalCargoNivel('');
-    setLocalFinalizado('');
-    setLocalInstituicaoArea(null);
-    setLocalCargoArea(null);
-    router.push('/admin/concursos?page=0');
-  }, [router]);
+    window.location.href = '/admin/concursos';
+  }, []);
 
   const applyFilters = useCallback(() => {
     const filters: Record<string, string | number | null> = {};

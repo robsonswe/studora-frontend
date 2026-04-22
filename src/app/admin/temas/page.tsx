@@ -106,9 +106,21 @@ function TemasContent() {
   }, []);
 
   useEffect(() => {
-    if (urlNome !== filterNome) setFilterNome(urlNome);
-    if (urlNome !== filterInput) setFilterInput(urlNome);
+    setFilterNome(urlNome);
+    setFilterInput(urlNome);
   }, [urlNome]);
+
+  useEffect(() => {
+    if (urlDisciplinaId) {
+      if (!filterDisciplina || filterDisciplina.value !== urlDisciplinaId) {
+        disciplinaService.getById(urlDisciplinaId).then(d => {
+          setFilterDisciplina({ value: d.id, label: d.nome });
+        }).catch(() => {});
+      }
+    } else {
+      setFilterDisciplina(null);
+    }
+  }, [urlDisciplinaId]);
 
   useEffect(() => {
     loadTemas(urlPage, urlNome, urlDisciplinaId || undefined);
@@ -253,10 +265,7 @@ function TemasContent() {
   };
 
   const handleFilterClear = () => {
-    setFilterInput('');
-    setFilterNome('');
-    setFilterDisciplina(null);
-    updateFilters('', null, 0);
+    window.location.href = '/admin/temas';
   };
 
   const selectStyles = {
@@ -442,13 +451,13 @@ function TemasContent() {
               </button>
             </div>
           </div>
-        ) : temas.length === 0 && !filterNome && !filterDisciplina ? (
+        ) : temas.length === 0 && !urlNome && !urlDisciplinaId ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
             <Tag className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum tema encontrado</h3>
             <p className="mt-1 text-sm text-gray-500">Crie o primeiro tema para começar.</p>
           </div>
-        ) : temas.length === 0 && (filterNome || filterDisciplina) ? (
+        ) : temas.length === 0 && (urlNome || urlDisciplinaId) ? (
           <div className="flex flex-col justify-center items-center h-48 text-center px-4">
             <Search className="mx-auto h-10 w-10 text-gray-300" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum resultado encontrado</h3>

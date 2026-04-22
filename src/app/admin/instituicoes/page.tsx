@@ -199,9 +199,7 @@ function InstituicoesContent() {
   };
 
   const handleFilterClear = () => {
-    setFilterInput('');
-    setFilterNome('');
-    updateFilters('', 0);
+    window.location.href = '/admin/instituicoes';
   };
 
   return (
@@ -222,7 +220,7 @@ function InstituicoesContent() {
         }
       />
 
-      {(!loading && !error && (instituicoes.length > 0 || filterNome)) && (
+      {(!loading && !error && (instituicoes.length > 0 || urlNome)) && (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
@@ -239,7 +237,7 @@ function InstituicoesContent() {
             />
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            {filterNome && (
+            {urlNome && (
               <button
                 onClick={handleFilterClear}
                 className="inline-flex items-center justify-center w-full sm:w-auto px-4 py-2.5 border border-slate-200 shadow-sm text-sm font-medium rounded-lg text-slate-600 bg-white hover:bg-slate-50 hover:text-slate-900 transition-colors"
@@ -347,13 +345,13 @@ function InstituicoesContent() {
               </button>
             </div>
           </div>
-        ) : instituicoes.length === 0 && !filterNome ? (
+        ) : instituicoes.length === 0 && !urlNome ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
             <Library className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma instituição encontrada</h3>
             <p className="mt-1 text-sm text-gray-500">Crie a primeira instituição para começar.</p>
           </div>
-        ) : instituicoes.length === 0 && filterNome ? (
+        ) : instituicoes.length === 0 && urlNome ? (
           <div className="flex flex-col justify-center items-center h-48 text-center px-4">
             <Search className="mx-auto h-10 w-10 text-gray-300" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum resultado encontrado</h3>

@@ -162,16 +162,8 @@ function QuestoesContent() {
   }, [searchParams, router]);
 
   const clearAllFilters = useCallback(() => {
-    setLocalDisciplina(null);
-    setLocalTema(null);
-    setLocalSubtema(null);
-    setLocalBanca(null);
-    setLocalInstituicaoArea(null);
-    setLocalCargoArea(null);
-    setLocalCargoNivel('');
-    setLocalAutoral('all');
-    router.push('/admin/questoes?page=0');
-  }, [router]);
+    window.location.href = '/admin/questoes';
+  }, []);
 
   const applyFilters = useCallback(() => {
     const filters: Record<string, string | number | null> = {};

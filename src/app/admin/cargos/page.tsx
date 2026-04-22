@@ -206,9 +206,7 @@ function CargosContent() {
   };
 
   const handleFilterClear = () => {
-    setFilterInput('');
-    setFilterNome('');
-    updateFilters('', 0);
+    window.location.href = '/admin/cargos';
   };
 
   return (
@@ -229,7 +227,7 @@ function CargosContent() {
         }
       />
 
-      {(!loading && !error && (cargos.length > 0 || filterNome)) && (
+      {(!loading && !error && (cargos.length > 0 || urlNome)) && (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
@@ -370,13 +368,13 @@ function CargosContent() {
               </button>
             </div>
           </div>
-        ) : cargos.length === 0 && !filterNome ? (
+        ) : cargos.length === 0 && !urlNome ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
             <Briefcase className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum cargo encontrado</h3>
             <p className="mt-1 text-sm text-gray-500">Crie o primeiro cargo para começar.</p>
           </div>
-        ) : cargos.length === 0 && filterNome ? (
+        ) : cargos.length === 0 && urlNome ? (
           <div className="flex flex-col justify-center items-center h-48 text-center px-4">
             <Search className="mx-auto h-10 w-10 text-gray-300" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum resultado encontrado</h3>

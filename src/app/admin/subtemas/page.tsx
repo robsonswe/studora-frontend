@@ -135,33 +135,46 @@ function SubtemasContent() {
     }
   }, []);
   
-  // Load data when URL params change
   useEffect(() => {
-    loadSubtemas(urlPage, urlNome, urlDisciplinaId || undefined, urlTemaId || undefined);
-  }, [urlPage, urlNome, urlDisciplinaId, urlTemaId, loadSubtemas]);
+    setFilterNome(urlNome);
+    setFilterInput(urlNome);
+  }, [urlNome]);
+
+  useEffect(() => {
+    if (urlDisciplinaId) {
+      if (!filterDisciplina || filterDisciplina.value !== urlDisciplinaId) {
+        disciplinaService.getById(urlDisciplinaId).then(d => {
+          setFilterDisciplina({ value: d.id, label: d.nome });
+        }).catch(() => {});
+      }
+    } else {
+      setFilterDisciplina(null);
+    }
+  }, [urlDisciplinaId]);
+
+  useEffect(() => {
+    if (urlTemaId) {
+      if (!filterTema || filterTema.value !== urlTemaId) {
+        temaService.getById(urlTemaId).then(t => {
+          setFilterTema({ 
+            value: t.id, 
+            label: `${t.disciplina?.nome || 'Sem Disciplina'} - ${t.nome}` 
+          });
+        }).catch(() => {});
+      }
+    } else {
+      setFilterTema(null);
+    }
+  }, [urlTemaId]);
 
   useEffect(() => {
     setFilterTema(null);
   }, [filterDisciplina]);
 
-  // Sync select values from URL
+  // Load data when URL params change
   useEffect(() => {
-    if (urlDisciplinaId && !filterDisciplina) {
-      loadDisciplinaOptions('').then(options => {
-        const found = options.find(o => o.value === urlDisciplinaId);
-        if (found) setFilterDisciplina(found);
-      });
-    }
-  }, [urlDisciplinaId]);
-
-  useEffect(() => {
-    if (urlTemaId && !filterTema) {
-      loadFilterTemaOptions('').then(options => {
-        const found = options.find(o => o.value === urlTemaId);
-        if (found) setFilterTema(found);
-      });
-    }
-  }, [urlTemaId]);
+    loadSubtemas(urlPage, urlNome, urlDisciplinaId || undefined, urlTemaId || undefined);
+  }, [urlPage, urlNome, urlDisciplinaId, urlTemaId, loadSubtemas]);
 
   const loadTemaOptions = async (inputValue: string) => {
     try {
@@ -309,11 +322,7 @@ function SubtemasContent() {
   };
 
   const handleFilterClear = () => {
-    setFilterInput('');
-    setFilterNome('');
-    setFilterDisciplina(null);
-    setFilterTema(null);
-    updateFilters('', null, null, 0);
+    window.location.href = '/admin/subtemas';
   };
 
   const selectStyles = {
@@ -515,13 +524,13 @@ function SubtemasContent() {
               </button>
             </div>
           </div>
-        ) : subtemas.length === 0 && !filterNome && !filterDisciplina && !filterTema ? (
+        ) : subtemas.length === 0 && !urlNome && !urlDisciplinaId && !urlTemaId ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
             <Tags className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum subtema encontrado</h3>
             <p className="mt-1 text-sm text-gray-500">Crie o primeiro subtema para começar.</p>
           </div>
-        ) : subtemas.length === 0 && (filterNome || filterDisciplina || filterTema) ? (
+        ) : subtemas.length === 0 && (urlNome || urlDisciplinaId || urlTemaId) ? (
           <div className="flex flex-col justify-center items-center h-48 text-center px-4">
             <Search className="mx-auto h-10 w-10 text-gray-300" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum resultado encontrado</h3>
