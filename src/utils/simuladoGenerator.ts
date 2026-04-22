@@ -393,7 +393,7 @@ export function generateSimuladoFromCargo(
   }));
 
   return {
-    nome: `Simulado ${cargo.cargoNome} - ${concurso.instituicao.nome} - ${formatDateBR(new Date())}`,
+    nome: `Simulado ${cargo.cargoNome} - ${cargo.area} - ${concurso.instituicao.nome} - ${formatDateBR(new Date())}`,
     bancaId: concurso.banca?.id,
     cargoId: cargo.cargoId,
     nivel: cargo.nivel,
@@ -463,7 +463,7 @@ export function generateSimuladoPreview(
     .sort((a, b) => b.quantidade - a.quantidade);
 
   return {
-    nome: `Simulado ${cargo.cargoNome} - ${concurso.instituicao.nome} - ${formatDateBR(new Date())}`,
+    nome: `Simulado ${cargo.cargoNome} - ${cargo.area} - ${concurso.instituicao.nome} - ${formatDateBR(new Date())}`,
     strategy,
     totalQuestoes: totalAllocated,
     totalSubtemas: subtemaEntries.length,
