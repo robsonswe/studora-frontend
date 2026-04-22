@@ -54,3 +54,6 @@ dist-ssr
 
 .qwen/
 gha-creds-*.json
+
+# PM2 ecosystem file
+ecosystem*.config.js
