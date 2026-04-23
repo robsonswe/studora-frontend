@@ -111,11 +111,11 @@ function BancasContent() {
 
       if (editingItem) {
         await bancaService.update(editingItem.id, payload);
+        loadBancas(currentPage, urlNome);
       } else {
         await bancaService.create(payload);
+        loadBancas(0, undefined);
       }
-
-      updateFilters(urlNome, urlPage);
       resetForm();
     } catch (err: any) {
       console.error('Erro ao salvar banca:', err);
@@ -149,7 +149,7 @@ function BancasContent() {
     try {
       await bancaService.delete(confirmModal.itemId);
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      updateFilters(urlNome, urlPage);
+      loadBancas(currentPage, urlNome);
     } catch (err: any) {
       console.error('Erro ao excluir banca:', err);
       setConfirmModal({

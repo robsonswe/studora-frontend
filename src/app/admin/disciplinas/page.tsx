@@ -109,11 +109,12 @@ function DisciplinasContent() {
 
       if (editingItem) {
         await disciplinaService.update(editingItem.id, payload);
+        loadDisciplinas(currentPage, urlNome);
       } else {
         await disciplinaService.create(payload);
+        loadDisciplinas(0, undefined);
       }
 
-      updateFilters(urlNome, urlPage);
       resetForm();
     } catch (err: any) {
       console.error('Erro ao salvar disciplina:', err);
@@ -147,7 +148,7 @@ function DisciplinasContent() {
     try {
       await disciplinaService.delete(confirmModal.itemId);
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      updateFilters(urlNome, urlPage);
+      loadDisciplinas(currentPage, urlNome);
     } catch (err: any) {
       console.error('Erro ao excluir disciplina:', err);
       setConfirmModal({

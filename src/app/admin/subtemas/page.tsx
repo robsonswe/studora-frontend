@@ -205,11 +205,12 @@ function SubtemasContent() {
 
       if (editingItem) {
         await subtemaService.update(editingItem.id, payload);
+        loadSubtemas(currentPage, filterNome, filterDisciplina?.value, filterTema?.value);
       } else {
         await subtemaService.create(payload);
+        loadSubtemas(0, filterNome, filterDisciplina?.value, filterTema?.value);
       }
 
-      updateFilters(filterNome, filterDisciplina?.value, filterTema?.value, urlPage);
       resetForm();
     } catch (err: any) {
       console.error('Erro ao salvar subtema:', err);
@@ -264,7 +265,7 @@ function SubtemasContent() {
     try {
       await subtemaService.delete(confirmModal.itemId);
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      updateFilters(filterNome, filterDisciplina?.value, filterTema?.value, currentPage);
+      loadSubtemas(currentPage, filterNome, filterDisciplina?.value, filterTema?.value);
     } catch (err: any) {
       console.error('Erro ao excluir subtema:', err);
       setConfirmModal({

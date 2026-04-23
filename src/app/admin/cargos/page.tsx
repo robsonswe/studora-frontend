@@ -118,11 +118,12 @@ function CargosContent() {
 
       if (editingItem) {
         await cargoService.update(editingItem.id, payload);
+        loadCargos(currentPage, urlNome);
       } else {
         await cargoService.create(payload);
+        loadCargos(0, undefined);
       }
 
-      updateFilters(urlNome, urlPage);
       resetForm();
     } catch (err: any) {
       console.error('Erro ao salvar cargo:', err);
@@ -156,7 +157,7 @@ function CargosContent() {
     try {
       await cargoService.delete(confirmModal.itemId);
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      updateFilters(urlNome, urlPage);
+      loadCargos(currentPage, urlNome);
     } catch (err: any) {
       console.error('Erro ao excluir cargo:', err);
       setConfirmModal({

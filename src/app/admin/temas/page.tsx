@@ -152,11 +152,12 @@ function TemasContent() {
 
       if (editingItem) {
         await temaService.update(editingItem.id, payload);
+        loadTemas(currentPage, urlNome, urlDisciplinaId);
       } else {
         await temaService.create(payload);
+        loadTemas(0, undefined, urlDisciplinaId);
       }
 
-      updateFilters(urlNome, urlDisciplinaId, urlPage);
       resetForm();
     } catch (err: any) {
       console.error('Erro ao salvar tema:', err);
@@ -208,7 +209,7 @@ function TemasContent() {
     try {
       await temaService.delete(confirmModal.itemId);
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      updateFilters(urlNome, urlDisciplinaId, urlPage);
+      loadTemas(currentPage, urlNome, urlDisciplinaId);
     } catch (err: any) {
       console.error('Erro ao excluir tema:', err);
       setConfirmModal({

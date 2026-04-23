@@ -111,11 +111,12 @@ function InstituicoesContent() {
 
       if (editingItem) {
         await instituicaoService.update(editingItem.id, payload);
+        loadInstituicoes(currentPage, urlNome);
       } else {
         await instituicaoService.create(payload);
+        loadInstituicoes(0, undefined);
       }
 
-      updateFilters(urlNome, urlPage);
       resetForm();
     } catch (err: any) {
       console.error('Erro ao salvar instituição:', err);
@@ -149,7 +150,7 @@ function InstituicoesContent() {
     try {
       await instituicaoService.delete(confirmModal.itemId);
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      updateFilters(urlNome, urlPage);
+      loadInstituicoes(currentPage, urlNome);
     } catch (err: any) {
       console.error('Erro ao excluir instituição:', err);
       setConfirmModal({
