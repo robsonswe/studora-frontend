@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   LayoutDashboard,
   ClipboardList,
@@ -38,7 +39,7 @@ export const Sidebar = ({ isOpen, onClose, pathname }: SidebarProps) => {
       <div className="flex items-center justify-between p-4 border-b border-indigo-700">
         <div className="flex items-center space-x-2">
           <div className="bg-white/90 p-1.5 rounded-lg shrink-0">
-            <img src="/logo.png" alt="Studora" className="w-6 h-6 object-contain" />
+            <Image src="/logo.png" alt="Studora" width={14} height={14} className="object-contain" />
           </div>
           <h1 className="text-xl font-semibold tracking-[-0.02em] whitespace-nowrap">Studora</h1>
         </div>

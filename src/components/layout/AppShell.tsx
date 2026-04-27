@@ -20,7 +20,7 @@ function AppShellContent({ children }: AppShellProps) {
   const pathname = usePathname();
   const { breadcrumbs } = useBreadcrumbs();
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+   
   useEffect(() => {
     setIsMounted(true);
   }, []);

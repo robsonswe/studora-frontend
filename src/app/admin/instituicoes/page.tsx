@@ -10,14 +10,9 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import {
   Library,
-  Plus,
-  Pencil,
-  Trash2,
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
   Loader2,
-  MapPin,
   Search,
   XCircle
 } from 'lucide-react';

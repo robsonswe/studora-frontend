@@ -27,7 +27,7 @@ export default function Drawer({
     return () => { mountedRef.current = false; };
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+   
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';

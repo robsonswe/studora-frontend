@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, Suspense, CSSProperties } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import PageHeader from '@/components/ui/PageHeader';
 import QuestaoFormModal from '@/components/ui/QuestaoFormModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -916,7 +917,7 @@ function QuestoesContent() {
                     
                     {questao.imageUrl && (
                       <div className="mb-8 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 p-2 text-center">
-                        <img src={questao.imageUrl} alt="Imagem" className="max-w-full h-auto inline-block rounded" />
+                        <Image src={questao.imageUrl} alt="Imagem" width={600} height={400} className="max-w-full h-auto inline-block rounded" />
                       </div>
                     )}
                     

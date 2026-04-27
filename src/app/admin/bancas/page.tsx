@@ -9,16 +9,10 @@ import { bancaService } from '@/services/api';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import {
-  Building,
   Gavel,
-  Plus,
-  Pencil,
-  Trash2,
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
   Loader2,
-  Fingerprint,
   Search,
   XCircle
 } from 'lucide-react';

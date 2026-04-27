@@ -41,7 +41,7 @@ export default function BaseModal({
     return () => { mountedRef.current = false; };
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+   
   useEffect(() => {
     if (!mountedRef.current) return;
     

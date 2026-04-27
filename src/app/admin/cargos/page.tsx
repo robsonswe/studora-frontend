@@ -11,14 +11,9 @@ import { formatNivel } from '@/utils/formatters';
 import * as Types from '@/types';
 import {
   Briefcase,
-  Plus,
-  Pencil,
-  Trash2,
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
   Loader2,
-  GraduationCap,
   Search,
   XCircle
 } from 'lucide-react';

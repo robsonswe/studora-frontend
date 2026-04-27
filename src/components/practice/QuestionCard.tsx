@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Image from 'next/image';
 import { CheckCircle, XCircle, Clock, Sparkles } from 'lucide-react';
 import { formatNivel, formatDificuldade } from '@/utils/formatters';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -359,8 +360,8 @@ export const QuestionCard = ({
         </p>
 
         {imageUrl && (
-          <div className="mb-8 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 p-2">
-            <img src={imageUrl} alt="Imagem da questão" className="max-w-full h-auto mx-auto rounded" />
+          <div className="mb-8 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 p-2 text-center">
+            <Image src={imageUrl} alt="Imagem da questão" width={600} height={400} className="max-w-full h-auto inline-block rounded" />
           </div>
         )}
 

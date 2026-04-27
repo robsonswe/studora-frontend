@@ -27,7 +27,7 @@ export class ApiError extends Error {
  * @param params Object containing key-value pairs for query parameters.
  * @returns Formatted query string starting with '?'.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const buildQueryString = (params?: Record<string, any>): string => {
   if (!params) return '';
   const query = Object.entries(params)
