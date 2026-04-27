@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Clock, Sparkles } from 'lucide-react';
 import { formatNivel, formatDificuldade } from '@/utils/formatters';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import * as Types from '@/types';
+import { getStrategistInsight } from './strategistInsight';
 
 // ─── Taxonomy Display ────────────────────────────────────────────────────────
 
@@ -57,12 +58,12 @@ export const QuestionHeader = ({ concurso, cargos, anulada, desatualizada, autor
             Questão Autoral
           </span>
           {anulada && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 ms-auto">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-terracotta-50 text-terracotta-700 ms-auto">
               ANULADA
             </span>
           )}
           {desatualizada && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 ms-auto">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 ms-auto">
               DESATUALIZADA
             </span>
           )}
@@ -136,11 +137,11 @@ export const AlternativesList = ({ alternativas, selectedAlternativa, feedback, 
 
         if (showFeedback) {
           if (isCorrect) {
-            containerClass += 'bg-emerald-50 border-emerald-300 animate-success-pop ';
-            badgeClass += 'bg-emerald-500 text-white';
+            containerClass += 'bg-sage-50 border-sage-300 animate-success-pop ';
+            badgeClass += 'bg-sage-500 text-white';
           } else if (isSelected && !isCorrect) {
-            containerClass += 'bg-red-50 border-red-300 animate-error-shake ';
-            badgeClass += 'bg-red-400 text-white';
+            containerClass += 'bg-terracotta-50 border-terracotta-300 animate-error-shake ';
+            badgeClass += 'bg-terracotta-400 text-white';
           } else {
             containerClass += 'bg-slate-50 border-slate-100 opacity-50 ';
             badgeClass += 'bg-slate-100 text-slate-400';
@@ -178,7 +179,7 @@ export const AlternativesList = ({ alternativas, selectedAlternativa, feedback, 
             <div className="ms-3.5 flex-1 min-w-0">
               <div
                 className={`text-base break-words leading-relaxed ${
-                  showFeedback && isCorrect ? 'font-medium text-emerald-900' : 'text-slate-700'
+                  showFeedback && isCorrect ? 'font-medium text-sage-900' : 'text-slate-700'
                 }`}
               >
                 {alternativa.texto}
@@ -189,13 +190,13 @@ export const AlternativesList = ({ alternativas, selectedAlternativa, feedback, 
                   {(isCorrect || (isSelected && !isCorrect)) && (
                     <div
                       className={`flex items-start text-sm p-3 rounded-lg ${
-                        isCorrect ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'
+                        isCorrect ? 'bg-sage-50 text-sage-800' : 'bg-terracotta-50 text-terracotta-800'
                       }`}
                     >
                       {isCorrect ? (
-                        <CheckCircle className="w-4 h-4 me-2 flex-shrink-0 mt-0.5 text-emerald-600" />
+                        <CheckCircle className="w-4 h-4 me-2 flex-shrink-0 mt-0.5 text-sage-600" />
                       ) : (
-                        <XCircle className="w-4 h-4 me-2 flex-shrink-0 mt-0.5 text-red-500" />
+                        <XCircle className="w-4 h-4 me-2 flex-shrink-0 mt-0.5 text-terracotta-500" />
                       )}
                       <div>
                         <strong className="block mb-1 text-xs uppercase tracking-wide">
@@ -227,10 +228,10 @@ export const AlternativesList = ({ alternativas, selectedAlternativa, feedback, 
 // ─── Difficulty Selector ─────────────────────────────────────────────────────
 
 const DIFFICULTY_OPTIONS = [
-  { val: 1, label: 'Fácil', active: 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-1 ring-emerald-300' },
+  { val: 1, label: 'Fácil', active: 'bg-sage-50 text-sage-700 border-sage-300 ring-1 ring-sage-300' },
   { val: 2, label: 'Média', active: 'bg-amber-50 text-amber-700 border-amber-300 ring-1 ring-amber-300' },
   { val: 3, label: 'Difícil', active: 'bg-orange-50 text-orange-700 border-orange-300 ring-1 ring-orange-300' },
-  { val: 4, label: 'Chute', active: 'bg-red-50 text-red-700 border-red-300 ring-1 ring-red-300' },
+  { val: 4, label: 'Chute', active: 'bg-terracotta-50 text-terracotta-700 border-terracotta-300 ring-1 ring-terracotta-300' },
 ];
 
 interface DifficultySelectorProps {
@@ -344,35 +345,6 @@ export const QuestionCard = ({
     ? SUCCESS_MESSAGES[Math.floor(feedback.id % SUCCESS_MESSAGES.length)] 
     : ENCOURAGING_MESSAGES[Math.floor(feedback?.id || 0 % ENCOURAGING_MESSAGES.length)];
   
-  // --- Strategist Insights Engine ---
-  const getStrategistInsight = (fb: Types.RespostaDetailDto) => {
-    const isFast = fb.tempoRespostaSegundos < 30;
-    const isVeryFast = fb.tempoRespostaSegundos < 15;
-    const isSlow = fb.tempoRespostaSegundos > 120;
-    const isCorrect = fb.correta;
-    const dif = fb.dificuldade; // 'FACIL', 'MEDIA', 'DIFICIL', 'CHUTE'
-
-    if (dif === 'CHUTE') {
-      return isCorrect 
-        ? "Acerto no chute? Registre a dúvida e revise a fundamentação para consolidar este ponto."
-        : "O chute não converteu. Recomendada revisão teórica profunda deste tópico.";
-    }
-
-    if (!isCorrect) {
-      if (isVeryFast) return "Atenção: Ritmo extremamente acelerado. Verifique se houve erro por falta de atenção na leitura.";
-      if (isFast) return "Ritmo apressado. O tempo de resposta sugere leitura superficial das alternativas.";
-      if (dif === 'FACIL') return "Gap de percepção: Este tema exige maior rigor técnico do que o inicialmente previsto.";
-      if ((dif === 'MEDIA' || dif === 'DIFICIL') && fb.tempoRespostaSegundos < 45) 
-        return "Cuidado: Tópico complexo respondido com rapidez atípica. Revise as pegadinhas da banca.";
-    } else {
-      if (dif === 'DIFICIL') return "Excelente! Você demonstrou domínio técnico em um tópico de alta complexidade.";
-      if (isSlow) return "Bom acerto, mas atenção à eficiência: o tempo de resposta superou a margem ideal de 2 min.";
-      if (isFast && (dif === 'MEDIA' || dif === 'DIFICIL')) return "Ótimo desempenho! Resposta rápida e precisa em um tópico desafiador.";
-    }
-
-    return null;
-  };
-
   const insight = feedback ? getStrategistInsight(feedback) : null;
 
   return (
@@ -474,6 +446,7 @@ export const QuestionCard = ({
                         feedback.correta ? 'text-sage-700' : 'text-terracotta-700'
                     }`}
                   >
+                  
                     {statusMessage}
                   </span>
                 </div>
@@ -513,7 +486,7 @@ export const QuestionCard = ({
                     Justificativa
                   </span>
                   <p className="text-sm text-slate-700 leading-relaxed italic font-medium">
-                    "{feedback.justificativa}"
+                    &ldquo;{feedback.justificativa}&rdquo;
                   </p>
                 </div>
               )}

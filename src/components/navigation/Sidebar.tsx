@@ -38,13 +38,14 @@ export const Sidebar = ({ isOpen, onClose, pathname }: SidebarProps) => {
       <div className="flex items-center justify-between p-4 border-b border-indigo-700">
         <div className="flex items-center space-x-2">
           <div className="bg-white/90 p-1.5 rounded-lg shrink-0">
-            <img src="/logo.png" alt="Studora" className="w-6 h-6" />
+            <img src="/logo.png" alt="Studora" className="w-6 h-6 object-contain" />
           </div>
           <h1 className="text-xl font-semibold tracking-[-0.02em] whitespace-nowrap">Studora</h1>
         </div>
         <button
-          className="lg:hidden text-white hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 p-1 rounded-md shrink-0"
+          className="lg:hidden text-white hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 p-2 rounded-md shrink-0"
           onClick={onClose}
+          aria-label="Fechar menu"
         >
           <X className="h-6 w-6" />
         </button>

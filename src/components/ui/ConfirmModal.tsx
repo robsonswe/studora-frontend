@@ -19,10 +19,10 @@ interface ConfirmModalProps {
 const typeStyles = {
   danger: {
     icon: AlertTriangle,
-    iconColor: 'text-red-600',
-    iconBg: 'bg-red-100',
-    buttonBg: 'bg-red-600 hover:bg-red-700 active:bg-red-800',
-    buttonShadow: 'shadow-red-200',
+    iconColor: 'text-terracotta-600',
+    iconBg: 'bg-terracotta-100',
+    buttonBg: 'bg-terracotta-600 hover:bg-terracotta-700 active:bg-terracotta-800',
+    buttonShadow: 'shadow-terracotta-200',
   },
   warning: {
     icon: AlertTriangle,
@@ -40,10 +40,10 @@ const typeStyles = {
   },
   success: {
     icon: CheckCircle,
-    iconColor: 'text-emerald-600',
-    iconBg: 'bg-emerald-100',
-    buttonBg: 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800',
-    buttonShadow: 'shadow-emerald-200',
+    iconColor: 'text-sage-600',
+    iconBg: 'bg-sage-100',
+    buttonBg: 'bg-sage-600 hover:bg-sage-700 active:bg-sage-800',
+    buttonShadow: 'shadow-sage-200',
   },
 };
 
@@ -75,11 +75,11 @@ export default function ConfirmModal({
             <Icon className={`h-7 w-7 ${style.iconColor}`} />
           </div>
           
-          <h3 className="text-lg font-bold text-gray-900 mb-2 leading-tight">
+          <h3 className="text-lg font-bold text-slate-900 mb-2 leading-tight">
             {title}
           </h3>
           
-          <p className="text-sm text-gray-500 leading-relaxed">
+          <p className="text-sm text-slate-500 leading-relaxed">
             {message}
           </p>
         </div>

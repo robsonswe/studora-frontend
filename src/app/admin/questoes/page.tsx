@@ -996,13 +996,13 @@ function QuestoesContent() {
         {/* Pagination */}
         {pagination.totalPages > 1 && (
           <div className="flex items-center justify-center mt-12 font-sans">
-             <nav className="isolate inline-flex -space-x-px rounded-lg shadow-sm border border-gray-200 bg-white overflow-hidden">
-                  <button onClick={() => updateFilters({}, currentPage - 1)} disabled={currentPage === 0} className="relative inline-flex items-center px-4 py-3 text-gray-400 hover:bg-gray-50 disabled:opacity-30 border-r border-gray-200 transition-colors"><ChevronLeft className="h-5 w-5" /></button>
-                  <div className="flex items-center px-6 py-2 bg-gray-50/50 border-r border-gray-200 text-sm font-mono font-medium text-gray-900 tabular-nums">
+<nav className="isolate inline-flex -space-x-px rounded-lg shadow-sm border border-slate-200 bg-white overflow-hidden">
+                  <button onClick={() => updateFilters({}, currentPage - 1)} disabled={currentPage === 0} aria-label="Página anterior" className="relative inline-flex items-center px-4 py-3 text-slate-400 hover:bg-slate-50 disabled:opacity-30 border-r border-slate-200 transition-colors"><ChevronLeft className="h-5 w-5" /></button>
+                  <div className="flex items-center px-6 py-2 bg-slate-50/50 border-r border-slate-200 text-sm font-mono font-medium text-slate-900 tabular-nums">
                     {currentPage + 1} / {pagination.totalPages}
                   </div>
-                  <button onClick={() => updateFilters({}, currentPage + 1)} disabled={currentPage === pagination.totalPages - 1} className="relative inline-flex items-center px-4 py-3 text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors"><ChevronRight className="h-5 w-5" /></button>
-             </nav>
+                  <button onClick={() => updateFilters({}, currentPage + 1)} disabled={currentPage === pagination.totalPages - 1} aria-label="Próxima página" className="relative inline-flex items-center px-4 py-3 text-slate-400 hover:bg-slate-50 disabled:opacity-30 transition-colors"><ChevronRight className="h-5 w-5" /></button>
+              </nav>
           </div>
         )}
           </>

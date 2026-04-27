@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 interface BaseModalProps {
@@ -33,18 +33,44 @@ export default function BaseModal({
   preventBackdropClick = false,
 }: BaseModalProps) {
   const [mounted, setMounted] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<Element | null>(null);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      previousActiveElement.current = document.activeElement;
+      modalRef.current?.focus();
     } else {
       document.body.style.overflow = 'unset';
+      if (previousActiveElement.current instanceof HTMLElement) {
+        previousActiveElement.current.focus();
+      }
     }
+    
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen]);
+  }, [isOpen, mounted]);
+
+  useEffect(() => {
+    if (!mounted || !isOpen) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !preventBackdropClick) {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, preventBackdropClick, mounted]);
 
   if (!mounted || !isOpen) return null;
 
@@ -58,8 +84,13 @@ export default function BaseModal({
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 backdrop-blur-[2px] p-4 overflow-y-auto animate-in fade-in duration-200"
       onMouseDown={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
     >
       <div
+        ref={modalRef}
+        tabIndex={-1}
         className={`bg-white shadow-2xl w-full ${sizeMap[size]} rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-bottom-4 sm:slide-in-from-top-4 duration-300 ${className}`}
       >
         {children}

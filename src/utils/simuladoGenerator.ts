@@ -314,7 +314,7 @@ function distributeQuestions(
   const totalScore = scored.reduce((s, t) => s + t.score, 0);
 
   // Initial proportional allocation (floored)
-  let allocations = scored.map(t => ({
+  const allocations = scored.map(t => ({
     id: t.id,
     exact: totalScore > 0 ? (t.score / totalScore) * targetQuestions : targetQuestions / scored.length,
     quantidade: 0,

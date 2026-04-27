@@ -20,6 +20,9 @@ const jetBrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Studora",
   description: "Plataforma de estudos para concursos",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

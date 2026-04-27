@@ -132,7 +132,7 @@ export default function QuestaoFormModal({
         {/* ── Header ── */}
         <div className="flex-shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-indigo-100/60 bg-white">
           <div className="flex items-center gap-3">
-            <h3 className="text-sm font-bold text-gray-900 tracking-tight">
+            <h3 className="text-sm font-bold text-slate-900 tracking-tight">
               {editingItem ? 'Editar Questão' : 'Nova Questão'}
             </h3>
             {editingItem && (
@@ -145,7 +145,7 @@ export default function QuestaoFormModal({
             type="button"
             onClick={onClose}
             title="Fechar"
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-300 hover:text-gray-500 transition-colors duration-150"
+            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-500 transition-colors duration-150"
           >
             <XCircle className="w-4 h-4" />
           </button>
@@ -161,7 +161,7 @@ export default function QuestaoFormModal({
             }`}
           >
             Questão
-            {hasDadosErrors && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm shadow-red-200" />}
+            {hasDadosErrors && <span className="w-1.5 h-1.5 rounded-full bg-terracotta-500 shadow-sm shadow-terracotta-200" />}
             {activeTab === 'dados' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 animate-in fade-in slide-in-from-bottom-1 duration-200" />}
           </button>
           <button
@@ -172,7 +172,7 @@ export default function QuestaoFormModal({
             }`}
           >
             Alternativas
-            {hasAlternativasErrors && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm shadow-red-200" />}
+            {hasAlternativasErrors && <span className="w-1.5 h-1.5 rounded-full bg-terracotta-500 shadow-sm shadow-terracotta-200" />}
             {activeTab === 'alternativas' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 animate-in fade-in slide-in-from-bottom-1 duration-200" />}
           </button>
         </div>
@@ -192,18 +192,18 @@ export default function QuestaoFormModal({
               <div>
                 <label htmlFor="crud-enunciado" className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
                   Enunciado
-                  <span className="text-red-400 font-black">*</span>
+                  <span className="text-terracotta-400 font-black">*</span>
                 </label>
                 <textarea
                   id="crud-enunciado"
                   rows={5}
                   autoFocus
                   {...crudForm.register('enunciado', { required: 'O enunciado é obrigatório.' })}
-                  className="block w-full text-sm border border-slate-200 bg-white rounded-xl p-3.5 text-gray-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none transition-all duration-150 leading-relaxed shadow-sm"
+                  className="block w-full text-sm border border-slate-200 bg-white rounded-xl p-3.5 text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none transition-all duration-150 leading-relaxed shadow-sm"
                   placeholder="Digite o enunciado da questão…"
                 />
                 {crudForm.formState.errors.enunciado && (
-                  <p className="mt-1.5 text-[11px] text-red-500 font-medium">{crudForm.formState.errors.enunciado.message}</p>
+                  <p className="mt-1.5 text-[11px] text-terracotta-500 font-medium">{crudForm.formState.errors.enunciado.message}</p>
                 )}
               </div>
 
