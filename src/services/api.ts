@@ -12,9 +12,9 @@ const API_BASE_URL = 'http://localhost:4534/api/v1';
  */
 export class ApiError extends Error {
   public status: number;
-  public details?: any;
+  public details?: unknown;
 
-  constructor(message: string, status: number, details?: any) {
+  constructor(message: string, status: number, details?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
@@ -27,10 +27,11 @@ export class ApiError extends Error {
  * @param params Object containing key-value pairs for query parameters.
  * @returns Formatted query string starting with '?'.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const buildQueryString = (params?: Record<string, any>): string => {
   if (!params) return '';
   const query = Object.entries(params)
-    .filter(([_, value]) => value !== undefined && value !== null)
+    .filter(([, value]) => value !== undefined && value !== null)
     .map(([key, value]) => {
       // Handle array values as comma-separated strings for Spring Boot
       const formattedValue = Array.isArray(value) ? value.join(',') : value;
@@ -84,7 +85,7 @@ const apiCall = async <T>(endpoint: string, options: RequestInit = {}): Promise<
             errorMessage = `${errorDetails.detail || 'Validation error'}: ${validationMsgs}`;
           }
         }
-      } catch (e) {
+      } catch {
         errorMessage = response.statusText || errorMessage;
       }
 

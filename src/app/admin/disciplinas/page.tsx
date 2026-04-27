@@ -20,12 +20,15 @@ import {
   Loader2,
   XCircle
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
+import { useToast } from '@/components/ui/ToastContext';
 
 type DisciplinaDto = Types.DisciplinaSummaryDto;
 
 function DisciplinasContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
 
   const urlPage = Number(searchParams?.get('page')) || 0;
   const urlNome = searchParams?.get('nome') || '';
@@ -109,9 +112,11 @@ function DisciplinasContent() {
 
       if (editingItem) {
         await disciplinaService.update(editingItem.id, payload);
+        showToast('Disciplina atualizada com sucesso', 'success');
         loadDisciplinas(currentPage, urlNome);
       } else {
         await disciplinaService.create(payload);
+        showToast('Disciplina criada com sucesso', 'success');
         loadDisciplinas(0, undefined);
       }
 
@@ -147,6 +152,7 @@ function DisciplinasContent() {
     setLocalLoading(true);
     try {
       await disciplinaService.delete(confirmModal.itemId);
+      showToast('Disciplina excluída com sucesso', 'success');
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
       loadDisciplinas(currentPage, urlNome);
     } catch (err: any) {
@@ -282,16 +288,7 @@ function DisciplinasContent() {
         </div>
 
         {submissionError && (
-          <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4 rounded">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <AlertCircle className="h-5 w-5 text-red-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-red-700 font-medium">{submissionError}</p>
-              </div>
-            </div>
-          </div>
+          <Feedback type="error" message={submissionError} className="mt-4" />
         )}
       </FormModal>
 
@@ -315,13 +312,11 @@ function DisciplinasContent() {
           </div>
         ) : error ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
-            <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Erro ao carregar dados</h3>
-            <p className="mt-1 text-sm text-gray-500">{error}</p>
+            <Feedback type="error" title="Erro ao carregar dados" message={error} className="max-w-md mx-auto" />
             <div className="mt-6">
               <button
                 onClick={() => updateFilters(urlNome, urlPage)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
               >
                 Tentar novamente
               </button>

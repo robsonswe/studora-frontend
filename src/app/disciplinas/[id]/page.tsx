@@ -24,6 +24,8 @@ import {
   Info,
   Search,
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
+import { useToast } from '@/components/ui/ToastContext';
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 interface SubtemaWithEstudos extends Types.SubtemaSummaryDto {
@@ -268,6 +270,7 @@ export default function DisciplinaDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const { showToast } = useToast();
   
   const [disciplina, setDisciplina] = useState<Types.DisciplinaDetailDto | null>(null);
   const [temas, setTemas] = useState<TemaWithSubtemas[]>([]);
@@ -277,7 +280,6 @@ export default function DisciplinaDetailPage() {
   const [addingEstudo, setAddingEstudo] = useState<number | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null);
   const [registerConfirmation, setRegisterConfirmation] = useState<RegisterConfirmation | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [historyModal, setHistoryModal] = useState<SubtemaWithEstudos | null>(null);
   const [loadingHistory, setLoadingHistory] = useState<number | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
@@ -358,16 +360,16 @@ export default function DisciplinaDetailPage() {
     const { subtemaId } = registerConfirmation;
     
     setAddingEstudo(subtemaId);
-    setActionError(null);
     try {
       await subtemaService.addEstudo(subtemaId);
       await loadDisciplina(parseInt(id!), false);
       setRegisterConfirmation(null);
+      showToast('Estudo registrado com sucesso!', 'success');
       if (historyModal && historyModal.id === subtemaId) {
         setHistoryModal(null);
       }
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Erro ao registrar estudo.');
+      showToast(err instanceof ApiError ? err.message : 'Erro ao registrar estudo.', 'error');
     } finally {
       setAddingEstudo(null);
     }
@@ -392,7 +394,7 @@ export default function DisciplinaDetailPage() {
         })));
         setHistoryModal(subtemaUpdated);
       } catch (err) {
-        setActionError('Erro ao carregar histórico.');
+        showToast('Erro ao carregar histórico.', 'error');
       } finally {
         setLoadingHistory(null);
       }
@@ -409,8 +411,9 @@ export default function DisciplinaDetailPage() {
       setDeleteConfirmation(null);
       setHistoryModal(null);
       await loadDisciplina(parseInt(id!), false);
+      showToast('Registro removido com sucesso!', 'success');
     } catch (err) {
-      setActionError('Erro ao excluir estudo.');
+      showToast('Erro ao excluir estudo.', 'error');
       setDeleteConfirmation(null);
     } finally {
       setAddingEstudo(null);
@@ -446,14 +449,6 @@ export default function DisciplinaDetailPage() {
         ]}
       />
 
-      {/* Action Error Toast */}
-      {actionError && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[70] bg-rose-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm font-medium">
-          <AlertCircle className="w-4 h-4" />
-          {actionError}
-          <button onClick={() => setActionError(null)} className="ml-2 hover:opacity-70"><X className="w-4 h-4" /></button>
-        </div>
-      )}
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal

@@ -58,10 +58,10 @@ export const AdminSidebar = ({ isOpen, onClose, pathname }: AdminSidebarProps) =
       <nav className="mt-5 px-3 flex-1 overflow-y-auto overflow-x-hidden scrollbar-transparent">
         <Link 
           href="/" 
-          className="flex items-center px-3 py-2 mb-4 text-sm font-medium rounded-lg text-slate-400/70 hover:bg-white/[0.04] hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 transition-colors whitespace-nowrap overflow-hidden"
+          className="flex items-center px-3 py-2 mb-4 text-sm font-medium rounded-lg text-slate-400 hover:bg-white/[0.04] hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 transition-colors whitespace-nowrap overflow-hidden group"
           onClick={onClose}
         >
-          <ArrowLeft className="mr-3 h-5 w-5 shrink-0 text-slate-500" />
+          <ArrowLeft className="mr-3 h-4 w-4 shrink-0 text-slate-500 group-hover:text-slate-300 transition-colors" />
           Voltar ao App
         </Link>
         
@@ -78,14 +78,17 @@ export const AdminSidebar = ({ isOpen, onClose, pathname }: AdminSidebarProps) =
               <Link 
                 key={item.path}
                 href={item.path} 
-                className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 ${
+                className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 relative group ${
                   isActive 
-                    ? 'bg-indigo-500/[0.07] text-indigo-400 border-l-[3px] border-amber-400/80' 
-                    : 'text-slate-400/80 hover:bg-white/[0.04] hover:text-slate-200 border-l-[3px] border-transparent'
+                    ? 'bg-white/[0.06] text-white shadow-sm' 
+                    : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
                 }`}
                 onClick={onClose}
               >
-                <Icon className={`mr-3 h-5 w-5 shrink-0 ${isActive ? 'text-indigo-400/90' : 'text-slate-500/70'}`} />
+                {isActive && (
+                  <div className="absolute left-0 w-1 h-4 bg-indigo-500 rounded-full" />
+                )}
+                <Icon className={`mr-3 h-4 w-4 shrink-0 transition-colors ${isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-400'}`} />
                 {item.label}
               </Link>
             );

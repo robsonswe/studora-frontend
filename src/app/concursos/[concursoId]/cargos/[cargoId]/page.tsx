@@ -26,6 +26,7 @@ import {
   Play,
   Check,
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
 import SimuladoCargoModal from '@/components/concursos/SimuladoCargoModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -160,10 +161,21 @@ export default function ConcursoCargoDetailPage() {
           { label: 'Erro ao carregar' }
         ]}
       />
-      <div className="bg-white border border-red-100 rounded-xl p-10 text-center">
-        <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-4" />
-        <p className="text-sm font-semibold text-slate-600">{error || 'Concurso não encontrado.'}</p>
-        <button onClick={() => router.push('/concursos')} className="mt-6 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition-colors">Voltar para Concursos</button>
+      <div className="max-w-4xl mx-auto px-4">
+        <Feedback
+          type="error"
+          title="Erro ao carregar edital"
+          message={error || 'Concurso ou cargo não encontrado.'}
+          onClose={() => router.push('/concursos')}
+        />
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={() => router.push('/concursos')}
+            className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 flex items-center transition-colors"
+          >
+            <ChevronRight className="w-4 h-4 mr-1 rotate-180" /> Voltar para Concursos
+          </button>
+        </div>
       </div>
     </div>
   );

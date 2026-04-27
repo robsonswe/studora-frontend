@@ -16,11 +16,14 @@ import {
   ChevronRight,
   Award,
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
+import { useToast } from '@/components/ui/ToastContext';
 
 export default function SimuladoDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const { showToast } = useToast();
   const numericId = Number(id);
   
   // Data State
@@ -217,6 +220,7 @@ export default function SimuladoDetailPage() {
              ...finishedSimulado,
              questoes: updatedQuestions
           }) : null);
+          showToast('Simulado concluído!', 'success');
           setShowResultsModal(true);
         } catch (finishErr) {
            setSimulado(prev => prev ? ({ ...prev, questoes: updatedQuestions, finishedAt: new Date().toISOString() }) : null);
@@ -225,9 +229,9 @@ export default function SimuladoDetailPage() {
       } else {
         setSimulado({ ...simulado!, questoes: updatedQuestions });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao verificar resposta:', err);
-      alert('Erro ao enviar resposta. Tente novamente.');
+      showToast(err.message || 'Erro ao enviar resposta', 'error');
     } finally {
       setProcessingAnswer(false);
     }
@@ -260,9 +264,19 @@ export default function SimuladoDetailPage() {
 
   if (error || !simulado || !simulado.questoes || !currentQuestion) return (
     <div className="max-w-4xl mx-auto py-12 px-4">
-      <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-lg shadow-sm">
-        <div className="flex"><AlertTriangle className="h-6 w-6 text-red-500 mr-3" /><p className="text-red-700 font-medium">{error || 'Simulado não encontrado'}</p></div>
-        <button onClick={() => router.push('/simulados')} className="mt-4 text-sm text-red-600 font-semibold hover:underline">Voltar para lista</button>
+      <Feedback
+        type="error"
+        title="Erro ao carregar simulado"
+        message={error || 'Simulado não encontrado ou sem questões disponíveis.'}
+        onClose={() => router.push('/simulados')}
+      />
+      <div className="mt-6 flex justify-center">
+        <button
+          onClick={() => router.push('/simulados')}
+          className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 flex items-center transition-colors"
+        >
+          <ChevronLeft className="w-4 h-4 mr-1" /> Voltar para lista
+        </button>
       </div>
     </div>
   );

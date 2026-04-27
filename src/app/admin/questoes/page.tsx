@@ -30,6 +30,8 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
+import { useToast } from '@/components/ui/ToastContext';
 
 type QuestaoDto = Types.QuestaoDetailDto;
 
@@ -39,6 +41,7 @@ interface SelectOption { value: number | string; label: string; }
 function QuestoesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
 
   // ─── Read filter state from URL ───────────────────────────────────────────
   const urlPage = Number(searchParams?.get('page')) || 0;
@@ -328,8 +331,10 @@ function QuestoesContent() {
 
       if (editingItem) {
         await questaoService.update(editingItem.id, payload);
+        showToast('Questão atualizada com sucesso', 'success');
       } else {
         await questaoService.create(payload);
+        showToast('Questão criada com sucesso', 'success');
       }
 
       await filterQuestoes(currentPage);
@@ -403,6 +408,7 @@ function QuestoesContent() {
     setFormLoading(true);
     try {
       await questaoService.delete(confirmModal.itemId);
+      showToast('Questão excluída com sucesso', 'success');
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
       await filterQuestoes(currentPage);
     } catch (err: any) {
@@ -593,13 +599,11 @@ function QuestoesContent() {
         {/* ── Error State ── */}
         {fetchError ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
-            <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Erro ao carregar dados</h3>
-            <p className="mt-1 text-sm text-gray-500">{fetchError}</p>
+            <Feedback type="error" title="Erro ao carregar dados" message={fetchError} className="max-w-md mx-auto" />
             <div className="mt-6">
               <button
                 onClick={() => filterQuestoes(0)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
               >
                 Tentar novamente
               </button>

@@ -28,6 +28,8 @@ import {
   Calendar,
   X
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
+import { useToast } from '@/components/ui/ToastContext';
 
 type ConcursoDto = Types.ConcursoSummaryDto;
 
@@ -39,6 +41,7 @@ interface Toast {
 
 export default function ConcursosPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [concursos, setConcursos] = useState<ConcursoDto[]>([]);
   const [pagination, setPagination] = useState<Types.PageResponse<ConcursoDto>>({
@@ -51,7 +54,6 @@ export default function ConcursosPage() {
   });
   const [currentPage, setCurrentPage] = useState(0);
   const [toggleLoading, setToggleLoading] = useState<number | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -68,18 +70,6 @@ export default function ConcursosPage() {
   });
 
   const watchedFields = watch();
-
-  const addToast = (type: Toast['type'], message: string) => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 5000);
-  };
-
-  const removeToast = (id: number) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
 
   usePageTitle('Concursos');
 
@@ -110,7 +100,7 @@ export default function ConcursosPage() {
         ? error.message
         : 'Verifique sua conexão com a internet e tente novamente.';
       setLoadError(errorMessage);
-      addToast('error', errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
@@ -120,7 +110,8 @@ export default function ConcursosPage() {
     watchedFields.selectedInstituicaoArea,
     watchedFields.selectedCargoArea,
     watchedFields.selectedCargoNivel,
-    watchedFields.selectedInscrito
+    watchedFields.selectedInscrito,
+    showToast
   ]);
 
   useEffect(() => {
@@ -189,12 +180,12 @@ export default function ConcursosPage() {
     try {
       await concursoService.toggleInscricao(concursoCargoId);
       await loadConcursos(currentPage);
-      addToast('success', 'Preferências de inscrição atualizadas com sucesso.');
+      showToast('Preferências de inscrição atualizadas com sucesso.', 'success');
     } catch (error) {
       const errorMessage = error instanceof ApiError
         ? error.message
         : 'Ocorreu um erro ao atualizar sua inscrição. Por favor, tente novamente.';
-      addToast('error', errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setToggleLoading(null);
     }
@@ -233,29 +224,6 @@ export default function ConcursosPage() {
           </div>
         }
       />
-
-      {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-50 space-y-3">
-        {toasts.map(toast => (
-          <div
-            key={toast.id}
-            className={`flex items-start gap-3 px-4 py-3 rounded-lg shadow-sm border max-w-sm animate-slide-in ${
-              toast.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
-              'bg-red-50 border-red-200 text-red-800'
-            }`}
-          >
-            {toast.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
-            {toast.type === 'error' && <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
-            <p className="text-sm font-semibold flex-1 leading-relaxed tracking-tight">{toast.message}</p>
-            <button
-              onClick={() => removeToast(toast.id)}
-              className="flex-shrink-0 hover:bg-black/10 rounded p-0.5 transition-colors -mt-1 -mr-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
-      </div>
 
       {/* Mobile filter summary bar */}
       <div className="sm:hidden mb-6">
@@ -540,16 +508,21 @@ export default function ConcursosPage() {
         )}
 
         {loadError && !loading && (
-          <div className="bg-white border border-red-100 rounded-xl p-6 sm:p-10 text-center shadow-sm animate-in zoom-in-95 duration-300">
-            <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-4" />
-            <h3 className="text-base font-bold text-slate-900 mb-2 tracking-tight">Erro ao carregar dados.</h3>
-            <p className="text-slate-500 mb-6 text-sm font-medium leading-relaxed max-w-sm mx-auto">{loadError}</p>
-            <button
-              onClick={() => loadConcursos(currentPage)}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-bold transition-all shadow-sm active:scale-95"
-            >
-              Tentar novamente
-            </button>
+          <div className="animate-in zoom-in-95 duration-300">
+            <Feedback
+              type="error"
+              title="Erro ao carregar dados"
+              message={loadError}
+              onClose={() => loadConcursos(currentPage)}
+            />
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={() => loadConcursos(currentPage)}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-bold transition-all shadow-sm active:scale-95"
+              >
+                Tentar novamente
+              </button>
+            </div>
           </div>
         )}
 

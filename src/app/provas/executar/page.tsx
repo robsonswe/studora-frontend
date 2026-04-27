@@ -14,10 +14,13 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
+import { useToast } from '@/components/ui/ToastContext';
 
 function ProvaContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { showToast } = useToast();
   
   const concursoId = Number(searchParams.get('concursoId'));
   const cargoId = Number(searchParams.get('cargoId'));
@@ -192,7 +195,7 @@ function ProvaContent() {
       setQuestoes(updatedQuestions);
     } catch (err) {
       console.error('Erro ao verificar resposta:', err);
-      alert('Erro ao enviar resposta. Tente novamente.');
+      showToast('Erro ao enviar resposta. Tente novamente.', 'error');
     } finally {
       setProcessingAnswer(false);
     }
@@ -224,9 +227,19 @@ function ProvaContent() {
 
   if (error || questoes.length === 0 || !currentQuestion) return (
     <div className="max-w-4xl mx-auto py-12 px-4">
-      <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-lg shadow-sm">
-        <div className="flex"><AlertTriangle className="h-6 w-6 text-red-500 mr-3" /><p className="text-red-700 font-medium">{error || 'Prova não encontrada'}</p></div>
-        <button onClick={() => router.push('/concursos')} className="mt-4 text-sm text-red-600 font-semibold hover:underline cursor-pointer">Voltar para lista</button>
+      <Feedback
+        type="error"
+        title="Erro na Prova"
+        message={error || (questoes.length === 0 ? 'Nenhuma questão encontrada para este cargo neste concurso.' : 'Prova não encontrada')}
+        onClose={() => router.push('/concursos')}
+      />
+      <div className="mt-6 flex justify-center">
+        <button
+          onClick={() => router.push('/concursos')}
+          className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+        >
+          Voltar para lista de concursos
+        </button>
       </div>
     </div>
   );

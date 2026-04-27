@@ -24,6 +24,7 @@ import {
 } from '@/utils/simuladoGenerator';
 import BaseModal from '@/components/ui/BaseModal';
 import { formatNivel } from '@/utils/formatters';
+import { useToast } from '@/components/ui/ToastContext';
 
 // ─── Strategy Definitions ────────────────────────────────────────────────────
 
@@ -93,6 +94,7 @@ export default function SimuladoCargoModal({
   cargo,
 }: SimuladoCargoModalProps) {
   const router = useRouter();
+  const { showToast } = useToast();
 
   const [generatingSimulado, setGeneratingSimulado] = useState(false);
   const [targetQuestions, setTargetQuestions] = useState(60);
@@ -118,9 +120,10 @@ export default function SimuladoCargoModal({
       });
       await simuladoService.gerar(request);
       router.push('/simulados');
+      showToast('Simulado gerado com sucesso!', 'success');
     } catch (err) {
       console.error('Erro ao gerar simulado:', err);
-      alert('Erro ao gerar simulado. Tente novamente.');
+      showToast('Erro ao gerar simulado. Tente novamente.', 'error');
     } finally {
       setGeneratingSimulado(false);
       onClose();

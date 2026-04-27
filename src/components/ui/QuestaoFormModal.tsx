@@ -10,7 +10,11 @@ import {
 } from 'lucide-react';
 import * as Types from '@/types';
 import { formatNivel } from '@/utils/formatters';
-import { concursoService, subtemaService } from '@/services/api';
+import {
+  concursoService,
+  subtemaService
+} from '@/services/api';
+import { Feedback } from './Feedback';
 import BaseModal from './BaseModal';
 
 interface QuestaoFormData {
@@ -333,14 +337,11 @@ export default function QuestaoFormModal({
 
               {/* Validation errors */}
               {validationErrors.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
-                  <ul className="space-y-0.5">
-                    {validationErrors.map((err, i) => (
-                      <li key={i} className="text-xs text-red-600">· {err}</li>
-                    ))}
-                  </ul>
-                </div>
+                <Feedback
+                  type="error"
+                  message={validationErrors}
+                  className="mt-2"
+                />
               )}
             </div>
           </div>

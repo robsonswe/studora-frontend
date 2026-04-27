@@ -16,6 +16,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
 
 type QuestaoDto = Types.QuestaoDetailDto;
 type RespostaDto = Types.RespostaDetailDto;
@@ -445,17 +446,12 @@ export default function QuestaoPracticePage() {
           </p>
 
           {error && (
-            <div className="mt-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-start">
-              <AlertCircle className="w-4 h-4 me-2 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm">{error}</p>
-                <button
-                  onClick={() => setError(null)}
-                  className="mt-2 text-xs text-red-600 underline hover:text-red-800"
-                >
-                  Fechar
-                </button>
-              </div>
+            <div className="mb-6">
+              <Feedback
+                type="error"
+                message={error}
+                onClose={() => setError(null)}
+              />
             </div>
           )}
 
@@ -532,14 +528,12 @@ export default function QuestaoPracticePage() {
 
       <div className="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-start text-sm">
-            <AlertCircle className="w-4 h-4 me-2 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              {error}
-              <button onClick={() => setError(null)} className="ms-3 text-xs text-red-600 underline hover:text-red-800">
-                Fechar
-              </button>
-            </div>
+          <div className="mb-6">
+            <Feedback
+              type="error"
+              message={error}
+              onClose={() => setError(null)}
+            />
           </div>
         )}
 

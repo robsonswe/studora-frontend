@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'react-navigation';
 import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
 import { ChevronRight } from 'lucide-react';

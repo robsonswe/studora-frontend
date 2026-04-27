@@ -18,10 +18,12 @@ import {
   TrendingUp,
   ArrowRight,
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
 
 export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   usePageTitle('Dashboard');
   const [simulados, setSimulados] = useState<Types.SimuladoSummaryDto[]>([]);
@@ -32,6 +34,7 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [simRes, concRes, respRes] = await Promise.all([
         simuladoService.getAll({ size: 5 }).catch(() => ({ content: [] })),
@@ -61,8 +64,9 @@ export default function Dashboard() {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       const count = respRes.content.filter((r: Types.RespostaSummaryDto) => new Date(r.createdAt) >= sevenDaysAgo).length;
       setWeeklyCount(count);
-    } catch {
-      // Data load failed — empty states will display
+    } catch (err: any) {
+      console.error('Erro ao carregar dados do dashboard:', err);
+      setError('Alguns dados do dashboard não puderam ser carregados.');
     } finally {
       setLoading(false);
     }
@@ -84,6 +88,13 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 sm:space-y-8 lg:space-y-10">
+      {error && (
+        <Feedback
+          type="error"
+          message={error}
+          onClose={() => setError(null)}
+        />
+      )}
       <div className="animate-enter-1">
         <PageHeader
           title="Bem-vindo de volta, Estudante"
@@ -144,7 +155,7 @@ export default function Dashboard() {
                 Ver todos <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-            <div className="bg-white rounded-2xl border border-indigo-100/60 overflow-hidden divide-y divide-indigo-50/80">
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
               {simulados.length === 0 ? (
                 <div className="px-5 py-12 sm:px-8 sm:py-16 text-center">
                   <ClipboardList className="w-10 h-10 text-indigo-200 mx-auto mb-4" />
@@ -159,7 +170,10 @@ export default function Dashboard() {
                 </div>
               ) : (
                 simulados.map((s) => (
-                  <div key={s.id} className={`px-4 sm:px-6 py-4 sm:py-5 hover:bg-indigo-50/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 ${s.startedAt && !s.finishedAt ? 'border-l-[3px] border-l-amber-400' : 'border-l-[3px] border-l-transparent'}`}>
+                  <div key={s.id} className={`px-4 sm:px-6 py-4 sm:py-5 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 relative group`}>
+                    {s.startedAt && !s.finishedAt && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-amber-400 rounded-r-full" />
+                    )}
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-medium text-gray-900 truncate">{s.nome}</h4>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs">
@@ -314,26 +328,38 @@ export default function Dashboard() {
           </section>
 
           {/* Weekly Progress — Brand Amber */}
-          <section className="animate-enter-5 bg-amber-50 rounded-2xl border border-amber-100 p-5 sm:p-6">
-            <div className="flex items-center gap-2.5 mb-1">
-              <TrendingUp className="w-5 h-5 text-amber-600" />
-              <h3 className="text-base font-semibold text-amber-900">Meta Semanal</h3>
+          <section className="animate-enter-5 bg-white rounded-xl border border-slate-200 p-5 sm:p-6 overflow-hidden relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-slate-400" />
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Meta Semanal</h3>
+              </div>
+              <span className={`text-[0.625rem] font-bold px-1.5 py-0.5 rounded ${weeklyCount >= 50 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                {weeklyCount >= 50 ? 'Atingida' : 'Em curso'}
+              </span>
             </div>
-            <p className="text-xs text-amber-700/80 mb-5 sm:mb-6">Resolva 50 questões por semana para manter a retenção de conteúdo.</p>
 
-            <div className="flex items-baseline justify-between mb-3">
-              <span className="text-4xl sm:text-5xl font-medium text-amber-900 tabular-nums font-mono tracking-[-0.03em] leading-none whitespace-nowrap">{weeklyCount}</span>
-              <span className="text-sm text-amber-600 whitespace-nowrap ml-2">/ 50 questões</span>
+            <div className="flex flex-col gap-1 mb-4">
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-semibold text-slate-900 tabular-nums font-mono tracking-tight">{weeklyCount}</span>
+                <span className="text-xs text-slate-400">/ 50</span>
+              </div>
+              <p className="text-[0.6875rem] text-slate-500 leading-relaxed">
+                Questões resolvidas nos últimos 7 dias.
+              </p>
             </div>
-            <div className="w-full bg-amber-200/60 h-3 rounded-full overflow-hidden">
+
+            <div className="relative h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
               <div
-                className="bg-amber-500 h-full rounded-full transition-all duration-1000"
+                className="absolute inset-y-0 left-0 bg-indigo-600 rounded-full transition-all duration-1000 ease-out"
                 style={{ width: `${Math.min((weeklyCount / 50) * 100, 100)}%` }}
-              ></div>
+              />
             </div>
-            {weeklyCount >= 50 && (
-              <p className="text-xs font-medium text-amber-700 mt-3">Meta semanal atingida.</p>
-            )}
+            
+            <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between">
+              <span className="text-[0.625rem] text-slate-400 uppercase font-medium">Progresso</span>
+              <span className="text-[0.625rem] font-mono text-slate-600 font-bold">{Math.round((weeklyCount / 50) * 100)}%</span>
+            </div>
           </section>
 
         </div>

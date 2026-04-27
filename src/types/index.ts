@@ -492,7 +492,7 @@ export interface ConcursoSummaryDto {
 /**
  * DTO detalhado para visualização de um concurso, incluindo detalhes de instituição e banca.
  */
-export interface ConcursoDetailDto extends ConcursoSummaryDto {}
+export type ConcursoDetailDto = ConcursoSummaryDto;
 
 /**
  * Request DTO para criação de um concurso.

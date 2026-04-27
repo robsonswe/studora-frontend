@@ -27,6 +27,8 @@ import {
   Settings2,
   Info
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
+import { useToast } from '@/components/ui/ToastContext';
 
 // Extended type to accommodate possible performance fields
 interface SimuladoSummaryWithStats extends Types.SimuladoSummaryDto {
@@ -50,6 +52,7 @@ const AccuracyPill = ({ accuracy, size = 'md' }: { accuracy: number, size?: 'sm'
 
 export default function SimuladosPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [simulados, setSimulados] = useState<SimuladoSummaryWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -98,8 +101,8 @@ export default function SimuladosPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     try {
-      const simuladosRes = await simuladoService.getAll({ page, size: 20 }).catch(() => ({ 
-        content: [], totalPages: 0, totalElements: 0, pageNumber: 0, pageSize: 20, last: true 
+      const simuladosRes = await simuladoService.getAll({ page, size: 20 }).catch(() => ({
+        content: [], totalPages: 0, totalElements: 0, pageNumber: 0, pageSize: 20, last: true
       }));
 
       setSimulados(simuladosRes.content);
@@ -140,6 +143,7 @@ export default function SimuladosPage() {
 
     try {
       await simuladoService.gerar(formData);
+      showToast('Simulado gerado com sucesso', 'success');
       await loadData(0);
       setShowForm(false);
       resetForm();
@@ -154,11 +158,12 @@ export default function SimuladosPage() {
   const confirmDelete = async (id: number) => {
     try {
       await simuladoService.delete(id);
+      showToast('Simulado excluído com sucesso', 'success');
       setDeletingId(null);
       await loadData(currentPage);
     } catch (error: any) {
       console.error('Erro ao excluir simulado:', error);
-      alert('Erro na exclusão do registro.');
+      showToast('Erro ao excluir simulado', 'error');
       setDeletingId(null);
     }
   };
@@ -311,10 +316,7 @@ export default function SimuladosPage() {
               </button>
             )}
             {submissionError && (
-              <div className="flex items-center text-xs font-bold text-terracotta-600 bg-terracotta-50 px-3 py-1.5 rounded-lg border border-terracotta-100 animate-in fade-in slide-in-from-bottom-1">
-                <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
-                {submissionError}
-              </div>
+              <Feedback type="error" message={submissionError} className="max-w-xs" />
             )}
           </div>
         }
@@ -665,7 +667,7 @@ export default function SimuladosPage() {
                           ) : (
                             <button
                               onClick={async () => {
-                                try { await simuladoService.iniciar(s.id); router.push(`/simulados/${s.id}`); } catch (error) { alert('Erro ao iniciar simulado: ' + (error as Error).message); }
+                                try { await simuladoService.iniciar(s.id); router.push(`/simulados/${s.id}`); } catch (error) { showToast('Erro ao iniciar simulado: ' + (error as Error).message, 'error'); }
                               }}
                               className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-700 transition-all flex items-center"
                             >

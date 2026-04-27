@@ -8,6 +8,7 @@ import { Sidebar } from '@/components/navigation/Sidebar';
 import { Navbar } from '@/components/navigation/Navbar';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { BreadcrumbProvider, useBreadcrumbs } from './BreadcrumbContext';
+import { ToastProvider } from '@/components/ui/ToastContext';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -78,7 +79,9 @@ function AppShellContent({ children }: AppShellProps) {
 export default function AppShell({ children }: AppShellProps) {
   return (
     <BreadcrumbProvider>
-      <AppShellContent>{children}</AppShellContent>
+      <ToastProvider>
+        <AppShellContent>{children}</AppShellContent>
+      </ToastProvider>
     </BreadcrumbProvider>
   );
 }

@@ -27,6 +27,8 @@ import {
   SlidersHorizontal,
   X
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
+import { useToast } from '@/components/ui/ToastContext';
 
 type ConcursoDto = Types.ConcursoSummaryDto;
 
@@ -75,6 +77,7 @@ const groupTopicos = (topicos: TopicoEntry[]): TopicosByDisciplina[] => {
 function ConcursosContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
 
   // ─── Read filter state from URL ───────────────────────────────────────────
   const urlPage = Number(searchParams?.get('page')) || 0;
@@ -309,7 +312,7 @@ function ConcursosContent() {
       const areas = await instituicaoService.getAreas(inputValue);
       return areas.map(area => ({ value: area, label: area }));
     } catch (err) {
-      console.error('Erro ao carregar áreas de instituição:', err);
+      console.error('Erro ao carregar áreas de institution:', err);
       return [];
     }
   };
@@ -445,8 +448,10 @@ function ConcursosContent() {
 
       if (editingItem) {
         await concursoService.update(editingItem.id, payload);
+        showToast('Concurso atualizado com sucesso', 'success');
       } else {
         await concursoService.create(payload);
+        showToast('Concurso criado com sucesso', 'success');
       }
       
       await loadConcursos(currentPage);
@@ -463,6 +468,7 @@ function ConcursosContent() {
     setLocalLoading(true);
     try {
       await concursoService.toggleFinalizado(id);
+      showToast('Status do concurso alterado', 'info');
       await loadConcursos(currentPage);
     } catch (err: any) {
       console.error('Erro ao alternar status finalizado:', err);
@@ -549,6 +555,7 @@ function ConcursosContent() {
     setLocalLoading(true);
     try {
       await concursoService.delete(confirmModal.itemId);
+      showToast('Concurso excluído com sucesso', 'success');
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
       await loadConcursos(currentPage);
     } catch (err: any) {
@@ -790,178 +797,137 @@ function ConcursosContent() {
         submitLabel={editingItem ? 'Atualizar' : 'Salvar Prova'}
         size="5xl"
         footerExtra={validationErrors.length > 0 ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2.5">
-            <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
-            <ul className="space-y-0.5">
-              {validationErrors.map((err, i) => (
-                <li key={i} className="text-xs text-red-600">· {err}</li>
-              ))}
-            </ul>
-          </div>
-        ) : undefined}
+          <Feedback 
+            type="error" 
+            message={validationErrors} 
+            className="w-full"
+          />
+        ) : null}
       >
-        {/* Unified Tab Switcher (Mobile & Desktop) */}
-        <div className="sticky top-[-24.5px] z-20 flex border-b border-indigo-100/60 bg-white shadow-sm flex-shrink-0 -mx-6 -mt-6.5 pt-0.5 mb-8 backdrop-blur-md">
+        <div className="flex border-b border-gray-200 mb-6">
           <button
             type="button"
             onClick={() => setFormTab('dados')}
-            className={`flex-1 py-4 text-[11px] font-bold uppercase tracking-widest transition-all relative flex items-center justify-center gap-2 ${
-              formTab === 'dados' ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-400'
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              formTab === 'dados' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
             Dados Gerais
-            {formTab === 'dados' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 animate-in fade-in slide-in-from-bottom-1" />}
           </button>
           <button
             type="button"
             onClick={() => setFormTab('conteudo')}
-            className={`flex-1 py-4 text-[11px] font-bold uppercase tracking-widest transition-all relative flex items-center justify-center gap-2 ${
-              formTab === 'conteudo' ? 'text-indigo-600' : 'text-slate-400'
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              formTab === 'conteudo' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            Conteúdo
-            {formData.topicos.length > 0 && <span className="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 tabular-nums">{formData.topicos.length}</span>}
-            {formTab === 'conteudo' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 animate-in fade-in slide-in-from-bottom-1" />}
+            Conteúdo Programático
           </button>
         </div>
 
-        <div className={formTab === 'dados' ? 'block' : 'hidden'}>
-          <div className="grid grid-cols-1 lg:grid-cols-6 gap-y-7 gap-x-8">
-            <div className="lg:col-span-3">
-            <label htmlFor="instituicao" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-              Instituição
-            </label>
-            <AsyncSelect
-              id="instituicao"
-              instanceId="instituicao-select"
-              cacheOptions
-              defaultOptions
-              loadOptions={loadInstituicaoOptions}
-              value={formData.instituicao}
-              onChange={(val) => setFormData({...formData, instituicao: val})}
-              placeholder="Selecione o órgão..."
-              styles={selectStyles}
-              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-            />
-          </div>
-
-          <div className="lg:col-span-3">
-            <label htmlFor="banca" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-              Banca Examinadora
-            </label>
-            <AsyncSelect
-              id="banca"
-              instanceId="banca-select"
-              cacheOptions
-              defaultOptions
-              loadOptions={loadBancaOptions}
-              value={formData.banca}
-              onChange={(val) => setFormData({...formData, banca: val})}
-              placeholder="Selecione a banca..."
-              styles={selectStyles}
-              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-            />
-          </div>
-
-            {/* Ano & Mês - Grouped side-by-side on mobile */}
-            <div className="lg:col-span-4 grid grid-cols-2 gap-4 lg:grid-cols-2 lg:contents">
-              <div className="lg:col-span-2">
-                <label htmlFor="ano" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Ano
-                </label>
-                <input
-                  type="number"
-                  id="ano"
-                  value={formData.ano}
-                  onChange={(e) => setFormData({...formData, ano: parseInt(e.target.value) || new Date().getFullYear()})}
-                  className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
-                  required
+        {formTab === 'dados' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Instituição</label>
+                <AsyncSelect
+                  instanceId="form-instituicao-select"
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadInstituicaoOptions}
+                  value={formData.instituicao}
+                  onChange={(val) => setFormData((prev: any) => ({ ...prev, instituicao: val }))}
+                  placeholder="Pesquisar..."
+                  styles={selectStyles}
+                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                 />
               </div>
-
-              <div className="lg:col-span-2">
-                <label htmlFor="mes" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Mês do Edital
-                </label>
-                <input
-                  type="number"
-                  id="mes"
-                  min="1"
-                  max="12"
-                  value={formData.mes}
-                  onChange={(e) => setFormData({...formData, mes: parseInt(e.target.value) || 1})}
-                  className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
-                  required
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Banca Organizadora</label>
+                <AsyncSelect
+                  instanceId="form-banca-select"
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadBancaOptions}
+                  value={formData.banca}
+                  onChange={(val) => setFormData((prev: any) => ({ ...prev, banca: val }))}
+                  placeholder="Pesquisar..."
+                  styles={selectStyles}
+                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                 />
               </div>
             </div>
 
-          <div className="lg:col-span-2">
-            <label htmlFor="dataProva" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-              Data de Aplicação
-            </label>
-            <input
-              type="datetime-local"
-              id="dataProva"
-              value={formData.dataProva}
-              onChange={(e) => setFormData({...formData, dataProva: e.target.value})}
-              className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
-            />
-          </div>
-
-          <div className="lg:col-span-4 flex items-end">
-            <label className="flex items-center gap-3 cursor-pointer mb-2.5 group">
-              <div className="relative">
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="dataProva" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                  Data de Aplicação
+                </label>
                 <input
-                  type="checkbox"
-                  checked={formData.finalizado}
-                  onChange={(e) => setFormData({...formData, finalizado: e.target.checked})}
-                  className="sr-only peer"
+                  type="datetime-local"
+                  id="dataProva"
+                  value={formData.dataProva}
+                  onChange={(e) => setFormData({...formData, dataProva: e.target.value})}
+                  className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
                 />
-                <div className="w-10 h-5.5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-indigo-600 transition-colors"></div>
               </div>
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-slate-700 transition-colors">Concurso Finalizado</span>
-            </label>
-          </div>
 
-          <div className="lg:col-span-6">
-            <label htmlFor="edital" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-              Link do Edital / Detalhes
-            </label>
-            <div className="relative">
-              <input
-                type="url"
-                id="edital"
-                autoComplete="off"
-                value={formData.edital}
-                onChange={(e) => setFormData({...formData, edital: e.target.value})}
-                className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm pl-10"
-                placeholder="https://..."
-              />
-              <ExternalLink className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
+              <div>
+                <label className="flex items-center gap-3 cursor-pointer mb-2.5 group">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={formData.finalizado}
+                      onChange={(e) => setFormData({...formData, finalizado: e.target.checked})}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5.5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-indigo-600 transition-colors"></div>
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-slate-700 transition-colors">Concurso Finalizado</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="md:col-span-2 space-y-4">
+              <div>
+                <label htmlFor="edital" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                  Link do Edital / Detalhes
+                </label>
+                <div className="relative">
+                  <input
+                    type="url"
+                    id="edital"
+                    autoComplete="off"
+                    value={formData.edital}
+                    onChange={(e) => setFormData({...formData, edital: e.target.value})}
+                    className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm pl-10"
+                    placeholder="https://..."
+                  />
+                  <ExternalLink className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="cargos" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                  Cargos Vinculados
+                </label>
+                <AsyncSelect
+                  id="cargos"
+                  instanceId="cargos-select"
+                  isMulti
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadCargoOptions}
+                  value={formData.cargos}
+                  onChange={handleCargoChange}
+                  placeholder="Pesquise cargos..."
+                  styles={selectStyles}
+                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                />
+              </div>
             </div>
           </div>
-
-          <div className="lg:col-span-6">
-            <label htmlFor="cargos" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-              Cargos Vinculados
-            </label>
-            <AsyncSelect
-              id="cargos"
-              instanceId="cargos-select"
-              isMulti
-              cacheOptions
-              defaultOptions
-              loadOptions={loadCargoOptions}
-              value={formData.cargos}
-              onChange={handleCargoChange}
-              placeholder="Pesquise cargos..."
-              styles={selectStyles}
-              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-            />
-          </div>
-        </div>
-      </div>
+        ) : null}
 
       <div className={formTab === 'conteudo' ? 'block' : 'hidden'}>
           {formData.cargos.length > 0 && (

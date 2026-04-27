@@ -31,11 +31,13 @@ import {
   X,
   ChevronRight
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
 
 const COLORS = ['#4338CA', '#6366F1', '#818CF8', '#94A3B8', '#CBD5E1', '#FBBF24'];
 
 export default function PerformancePage() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [consistencia, setConsistencia] = useState<Types.AnalyticsConsistenciaDto[]>([]);
   const [disciplinas, setDisciplinas] = useState<Types.AnalyticsTopicMasteryDto[]>([]);
   const [evolucao, setEvolucao] = useState<Types.AnalyticsEvolucaoDto[]>([]);
@@ -75,8 +77,9 @@ export default function PerformancePage() {
       setConsistencia(consRes);
       setEvolucao(evolRes);
       setLearningRate(learnRes);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar dados principais de performance:', error);
+      setError('Falha ao carregar métricas de evolução. Tente atualizar a página.');
     }
   };
 
@@ -86,8 +89,9 @@ export default function PerformancePage() {
       setDisciplinas(discRes.content);
       setDiscPagination(discRes);
       setDiscPaginationCurrentPage(page);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar domínio por disciplinas:', error);
+      setError('Falha ao carregar ranking de disciplinas.');
     } finally {
       if (loading) setLoading(false);
     }
@@ -218,6 +222,14 @@ export default function PerformancePage() {
   return (
     <div className="space-y-8 pb-12">
       <PageHeader title="Análise de Desempenho" subtitle="Visualize sua evolução e domine seus pontos fracos" />
+
+      {error && (
+        <Feedback
+          type="error"
+          message={error}
+          onClose={() => setError(null)}
+        />
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

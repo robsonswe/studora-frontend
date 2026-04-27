@@ -23,12 +23,15 @@ import {
   Search,
   XCircle
 } from 'lucide-react';
+import { Feedback } from '@/components/ui/Feedback';
+import { useToast } from '@/components/ui/ToastContext';
 
 type TemaDto = Types.TemaSummaryDto;
 
 function TemasContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
 
   const urlPage = Number(searchParams?.get('page')) || 0;
   const urlNome = searchParams?.get('nome') || '';
@@ -152,10 +155,12 @@ function TemasContent() {
 
       if (editingItem) {
         await temaService.update(editingItem.id, payload);
-        loadTemas(currentPage, urlNome, urlDisciplinaId);
+        showToast('Tema atualizado com sucesso', 'success');
+        loadTemas(currentPage, urlNome, urlDisciplinaId ?? undefined);
       } else {
         await temaService.create(payload);
-        loadTemas(0, undefined, urlDisciplinaId);
+        showToast('Tema criado com sucesso', 'success');
+        loadTemas(0, undefined, urlDisciplinaId ?? undefined);
       }
 
       resetForm();
@@ -208,14 +213,15 @@ function TemasContent() {
     setLocalLoading(true);
     try {
       await temaService.delete(confirmModal.itemId);
+      showToast('Tema excluído com sucesso', 'success');
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      loadTemas(currentPage, urlNome, urlDisciplinaId);
+      loadTemas(currentPage, urlNome, urlDisciplinaId ?? undefined);
     } catch (err: any) {
       console.error('Erro ao excluir tema:', err);
       setConfirmModal({
         isOpen: true,
         title: 'Não foi possível excluir',
-        message: err.message || 'Este tema não pode ser removido pois está sendo utilizado em outras partes do sistema.',
+        message: err.message || 'Este tema não pode ser removida pois está sendo utilizada em outras partes do sistema.',
         itemId: null,
         type: 'danger',
         alertOnly: true
@@ -407,16 +413,7 @@ function TemasContent() {
         </div>
 
         {submissionError && (
-          <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4 rounded">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <AlertCircle className="h-5 w-5 text-red-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-red-700 font-medium">{submissionError}</p>
-              </div>
-            </div>
-          </div>
+          <Feedback type="error" message={submissionError} className="mt-4" />
         )}
       </FormModal>
 
@@ -440,13 +437,11 @@ function TemasContent() {
           </div>
         ) : error ? (
           <div className="flex flex-col justify-center items-center h-64 text-center px-4">
-            <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Erro ao carregar dados</h3>
-            <p className="mt-1 text-sm text-gray-500">{error}</p>
+            <Feedback type="error" title="Erro ao carregar dados" message={error} className="max-w-md mx-auto" />
             <div className="mt-6">
               <button
                 onClick={() => updateFilters(urlNome, urlDisciplinaId, urlPage)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
               >
                 Tentar novamente
               </button>

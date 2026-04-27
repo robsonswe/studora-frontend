@@ -6,6 +6,7 @@ import { disciplinaService, ApiError } from '@/services/api';
 import * as Types from '@/types';
 import { BookOpen, AlertCircle, RotateCcw, Search, ChevronRight, ChevronLeft, X } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { Feedback } from '@/components/ui/Feedback';
 
 // ─── Tonal Indigo Palette ───────────────────────────────────────────────────
 const HUE = [
@@ -221,37 +222,46 @@ function DisciplinasContent() {
 
       {/* Error Banner */}
       {error && (
-        <div className="mb-8 flex items-start gap-3 bg-rose-50 border border-rose-200 rounded-xl p-4 text-sm text-rose-800">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-600" />
-          <div className="flex-1">
-            <p className="font-medium text-rose-900 mb-1">Erro de conexão</p>
-            <p className="text-rose-700 opacity-90">{error}</p>
+        <div className="mb-8">
+          <Feedback
+            type="error"
+            title="Erro de conexão"
+            message={error}
+            onClose={retry}
+          />
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={retry}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all active:scale-95 shadow-sm"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Tentar novamente
+            </button>
           </div>
-          <button onClick={retry} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-700 bg-rose-100/50 hover:bg-rose-100 rounded-md transition-colors">
-            <RotateCcw className="w-3.5 h-3.5" />
-            Tentar novamente
-          </button>
         </div>
       )}
 
       {/* Empty State */}
       {!loading && !error && !hasResults && (
-        <div className="py-20 px-6 text-center border border-slate-200 rounded-xl bg-white shadow-sm">
-          <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <BookOpen className="w-8 h-8 text-indigo-400" />
-          </div>
-          {isSearching ? (
-            <>
-              <p className="text-base font-medium text-slate-900 mb-1">Nenhuma disciplina encontrada</p>
-              <p className="text-sm text-slate-500 max-w-sm mx-auto">
-                Nenhuma disciplina corresponde a "<span className="font-medium">{currentQuery}</span>". Tente outro termo.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-base font-medium text-slate-900 mb-1">Sem disciplinas</p>
-              <p className="text-sm text-slate-500 max-w-sm mx-auto">Sua lista de matérias aparecerá aqui.</p>
-            </>
+        <div className="animate-in fade-in zoom-in-95 duration-500">
+          <Feedback
+            type="info"
+            title={isSearching ? "Nenhuma disciplina encontrada" : "Sem disciplinas"}
+            message={isSearching 
+              ? `Nenhuma disciplina corresponde a "${currentQuery}". Tente outro termo.` 
+              : "Sua lista de matérias aparecerá aqui."
+            }
+            onClose={isSearching ? clearSearch : undefined}
+          />
+          {isSearching && (
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={clearSearch}
+                className="text-indigo-600 hover:text-indigo-700 text-sm font-bold transition-colors inline-flex items-center gap-2 active:scale-95"
+              >
+                Limpar todos os filtros
+              </button>
+            </div>
           )}
         </div>
       )}

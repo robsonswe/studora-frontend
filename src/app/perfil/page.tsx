@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useToast } from '@/components/ui/ToastContext';
 
 interface UserProfile {
   id: number;
@@ -14,6 +15,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
+  const { showToast } = useToast();
   // Mock user data - in a real app, this would come from an API
   const [user, setUser] = useState<UserProfile>({
     id: 1,
@@ -52,6 +54,7 @@ export default function ProfilePage() {
     });
     
     setIsEditing(false);
+    showToast('Perfil atualizado com sucesso!', 'success');
   };
 
   const handleCancel = () => {

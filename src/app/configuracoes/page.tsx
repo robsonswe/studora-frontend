@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useToast } from '@/components/ui/ToastContext';
 
 export default function SettingsPage() {
+  const { showToast } = useToast();
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,
@@ -35,7 +37,7 @@ export default function SettingsPage() {
 
   const handleSave = () => {
     // In a real app, this would save to an API
-    alert('Configurações salvas com sucesso!');
+    showToast('Configurações salvas com sucesso!', 'success');
   };
 
   return (
