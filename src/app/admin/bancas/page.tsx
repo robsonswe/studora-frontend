@@ -62,7 +62,7 @@ function BancasContent() {
 
   usePageTitle('Bancas', 'Admin');
 
-  const [pagination, setPagination] = useState<Types.PageResponse<any>>({
+  const [pagination, setPagination] = useState<Types.PageResponse<BancaDto>>({
     content: [],
     pageNumber: 0,
     pageSize: 20,
@@ -83,9 +83,10 @@ function BancasContent() {
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar bancas:', err);
-      setError(err.message || 'Não foi possível carregar as bancas. Por favor, tente novamente.');
+      const message = err instanceof Error ? err.message : 'Não foi possível carregar as bancas. Por favor, tente novamente.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -122,9 +123,10 @@ function BancasContent() {
         loadBancas(0, undefined);
       }
       resetForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao salvar banca:', err);
-      setSubmissionError(err.message || 'Erro inesperado ao salvar banca. Verifique sua conexão.');
+      const message = err instanceof Error ? err.message : 'Erro inesperado ao salvar banca. Verifique sua conexão.';
+      setSubmissionError(message);
     } finally {
       setLocalLoading(false);
     }
@@ -156,12 +158,13 @@ function BancasContent() {
       showToast('Banca excluída com sucesso', 'success');
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
       loadBancas(currentPage, urlNome);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao excluir banca:', err);
+      const message = err instanceof Error ? err.message : 'Esta banca não pode ser removida pois está sendo utilizada em outras partes do sistema.';
       setConfirmModal({
         isOpen: true,
         title: 'Não foi possível excluir',
-        message: err.message || 'Esta banca não pode ser removida pois está sendo utilizada em outras partes do sistema.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true

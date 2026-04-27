@@ -72,7 +72,7 @@ interface DiffAgg {
 
 interface DisciplineStats {
   nome: string;
-  topicos: Types.SubtemaSummaryDto[];
+  topicos: Types.ConcursoCargoSubtemaDto[];
   totalTopicos: number;
   estudados: number;
   totalQuestoes: number;
@@ -185,7 +185,7 @@ interface EditalAnalysis {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface EditalAnalysisReportProps {
-  topicos: Types.SubtemaSummaryDto[];
+  topicos: Types.ConcursoCargoSubtemaDto[];
   dataProva?: string;
   inscrito?: boolean;
   /** Indica se o concurso já foi encerrado. Quando true, adapta todos os relatórios
@@ -224,7 +224,7 @@ const sToMin = (s: number) =>
   s < 60 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}min${Math.round(s % 60) > 0 ? `${Math.round(s % 60)}s` : ''}`;
 
 const analyzeEdital = (
-  topicos: Types.SubtemaSummaryDto[],
+  topicos: Types.ConcursoCargoSubtemaDto[],
   dataProva?: string,
   inscrito?: boolean,
   context?: EditalContext,
@@ -294,7 +294,7 @@ const analyzeEdital = (
   };
 
   // ── Group by disciplina ────────────────────────────────────────────────────
-  const byDisciplina = new Map<string, Types.SubtemaSummaryDto[]>();
+  const byDisciplina = new Map<string, Types.ConcursoCargoSubtemaDto[]>();
   topicos.forEach(t => {
     const disc = t.disciplina?.nome || 'Geral';
     if (!byDisciplina.has(disc)) byDisciplina.set(disc, []);
@@ -315,8 +315,8 @@ const analyzeEdital = (
     const daysQuestArr = tops.map(t => daysSince(t.questaoStats?.total.ultimaQuestao ?? undefined)).filter(d => d !== Infinity);
 
     const tempos = tops
-      .filter(t => t.questaoStats?.total?.mediaTempoResposta != null && t.questaoStats?.total?.mediaTempoResposta! > 0)
-      .map(t => t.questaoStats?.total?.mediaTempoResposta!);
+      .filter(t => t.questaoStats?.total?.mediaTempoResposta != null && (t.questaoStats?.total?.mediaTempoResposta ?? 0) > 0)
+      .map(t => t.questaoStats?.total?.mediaTempoResposta ?? 0);
     const avgTempoResposta = tempos.length > 0
       ? tempos.reduce((s, v) => s + v, 0) / tempos.length
       : null;
@@ -1168,7 +1168,7 @@ const analyzeEdital = (
   recommendations.sort((a, b) => b.urgency - a.urgency);
 
   // Global avg tempo
-  const temposGlobal = topicos.filter(t => t.questaoStats?.total?.mediaTempoResposta != null && t.questaoStats?.total?.mediaTempoResposta! > 0).map(t => t.questaoStats?.total?.mediaTempoResposta!);
+  const temposGlobal = topicos.filter(t => t.questaoStats?.total?.mediaTempoResposta != null && (t.questaoStats?.total?.mediaTempoResposta ?? 0) > 0).map(t => t.questaoStats?.total?.mediaTempoResposta ?? 0);
   const globalAvgTempo = temposGlobal.length > 0 ? temposGlobal.reduce((s, v) => s + v, 0) / temposGlobal.length : null;
 
   // ── Score (Readiness / Domínio) ────────────────────────────────────────────
@@ -1360,8 +1360,12 @@ const ScoreRing = ({ score, finalizado }: { score: number; finalizado: boolean }
 
 // ─── Edital Reference Banner ──────────────────────────────────────────────────
 
+const REFERENCE_DATE = 1700000000000;
+
 const EditalReferenceBanner = ({ dataProva }: { dataProva?: string }) => {
-  const daysAgo = dataProva ? Math.abs(Math.floor((Date.now() - new Date(dataProva).getTime()) / (1000 * 60 * 60 * 24))) : null;
+  const daysAgo = dataProva 
+    ? Math.abs(Math.floor((REFERENCE_DATE - new Date(dataProva).getTime()) / (1000 * 60 * 60 * 24)))
+    : null;
   return (
     <div className="flex items-start gap-3 px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl mb-6">
       <div className="flex-shrink-0 p-1.5 bg-white rounded-lg border border-slate-200 text-slate-400 shadow-sm">

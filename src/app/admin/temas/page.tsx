@@ -7,19 +7,15 @@ import FormModal from '@/components/ui/FormModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useForm } from 'react-hook-form';
 import AsyncSelect from 'react-select/async';
+import { StylesConfig } from 'react-select';
 import { temaService, disciplinaService } from '@/services/api';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import {
   Tag,
-  Plus,
-  Pencil,
-  Trash2,
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
   Loader2,
-  BookOpen,
   Search,
   XCircle
 } from 'lucide-react';
@@ -100,9 +96,10 @@ function TemasContent() {
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar temas:', err);
-      setError(err.message || 'Não foi possível carregar os temas. Por favor, tente novamente.');
+      const message = err instanceof Error ? err.message : 'Não foi possível carregar os temas. Por favor, tente novamente.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -139,7 +136,7 @@ function TemasContent() {
     }
   };
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: { disciplina: { value: number } | null; nome: string }) => {
     setSubmissionError(null);
     if (!data.disciplina) {
       setSubmissionError('Selecione uma disciplina');
@@ -164,9 +161,10 @@ function TemasContent() {
       }
 
       resetForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao salvar tema:', err);
-      setSubmissionError(err.message || 'Erro inesperado ao salvar tema. Verifique sua conexão.');
+      const message = err instanceof Error ? err.message : 'Erro inesperado ao salvar tema. Verifique sua conexão.';
+      setSubmissionError(message);
     } finally {
       setLocalLoading(false);
     }
@@ -181,12 +179,13 @@ function TemasContent() {
       setValue('disciplina', { value: detail.disciplina.id, label: detail.disciplina.nome });
       setValue('nome', detail.nome);
       setModalOpen(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar detalhes do tema:', err);
+      const message = err instanceof Error ? err.message : 'Não foi possível carregar os detalhes para edição. Verifique sua conexão.';
       setConfirmModal({
         isOpen: true,
         title: 'Erro ao carregar',
-        message: err.message || 'Não foi possível carregar os detalhes para edição. Verifique sua conexão.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true
@@ -216,12 +215,13 @@ function TemasContent() {
       showToast('Tema excluído com sucesso', 'success');
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
       loadTemas(currentPage, urlNome, urlDisciplinaId ?? undefined);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao excluir tema:', err);
+      const message = err instanceof Error ? err.message : 'Este tema não pode ser removida pois está sendo utilizada em outras partes do sistema.';
       setConfirmModal({
         isOpen: true,
         title: 'Não foi possível excluir',
-        message: err.message || 'Este tema não pode ser removida pois está sendo utilizada em outras partes do sistema.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true
@@ -275,10 +275,10 @@ function TemasContent() {
     window.location.href = '/admin/temas';
   };
 
-  const selectStyles = {
-    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
-    menu: (base: any) => ({ ...base, zIndex: 9999 }),
-    control: (base: any, state: any) => ({ 
+  const selectStyles: StylesConfig<any, false> = {
+    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+    menu: (base) => ({ ...base, zIndex: 9999 }),
+    control: (base, state) => ({ 
       ...base, 
       borderColor: state.isFocused ? '#6366f1' : '#e2e8f0', 
       boxShadow: state.isFocused ? '0 0 0 2px rgba(99, 102, 241, 0.2)' : 'none', 
@@ -288,9 +288,9 @@ function TemasContent() {
       backgroundColor: 'rgba(248, 250, 252, 0.5)',
       transition: 'all 0.2s ease'
     }),
-    placeholder: (base: any) => ({ ...base, color: '#94a3b8', fontSize: '0.875rem' }),
-    singleValue: (base: any) => ({ ...base, color: '#1e293b', fontSize: '0.875rem' }),
-    input: (base: any) => ({ ...base, color: '#1e293b', fontSize: '0.875rem' })
+    placeholder: (base) => ({ ...base, color: '#94a3b8', fontSize: '0.875rem' }),
+    singleValue: (base) => ({ ...base, color: '#1e293b', fontSize: '0.875rem' }),
+    input: (base) => ({ ...base, color: '#1e293b', fontSize: '0.875rem' })
   };
 
   return (

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { Feedback } from '@/components/ui/Feedback';
 import { useToast } from '@/components/ui/ToastContext';
+import type { CSSProperties } from 'react';
 
 // Extended type to accommodate possible performance fields
 interface SimuladoSummaryWithStats extends Types.SimuladoSummaryDto {
@@ -147,9 +148,10 @@ export default function SimuladosPage() {
       await loadData(0);
       setShowForm(false);
       resetForm();
-    } catch (error: any) {
-      console.error('Erro ao gerar simulado:', error);
-      setSubmissionError(error.message || 'Falha na geração do simulado. Verifique os parâmetros.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('Erro ao gerar simulado:', message);
+      setSubmissionError(message || 'Falha na geração do simulado. Verifique os parâmetros.');
     } finally {
       setLocalLoading(false);
     }
@@ -161,8 +163,9 @@ export default function SimuladosPage() {
       showToast('Simulado excluído com sucesso', 'success');
       setDeletingId(null);
       await loadData(currentPage);
-    } catch (error: any) {
-      console.error('Erro ao excluir simulado:', error);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('Erro ao excluir simulado:', message);
       showToast('Erro ao excluir simulado', 'error');
       setDeletingId(null);
     }
@@ -188,7 +191,7 @@ export default function SimuladosPage() {
   const addItem = (type: 'disciplinas' | 'temas' | 'subtemas', id: number, label?: string) => {
     const list = [...(formData[type] || [])];
     if (!list.find(item => item.id === id)) {
-      list.push({ id, quantidade: 10, _label: label } as any);
+      list.push({ id, quantidade: 10, _label: label });
       setFormData({ ...formData, [type]: list });
     }
   };
@@ -229,7 +232,7 @@ export default function SimuladosPage() {
 
   const selectedDisciplinaIds = new Set((formData.disciplinas || []).map(d => d.id));
   const selectedTemaIds = new Set((formData.temas || []).map(t => t.id));
-  const selectedSubtemaIds = new Set((formData.subtemas || []).map((s: any) => s.id));
+  const selectedSubtemaIds = new Set((formData.subtemas || []).map((s) => s.id));
 
   const loadBancaOptions = async (inputValue: string) => {
     try {
@@ -247,11 +250,11 @@ export default function SimuladosPage() {
     } catch { return []; }
   };
 
-  const selectStyles = {
-    control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.75rem', padding: '2px' }),
-    singleValue: (base: any) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
-    placeholder: (base: any) => ({ ...base, fontSize: '0.875rem', color: '#9ca3af' }),
-    menuPortal: (base: any) => ({ ...base, zIndex: 9999 })
+const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
+    control: (base) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.75rem', padding: '2px' }),
+    singleValue: (base) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
+    placeholder: (base) => ({ ...base, fontSize: '0.875rem', color: '#9ca3af' }),
+    menuPortal: (base) => ({ ...base, zIndex: 99 })
   };
 
   const buildPages = (current: number, total: number) => {
@@ -361,7 +364,7 @@ export default function SimuladosPage() {
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1 no-scrollbar">
                     {formData.disciplinas?.map(item => (
                       <div key={item.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200 group">
-                        <span className="text-xs font-bold text-slate-700 truncate flex-1 pr-2">{(item as any)._label || `Disc. #${item.id}`}</span>
+                        <span className="text-xs font-bold text-slate-700 truncate flex-1 pr-2">{item._label || `Item #${item.id}`}</span>
                         <div className="flex items-center gap-2">
                           <input
                             type="number"
@@ -404,7 +407,7 @@ export default function SimuladosPage() {
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1 no-scrollbar">
                     {formData.temas?.map(item => (
                       <div key={item.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                        <span className="text-xs font-bold text-slate-700 truncate flex-1 pr-2">{(item as any)._label || `Tema #${item.id}`}</span>
+                        <span className="text-xs font-bold text-slate-700 truncate flex-1 pr-2">{item._label || `Item #${item.id}`}</span>
                         <div className="flex items-center gap-2">
                           <input
                             type="number"
@@ -447,7 +450,7 @@ export default function SimuladosPage() {
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1 no-scrollbar">
                     {formData.subtemas?.map(item => (
                       <div key={item.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                        <span className="text-xs font-bold text-slate-700 truncate flex-1 pr-2">{(item as any)._label || `Subtema #${item.id}`}</span>
+                        <span className="text-xs font-bold text-slate-700 truncate flex-1 pr-2">{item._label || `Item #${item.id}`}</span>
                         <div className="flex items-center gap-2">
                           <input
                             type="number"

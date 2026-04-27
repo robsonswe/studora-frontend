@@ -7,19 +7,15 @@ import FormModal from '@/components/ui/FormModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useForm } from 'react-hook-form';
 import AsyncSelect from 'react-select/async';
+import { StylesConfig } from 'react-select';
 import { subtemaService, temaService, disciplinaService } from '@/services/api';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import {
   Tags,
-  Plus,
-  Pencil,
-  Trash2,
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
   Loader2,
-  Tag,
   Search,
   XCircle
 } from 'lucide-react';
@@ -96,7 +92,7 @@ function SubtemasContent() {
 
   const loadFilterTemaOptions = async (inputValue: string) => {
     try {
-      const params: any = { nome: inputValue, size: 50 };
+      const params: Types.PaginationParams & { nome?: string; disciplinaIds?: number } = { nome: inputValue, size: 50 };
       if (filterDisciplina) {
         params.disciplinaIds = filterDisciplina.value;
       }
@@ -130,9 +126,10 @@ function SubtemasContent() {
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar subtemas:', err);
-      setError(err.message || 'Não foi possível carregar os subtemas. Por favor, tente novamente.');
+      const message = err instanceof Error ? err.message : 'Não foi possível carregar os subtemas. Por favor, tente novamente.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -192,7 +189,7 @@ function SubtemasContent() {
     }
   };
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: { tema: { value: number } | null; nome: string }) => {
     setSubmissionError(null);
     if (!data.tema) {
       setSubmissionError('Selecione um tema');
@@ -217,9 +214,10 @@ function SubtemasContent() {
       }
 
       resetForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao salvar subtema:', err);
-      setSubmissionError(err.message || 'Erro inesperado ao salvar subtema. Verifique sua conexão.');
+      const message = err instanceof Error ? err.message : 'Erro inesperado ao salvar subtema. Verifique sua conexão.';
+      setSubmissionError(message);
     } finally {
       setLocalLoading(false);
     }
@@ -237,12 +235,13 @@ function SubtemasContent() {
       });
       setValue('nome', detail.nome);
       setModalOpen(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar detalhes do subtema:', err);
+      const message = err instanceof Error ? err.message : 'Não foi possível carregar os detalhes para edição. Verifique sua conexão.';
       setConfirmModal({
         isOpen: true,
         title: 'Erro ao carregar',
-        message: err.message || 'Não foi possível carregar os detalhes para edição. Verifique sua conexão.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true
@@ -272,12 +271,13 @@ function SubtemasContent() {
       showToast('Subtema excluído com sucesso', 'success');
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
       loadSubtemas(currentPage, filterNome, filterDisciplina?.value, filterTema?.value);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao excluir subtema:', err);
+      const message = err instanceof Error ? err.message : 'Este subtema não pode ser removido pois está sendo utilizado em outras partes do sistema.';
       setConfirmModal({
         isOpen: true,
         title: 'Não foi possível excluir',
-        message: err.message || 'Este subtema não pode ser removido pois está sendo utilizado em outras partes do sistema.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true
@@ -332,10 +332,10 @@ function SubtemasContent() {
     window.location.href = '/admin/subtemas';
   };
 
-  const selectStyles = {
-    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
-    menu: (base: any) => ({ ...base, zIndex: 9999 }),
-    control: (base: any, state: any) => ({ 
+  const selectStyles: StylesConfig<any, false> = {
+    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+    menu: (base) => ({ ...base, zIndex: 9999 }),
+    control: (base, state) => ({ 
       ...base, 
       borderColor: state.isFocused ? '#6366f1' : '#e2e8f0', 
       boxShadow: state.isFocused ? '0 0 0 2px rgba(99, 102, 241, 0.2)' : 'none', 
@@ -345,9 +345,9 @@ function SubtemasContent() {
       backgroundColor: 'rgba(248, 250, 252, 0.5)',
       transition: 'all 0.2s ease'
     }),
-    placeholder: (base: any) => ({ ...base, color: '#94a3b8', fontSize: '0.875rem' }),
-    singleValue: (base: any) => ({ ...base, color: '#1e293b', fontSize: '0.875rem' }),
-    input: (base: any) => ({ ...base, color: '#1e293b', fontSize: '0.875rem' })
+    placeholder: (base) => ({ ...base, color: '#94a3b8', fontSize: '0.875rem' }),
+    singleValue: (base) => ({ ...base, color: '#1e293b', fontSize: '0.875rem' }),
+    input: (base) => ({ ...base, color: '#1e293b', fontSize: '0.875rem' })
   };
 
   return (

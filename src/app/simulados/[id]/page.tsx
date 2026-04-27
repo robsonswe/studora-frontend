@@ -100,7 +100,7 @@ export default function SimuladoDetailPage() {
           
           // Sort questions by discipline name and then by ID
           if (updatedSimulado.questoes) {
-            updatedSimulado.questoes.sort((a: any, b: any) => {
+            updatedSimulado.questoes.sort((a, b) => {
               const discA = a.subtemas?.[0]?.disciplina?.nome || 'Outros';
               const discB = b.subtemas?.[0]?.disciplina?.nome || 'Outros';
               if (discA !== discB) return discA.localeCompare(discB);
@@ -165,7 +165,7 @@ export default function SimuladoDetailPage() {
       
       // Sort questions by discipline name and then by ID
       if (data.questoes) {
-        data.questoes.sort((a: any, b: any) => {
+        data.questoes.sort((a, b) => {
           const discA = a.subtemas?.[0]?.disciplina?.nome || 'Outros';
           const discB = b.subtemas?.[0]?.disciplina?.nome || 'Outros';
           if (discA !== discB) return discA.localeCompare(discB);
@@ -174,9 +174,10 @@ export default function SimuladoDetailPage() {
       }
 
       setSimulado(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar simulado:', err);
-      setError(err.message || 'Erro ao carregar simulado');
+      const message = err instanceof Error ? err.message : 'Erro ao carregar simulado';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -229,9 +230,10 @@ export default function SimuladoDetailPage() {
       } else {
         setSimulado({ ...simulado!, questoes: updatedQuestions });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao verificar resposta:', err);
-      showToast(err.message || 'Erro ao enviar resposta', 'error');
+      const message = err instanceof Error ? err.message : 'Erro ao enviar resposta';
+      showToast(message, 'error');
     } finally {
       setProcessingAnswer(false);
     }

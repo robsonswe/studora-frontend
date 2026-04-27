@@ -88,9 +88,10 @@ function CargosContent() {
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar cargos:', err);
-      setError(err.message || 'Não foi possível carregar os cargos. Por favor, tente novamente.');
+      const message = err instanceof Error ? err.message : 'Não foi possível carregar os cargos. Por favor, tente novamente.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -130,9 +131,10 @@ function CargosContent() {
       }
 
       resetForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao salvar cargo:', err);
-      setSubmissionError(err.message || 'Erro inesperado ao salvar cargo. Verifique sua conexão.');
+      const message = err instanceof Error ? err.message : 'Erro inesperado ao salvar cargo. Verifique sua conexão.';
+      setSubmissionError(message);
     } finally {
       setLocalLoading(false);
     }
@@ -164,12 +166,13 @@ function CargosContent() {
       showToast('Cargo excluído com sucesso', 'success');
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
       loadCargos(currentPage, urlNome);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao excluir cargo:', err);
+      const message = err instanceof Error ? err.message : 'Este cargo não pode ser removido pois está sendo utilizado em outras partes do sistema.';
       setConfirmModal({
         isOpen: true,
         title: 'Não foi possível excluir',
-        message: err.message || 'Este cargo não pode ser removido pois está sendo utilizado em outras partes do sistema.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true

@@ -239,28 +239,28 @@ export interface SubtemaSummaryDto {
   ultimoEstudo?: string;
   /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
   questaoStats?: QuestaoStatsDto;
-  /** Estatísticas específicas de questões para este concurso e cargo. */
-  questoesConcursoCargo?: StatSliceDto;
 }
 
 /**
- * DTO detalhado para visualização de um subtema, incluindo referências lean do tema e disciplina.
+ * DTO de subtema especializado para o contexto de um cargo em um concurso.
  */
-export interface SubtemaDetailDto {
+export interface ConcursoCargoSubtemaDto {
   /** ID único do subtema. */
   id: number;
-  /** Tema ao qual the subtema pertence (referência lean: apenas id+nome). */
-  tema: TemaReferenceDto;
-  /** Disciplina à qual the subtema pertence (referência lean: apenas id+nome). */
-  disciplina: DisciplinaReferenceDto;
   /** Nome do subtema. */
   nome: string;
-  /** Total de sessões de estudo realizadas. */
+  /** Tema ao qual o subtema pertence. */
+  tema: TemaReferenceDto;
+  /** Disciplina à qual o subtema pertence. */
+  disciplina: DisciplinaReferenceDto;
+  /** Total de sessões de estudo realizadas para este subtema. */
   totalEstudos?: number;
   /** Data e hora do último estudo realizado. */
   ultimoEstudo?: string;
-  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  /** Estatísticas de questões do subtema (Visão Geral). */
   questaoStats?: QuestaoStatsDto;
+  /** Estatísticas específicas de questões para este concurso e cargo. */
+  questoesConcursoCargo?: StatSliceDto;
 }
 
 /**
@@ -459,10 +459,28 @@ export interface ConcursoCargoSummaryDto {
   area: string;
   /** Indica se o usuário está inscrito para este cargo neste concurso. */
   inscrito: boolean;
-  /** Estatísticas específicas de questões para este concurso e cargo. */
-  questoesConcursoCargo?: StatSliceDto;
-  /** Subtemas associados a este cargo neste concurso. Metric fields depend on `metrics` param. */
-  topicos: SubtemaSummaryDto[];
+  /** Subtemas associados a este cargo neste concurso. */
+  topicos: ConcursoCargoSubtemaDto[];
+}
+
+/**
+ * DTO detalhado para visualização de um subtema, incluindo referências lean do tema e disciplina.
+ */
+export interface SubtemaDetailDto {
+  /** ID único do subtema. */
+  id: number;
+  /** Tema ao qual the subtema pertence (referência lean: apenas id+nome). */
+  tema: TemaReferenceDto;
+  /** Disciplina à qual the subtema pertence (referência lean: apenas id+nome). */
+  disciplina: DisciplinaReferenceDto;
+  /** Nome do subtema. */
+  nome: string;
+  /** Total de sessões de estudo realizadas. */
+  totalEstudos?: number;
+  /** Data e hora do último estudo realizado. */
+  ultimoEstudo?: string;
+  /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
+  questaoStats?: QuestaoStatsDto;
 }
 
 /**
@@ -732,6 +750,10 @@ export interface QuestaoCreateRequest {
   imageUrl?: string;
   /** Se verdadeiro, a questão é autoral e não requer concurso ou cargo. Padrão: false. */
   autoral?: boolean;
+  /** Indica se a questão foi anulada. */
+  anulada?: boolean;
+  /** Indica se a questão está desatualizada. */
+  desatualizada?: boolean;
 }
 
 /**
@@ -891,6 +913,8 @@ export interface SimuladoItemSelectionDto {
   id: number;
   /** Quantidade de questões desejadas para este ID. Example: 10 */
   quantidade: number;
+  /** Label para exibição em tela (não enviado ao backend). */
+  _label?: string;
 }
 
 /**

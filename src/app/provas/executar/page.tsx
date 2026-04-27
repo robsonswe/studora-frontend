@@ -155,9 +155,10 @@ function ProvaContent() {
       if (sortedQuestoes.length === 0) {
         setError('Nenhuma questão encontrada para este cargo neste concurso.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar dados da prova:', err);
-      setError(err.message || 'Erro ao carregar dados da prova');
+      const message = err instanceof Error ? err.message : 'Erro ao carregar dados da prova';
+      setError(message);
     } finally {
       setLoading(false);
     }

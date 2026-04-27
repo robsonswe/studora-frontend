@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import Drawer from '@/components/ui/Drawer';
 import { useForm } from 'react-hook-form';
-import Select from 'react-select';
+import Select, { StylesConfig } from 'react-select';
 import AsyncSelect from 'react-select/async';
 import {
   concursoService,
@@ -73,11 +73,20 @@ export default function ConcursosPage() {
 
   usePageTitle('Concursos');
 
+type ConcursoParams = Types.PaginationParams & {
+    bancaId?: number;
+    instituicaoId?: number;
+    instituicaoArea?: string;
+    cargoArea?: string;
+    cargoNivel?: string;
+    inscrito?: boolean;
+  };
+
   const loadConcursos = useCallback(async (page: number = 0) => {
     setLoading(true);
     setLoadError(null);
     try {
-      const params: Record<string, any> = {
+      const params: ConcursoParams = {
         page,
         size: 20,
         bancaId: watchedFields.selectedBanca?.value || undefined,
@@ -138,8 +147,8 @@ export default function ConcursosPage() {
     return areas.map(area => ({ value: area, label: area }));
   };
 
-  const selectStyles = {
-    control: (base: Record<string, unknown>, state: { isFocused: boolean }) => ({
+  const selectStyles: StylesConfig<any, false> = {
+    control: (base, state) => ({
       ...base,
       borderColor: state.isFocused ? '#6366f1' : '#e5e7eb',
       boxShadow: 'none',
@@ -150,7 +159,7 @@ export default function ConcursosPage() {
       minHeight: '42px',
       transition: 'all 0.2s ease'
     }),
-    menu: (base: Record<string, unknown>) => ({
+    menu: (base) => ({
       ...base,
       borderRadius: '0.75rem',
       boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
@@ -158,7 +167,7 @@ export default function ConcursosPage() {
       border: '1px border-gray-100',
       zIndex: 50
     }),
-    option: (base: Record<string, unknown>, state: { isFocused: boolean, isSelected: boolean }) => ({
+    option: (base, state) => ({
       ...base,
       backgroundColor: state.isSelected ? '#6366f1' : state.isFocused ? '#f5f7ff' : 'transparent',
       color: state.isSelected ? '#fff' : '#374151',
@@ -167,8 +176,8 @@ export default function ConcursosPage() {
       fontSize: '0.875rem',
       '&:active': { backgroundColor: '#e0e7ff' }
     }),
-    singleValue: (base: Record<string, unknown>) => ({ ...base, color: '#1f2937', fontWeight: '500' }),
-    placeholder: (base: Record<string, unknown>) => ({ ...base, color: '#9ca3af', fontSize: '0.875rem' })
+    singleValue: (base) => ({ ...base, color: '#1f2937', fontWeight: '500' }),
+    placeholder: (base) => ({ ...base, color: '#9ca3af', fontSize: '0.875rem' })
   };
 
   const handleStartProva = (concursoId: number, cargoId: number, instituicaoId: number) => {

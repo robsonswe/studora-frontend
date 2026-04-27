@@ -90,7 +90,7 @@ export default function ConcursoCargoDetailPage() {
 
   const groupedTopicos = useMemo(() => {
     if (!cargo?.topicos) return {};
-    const g: Record<string, Record<string, Types.SubtemaSummaryDto[]>> = {};
+    const g: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>> = {};
     cargo.topicos.forEach(t => {
       const disc = t.disciplina?.nome || 'Outras Disciplinas';
       const tema = t.tema?.nome || 'Geral';
@@ -342,7 +342,7 @@ export default function ConcursoCargoDetailPage() {
                                     
                                     {(topico.questaoStats?.total?.ultimaQuestao ?? null) && (
                                       <span className="text-[10px] font-medium text-slate-400 inline-flex items-center gap-1">
-                                        <BarChart2 className="w-2.5 h-2.5" /> Questão: {formatDateShort(topico.questaoStats?.total?.ultimaQuestao!)}
+                                        <BarChart2 className="w-2.5 h-2.5" /> Questão: {formatDateShort(topico.questaoStats?.total?.ultimaQuestao ?? undefined)}
                                       </span>
                                     )}
                                     <span className={`text-[10px] font-medium inline-flex items-center gap-1 ${studied ? 'text-slate-400' : 'text-slate-300'}`}>
@@ -372,7 +372,6 @@ export default function ConcursoCargoDetailPage() {
             dataProva={concurso.dataProva}
             inscrito={cargo.inscrito}
             finalizado={concurso.finalizado}
-            questoesConcursoCargo={cargo.questoesConcursoCargo}
             banca={concurso.banca}
             instituicao={concurso.instituicao}
             areaInstituicao={concurso.instituicao?.area}

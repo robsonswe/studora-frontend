@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { Feedback } from '@/components/ui/Feedback';
 import { useToast } from '@/components/ui/ToastContext';
+import type { CSSProperties } from 'react';
 
 type ConcursoDto = Types.ConcursoSummaryDto;
 
@@ -113,7 +114,17 @@ function ConcursosContent() {
   const [editingItem, setEditingItem] = useState<ConcursoDto | null>(null);
   const [formTab, setFormTab] = useState<'dados' | 'conteudo'>('dados');
 
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<{
+    instituicao: { value: number, label: string } | null;
+    banca: { value: number, label: string } | null;
+    ano: number;
+    mes: number;
+    edital: string;
+    dataProva: string;
+    finalizado: boolean;
+    cargos: { value: number, label: string }[];
+    topicos: TopicoEntry[]
+  }>({
     instituicao: null as { value: number, label: string } | null,
     banca: null as { value: number, label: string } | null,
     ano: 2024,
@@ -128,7 +139,7 @@ function ConcursosContent() {
   // Set current date only on mount to avoid hydration mismatch
   useEffect(() => {
     if (!editingItem && !modalOpen) {
-      setFormData((prev: any) => ({
+setFormData((prev) => ({
         ...prev,
         ano: new Date().getFullYear(),
         mes: new Date().getMonth() + 1
@@ -229,7 +240,7 @@ function ConcursosContent() {
     setLoading(true);
     setError(null);
     try {
-      const params: Record<string, any> = {
+      const params: Types.PaginationParams & Record<string, unknown> = {
         page,
         size: 20,
         bancaId: urlBancaId || undefined,
@@ -247,9 +258,10 @@ function ConcursosContent() {
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Não foi possível carregar os concursos. Por favor, tente novamente.';
       console.error('Erro ao carregar concursos:', err);
-      setError(err.message || 'Não foi possível carregar os concursos. Por favor, tente novamente.');
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -281,8 +293,8 @@ function ConcursosContent() {
     try {
       const data = await instituicaoService.getAll({ nome: inputValue, size: 20 });
       return data.content.map(i => ({ value: i.id, label: i.nome }));
-    } catch (err) {
-      console.error('Erro ao carregar instituições:', err);
+} catch (err: unknown) {
+      console.warn('Erro ao carregar instituições:', err);
       return [];
     }
   };
@@ -291,8 +303,8 @@ function ConcursosContent() {
     try {
       const data = await bancaService.getAll({ nome: inputValue, size: 20 });
       return data.content.map(b => ({ value: b.id, label: b.nome }));
-    } catch (err) {
-      console.error('Erro ao carregar bancas:', err);
+} catch (err: unknown) {
+      console.warn('Erro ao carregar bancas:', err);
       return [];
     }
   };
@@ -301,8 +313,8 @@ function ConcursosContent() {
     try {
       const data = await cargoService.getAll({ nome: inputValue, size: 20 });
       return data.content.map(c => ({ value: c.id, label: `${c.nome} - ${c.area} (${formatNivel(c.nivel)})` }));
-    } catch (err) {
-      console.error('Erro ao carregar cargos:', err);
+} catch (err: unknown) {
+      console.warn('Erro ao carregar cargos:', err);
       return [];
     }
   };
@@ -311,8 +323,8 @@ function ConcursosContent() {
     try {
       const areas = await instituicaoService.getAreas(inputValue);
       return areas.map(area => ({ value: area, label: area }));
-    } catch (err) {
-      console.error('Erro ao carregar áreas de institution:', err);
+} catch (err: unknown) {
+      console.warn('Erro ao carregar áreas de instituição:', err);
       return [];
     }
   };
@@ -321,8 +333,8 @@ function ConcursosContent() {
     try {
       const areas = await cargoService.getAreas(inputValue);
       return areas.map(area => ({ value: area, label: area }));
-    } catch (err) {
-      console.error('Erro ao carregar áreas de cargo:', err);
+} catch (err: unknown) {
+      console.warn('Erro ao carregar áreas de cargo:', err);
       return [];
     }
   };
@@ -336,18 +348,18 @@ function ConcursosContent() {
         disciplina: s.disciplina,
         tema: s.tema,
       }));
-    } catch (err) {
-      console.error('Erro ao carregar subtemas:', err);
+} catch (err: unknown) {
+      console.warn('Erro ao carregar subtemas:', err);
       return [];
     }
   };
 
   // ─── Form helpers ─────────────────────────────────────────────────────────
 
-  const addTopico = (opt: any) => {
+  const addTopico = (opt: { value: number, label: string, disciplina?: Types.DisciplinaReferenceDto, tema?: Types.TemaReferenceDto }) => {
     if (formData.topicos.find((t: TopicoEntry) => t.subtemaId === opt.value)) return;
-    const cargoIds = formData.cargos.map((c: any) => c.value);
-    setFormData((prev: any) => ({
+    const cargoIds = formData.cargos.map((c: { value: number }) => c.value);
+    setFormData((prev) => ({
       ...prev,
       topicos: [
         ...prev.topicos,
@@ -363,14 +375,14 @@ function ConcursosContent() {
   };
 
   const removeTopico = (subtemaId: number) => {
-    setFormData((prev: any) => ({
+    setFormData((prev) => ({
       ...prev,
       topicos: prev.topicos.filter((t: TopicoEntry) => t.subtemaId !== subtemaId)
     }));
   };
 
   const toggleTopicoCargo = (subtemaId: number, cargoId: number) => {
-    setFormData((prev: any) => ({
+    setFormData((prev) => ({
       ...prev,
       topicos: prev.topicos
         .map((t: TopicoEntry) => {
@@ -384,10 +396,10 @@ function ConcursosContent() {
     }));
   };
 
-  const handleCargoChange = (opts: any) => {
-    const newCargos = opts || [];
-    const newCargoIds = newCargos.map((c: any) => c.value);
-    setFormData((prev: any) => ({
+  const handleCargoChange = (opts: readonly { value: number; label: string }[] | null) => {
+    const newCargos = opts ? [...opts] : [];
+    const newCargoIds = newCargos.map((c) => c.value);
+    setFormData((prev) => ({
       ...prev,
       cargos: newCargos,
       topicos: prev.topicos
@@ -431,24 +443,23 @@ function ConcursosContent() {
 
     setLocalLoading(true);
     try {
-      const payload: any = {
-        instituicaoId: formData.instituicao.value,
-        bancaId: formData.banca.value,
+      const payload: Types.ConcursoCreateRequest = {
+        instituicaoId: formData.instituicao!.value,
+        bancaId: formData.banca!.value,
         ano: formData.ano,
         mes: formData.mes,
         edital: formData.edital.trim(),
         dataProva: localInputValueToUtc(formData.dataProva) ?? undefined,
         finalizado: formData.finalizado,
-        cargos: formData.cargos.map((c: any) => c.value),
+        cargos: formData.cargos.map((c: { value: number }) => c.value),
         topicos: formData.topicos.reduce((acc: Record<number, number[]>, t: TopicoEntry) => {
           acc[t.subtemaId] = t.cargoIds;
           return acc;
         }, {})
       };
 
-      if (editingItem) {
+if (editingItem) {
         await concursoService.update(editingItem.id, payload);
-        showToast('Concurso atualizado com sucesso', 'success');
       } else {
         await concursoService.create(payload);
         showToast('Concurso criado com sucesso', 'success');
@@ -456,9 +467,10 @@ function ConcursosContent() {
       
       await loadConcursos(currentPage);
       resetForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro inesperado ao salvar concurso. Verifique sua conexão.';
       console.error('Erro ao salvar concurso:', err);
-      setValidationErrors([err.message || 'Erro inesperado ao salvar concurso. Verifique sua conexão.']);
+      setValidationErrors([message]);
     } finally {
       setLocalLoading(false);
     }
@@ -470,12 +482,13 @@ function ConcursosContent() {
       await concursoService.toggleFinalizado(id);
       showToast('Status do concurso alterado', 'info');
       await loadConcursos(currentPage);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Não foi possível alterar o status do concurso.';
       console.error('Erro ao alternar status finalizado:', err);
       setConfirmModal({
         isOpen: true,
         title: 'Erro',
-        message: err.message || 'Não foi possível alterar o status do concurso.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true
@@ -523,12 +536,13 @@ function ConcursosContent() {
       });
 
       setModalOpen(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Não foi possível carregar os detalhes do concurso para edição. Verifique sua conexão.';
       console.error('Erro ao carregar detalhes para edição:', err);
       setConfirmModal({
         isOpen: true,
         title: 'Erro ao carregar',
-        message: err.message || 'Não foi possível carregar os detalhes do concurso para edição. Verifique sua conexão.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true
@@ -558,12 +572,13 @@ function ConcursosContent() {
       showToast('Concurso excluído com sucesso', 'success');
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
       await loadConcursos(currentPage);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Este concurso não pode ser removido pois está sendo utilizado em outras partes do sistema.';
       console.error('Erro ao excluir concurso:', err);
       setConfirmModal({
         isOpen: true,
         title: 'Não foi possível excluir',
-        message: err.message || 'Este concurso não pode ser removido pois está sendo utilizado em outras partes do sistema.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true
@@ -619,12 +634,12 @@ function ConcursosContent() {
   const selectedSubtemaIds = new Set(formData.topicos.map((t: TopicoEntry) => t.subtemaId));
   const groupedTopicos = groupTopicos(formData.topicos);
 
-  const selectStyles = {
-    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
-    menu: (base: any) => ({ ...base, zIndex: 9999 }),
-    control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, padding: '2px' }),
-    placeholder: (base: any) => ({ ...base, color: '#9ca3af', fontSize: '0.875rem' }),
-    singleValue: (base: any) => ({ ...base, color: '#111827', fontSize: '0.875rem', fontWeight: '500' })
+const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
+    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+    menu: (base) => ({ ...base, zIndex: 9999 }),
+    control: (base) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6b7280' }, padding: '2px' }),
+    placeholder: (base) => ({ ...base, color: '#9ca3af', fontSize: '0.875rem' }),
+    singleValue: (base) => ({ ...base, color: '#111827', fontSize: '0.875rem', fontWeight: '500' })
   };
 
   return (
@@ -836,7 +851,7 @@ function ConcursosContent() {
                   defaultOptions
                   loadOptions={loadInstituicaoOptions}
                   value={formData.instituicao}
-                  onChange={(val) => setFormData((prev: any) => ({ ...prev, instituicao: val }))}
+                  onChange={(val) => setFormData((prev) => ({ ...prev, instituicao: val }))}
                   placeholder="Pesquisar..."
                   styles={selectStyles}
                   menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
@@ -850,7 +865,7 @@ function ConcursosContent() {
                   defaultOptions
                   loadOptions={loadBancaOptions}
                   value={formData.banca}
-                  onChange={(val) => setFormData((prev: any) => ({ ...prev, banca: val }))}
+                  onChange={(val) => setFormData((prev) => ({ ...prev, banca: val }))}
                   placeholder="Pesquisar..."
                   styles={selectStyles}
                   menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
@@ -943,9 +958,9 @@ function ConcursosContent() {
               cacheOptions
               defaultOptions
               loadOptions={loadSubtemaOptions}
-              filterOption={(opt) => !selectedSubtemaIds.has(opt.value)}
+              filterOption={(opt) => !selectedSubtemaIds.has(Number(opt.value))}
               value={null}
-              onChange={(opt: any) => { if (opt) addTopico(opt); }}
+              onChange={(opt: { value: number, label: string } | null) => { if (opt) addTopico(opt); }}
               placeholder="Adicionar subtema ao edital..."
               styles={selectStyles}
               menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
@@ -989,7 +1004,7 @@ function ConcursosContent() {
                                         </button>
                                       </div>
                                       <div className="flex flex-wrap gap-x-6 gap-y-3 sm:gap-y-2">
-                                        {formData.cargos.map((cargo: any) => (
+                                        {formData.cargos.map((cargo: { value: number, label: string }) => (
                                           <label key={cargo.value} className="inline-flex items-center text-[11px] font-bold text-gray-500 uppercase cursor-pointer hover:text-indigo-600 transition-all py-1">
                                             <input
                                               type="checkbox"

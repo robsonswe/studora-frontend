@@ -33,11 +33,8 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${plusJakartaSans.variable} ${jetBrainsMono.variable}`}>
       <body className="antialiased font-sans">
-        <AppShell>{children}</AppShell>
-      {/* impeccable-live-start */}
-<script src="http://localhost:8400/live.js"></script>
-{/* impeccable-live-end */}
-</body>
+<AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

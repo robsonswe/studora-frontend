@@ -130,7 +130,7 @@ const daysSince = (dateStr?: string | null): number => {
  * @returns  A `ScoredTopico` including raw score and full rationale.
  */
 function scoreTopico(
-  topico: Types.SubtemaSummaryDto,
+  topico: Types.ConcursoCargoSubtemaDto,
   strategy: SimuladoStrategy,
 ): ScoredTopico {
   const respondidas = topico.questaoStats?.total?.respondidas ?? 0;

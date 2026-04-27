@@ -16,12 +16,13 @@ interface AppShellProps {
 
 function AppShellContent({ children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
   const { breadcrumbs } = useBreadcrumbs();
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    setMounted(true);
+    setIsMounted(true);
   }, []);
 
   const navItems = [
@@ -41,7 +42,7 @@ function AppShellContent({ children }: AppShellProps) {
 
   // If not mounted yet (to avoid hydration mismatch) or if in admin section,
   // we just render a simple wrapper. The admin layout handles its own sidebar.
-  if (!mounted || isAdmin) {
+  if (!isMounted || isAdmin) {
     return <div className="min-h-screen bg-slate-50">{children}</div>;
   }
 

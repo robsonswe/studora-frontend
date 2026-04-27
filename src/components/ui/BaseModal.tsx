@@ -32,16 +32,18 @@ export default function BaseModal({
   className = '',
   preventBackdropClick = false,
 }: BaseModalProps) {
-  const [mounted, setMounted] = useState(false);
+  const mountedRef = useRef(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<Element | null>(null);
 
   useEffect(() => {
-    setMounted(true);
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    if (!mounted) return;
+    if (!mountedRef.current) return;
     
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -57,10 +59,10 @@ export default function BaseModal({
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, mounted]);
+  }, [isOpen]);
 
   useEffect(() => {
-    if (!mounted || !isOpen) return;
+    if (!mountedRef.current || !isOpen) return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !preventBackdropClick) {
@@ -70,9 +72,9 @@ export default function BaseModal({
     
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, preventBackdropClick, mounted]);
+  }, [isOpen, onClose, preventBackdropClick]);
 
-  if (!mounted || !isOpen) return null;
+  if (!isOpen) return null;
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget && !preventBackdropClick) {

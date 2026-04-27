@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import PageHeader from '@/components/ui/PageHeader';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { useForm } from 'react-hook-form';
-import Select from 'react-select';
+import Select, { StylesConfig } from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { questaoService, respostaService, instituicaoService, cargoService, bancaService, disciplinaService, temaService, subtemaService } from '@/services/api';
 import { formatNivel } from '@/utils/formatters';
@@ -123,7 +123,17 @@ export default function QuestaoPracticePage() {
 
     try {
       const filters = getValues();
-      const params: any = {
+      const params: Types.PaginationParams & {
+        disciplinaId?: number;
+        temaId?: number;
+        subtemaId?: number;
+        bancaId?: number;
+        instituicaoArea?: string;
+        cargoArea?: string;
+        cargoNivel?: string;
+        anulada?: boolean;
+        includeAutoral?: boolean;
+      } = {
         disciplinaId: filters.selectedDisciplina?.value !== 0 ? filters.selectedDisciplina?.value : undefined,
         temaId: filters.selectedTema?.value !== 0 ? filters.selectedTema?.value : undefined,
         subtemaId: filters.selectedSubtema?.value !== 0 ? filters.selectedSubtema?.value : undefined,
@@ -141,11 +151,12 @@ export default function QuestaoPracticePage() {
       setCurrentQuestion(question);
       setDisplayAlternativas(alternatives);
       setMode('practice');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao buscar questão:', err);
+      const message = err instanceof Error ? err.message : 'Nenhuma questão encontrada com os filtros selecionados.';
       if (wasInPractice) setMode('setup');
       setError(
-        err.message ||
+        message ||
         (wasInPractice
           ? 'Sem mais questões disponíveis para estes filtros. Ajuste os filtros e tente novamente.'
           : 'Nenhuma questão encontrada com os filtros selecionados.')
@@ -198,9 +209,10 @@ export default function QuestaoPracticePage() {
       setCurrentQuestion(updatedQuestion);
 
       if (timerRef.current) clearInterval(timerRef.current);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao verificar resposta:', err);
-      setError(err.message || 'Erro ao enviar resposta. Tente novamente.');
+      const message = err instanceof Error ? err.message : 'Erro ao enviar resposta. Tente novamente.';
+      setError(message);
     } finally {
       setVerifying(false);
     }
@@ -257,8 +269,8 @@ export default function QuestaoPracticePage() {
     return [{ value: '', label: 'Todas as áreas' }, ...areas.map((a) => ({ value: a, label: a }))];
   };
 
-  const selectStyles = {
-    control: (base: any) => ({
+  const selectStyles: StylesConfig<any, false> = {
+    control: (base) => ({
       ...base,
       borderColor: '#e2e8f0',
       boxShadow: 'none',
@@ -267,7 +279,7 @@ export default function QuestaoPracticePage() {
       paddingBottom: '2px',
       '&:hover': { borderColor: '#6366f1' },
     }),
-    placeholder: (base: any) => ({ ...base, fontSize: '0.875rem', color: '#94a3b8' }),
+    placeholder: (base) => ({ ...base, fontSize: '0.875rem', color: '#94a3b8' }),
   };
 
   // ─── Computed active-filter summary for sticky bar ───────────────────────

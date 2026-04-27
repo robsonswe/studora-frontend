@@ -64,8 +64,9 @@ export default function Dashboard() {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       const count = respRes.content.filter((r: Types.RespostaSummaryDto) => new Date(r.createdAt) >= sevenDaysAgo).length;
       setWeeklyCount(count);
-    } catch (err: any) {
-      console.error('Erro ao carregar dados do dashboard:', err);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('Erro ao carregar dados do dashboard:', message);
       setError('Alguns dados do dashboard não puderam ser carregados.');
     } finally {
       setLoading(false);

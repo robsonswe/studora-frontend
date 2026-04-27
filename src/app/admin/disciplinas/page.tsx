@@ -81,9 +81,10 @@ function DisciplinasContent() {
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar disciplinas:', err);
-      setError(err.message || 'Não foi possível carregar as disciplinas. Por favor, tente novamente.');
+      const message = err instanceof Error ? err.message : 'Não foi possível carregar as disciplinas. Por favor, tente novamente.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -121,9 +122,10 @@ function DisciplinasContent() {
       }
 
       resetForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao salvar disciplina:', err);
-      setSubmissionError(err.message || 'Erro inesperado ao salvar disciplina. Verifique sua conexão.');
+      const message = err instanceof Error ? err.message : 'Erro inesperado ao salvar disciplina. Verifique sua conexão.';
+      setSubmissionError(message);
     } finally {
       setLocalLoading(false);
     }
@@ -155,12 +157,13 @@ function DisciplinasContent() {
       showToast('Disciplina excluída com sucesso', 'success');
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
       loadDisciplinas(currentPage, urlNome);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao excluir disciplina:', err);
+      const message = err instanceof Error ? err.message : 'Esta disciplina não pode ser removida pois está sendo utilizada em outras partes do sistema.';
       setConfirmModal({
         isOpen: true,
         title: 'Não foi possível excluir',
-        message: err.message || 'Esta disciplina não pode ser removida pois está sendo utilizada em outras partes do sistema.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true

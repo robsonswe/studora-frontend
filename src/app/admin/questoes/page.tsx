@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense, CSSProperties } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import QuestaoFormModal from '@/components/ui/QuestaoFormModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useForm } from 'react-hook-form';
-import Select from 'react-select';
+import Select, { StylesConfig } from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { questaoService, concursoService, instituicaoService, cargoService, bancaService, disciplinaService, temaService, subtemaService } from '@/services/api';
 import { formatNivel, formatDificuldade, formatDateTime } from '@/utils/formatters';
@@ -92,7 +92,7 @@ function QuestoesContent() {
   const [adminMode, setAdminMode] = useState(false);
   const [questoes, setQuestoes] = useState<QuestaoDto[]>([]);
   const [localLoading, setLocalLoading] = useState(true);
-  const [pagination, setPagination] = useState<Types.PageResponse<any>>({
+  const [pagination, setPagination] = useState<Types.PageResponse<QuestaoDto>>({
     content: [],
     pageNumber: 0,
     pageSize: 20,
@@ -217,7 +217,17 @@ function QuestoesContent() {
     }
 
     try {
-      const params: any = {
+      const params: Types.PaginationParams & {
+        admin?: boolean;
+        disciplinaId?: number;
+        temaId?: number;
+        subtemaId?: number;
+        bancaId?: number;
+        instituicaoArea?: string;
+        cargoArea?: string;
+        cargoNivel?: string;
+        autoral?: boolean;
+      } = {
         page,
         size: 20,
         admin: adminMode,
@@ -232,7 +242,7 @@ function QuestoesContent() {
       };
 
       const data = await questaoService.getAll(params);
-      setQuestoes(data.content as any);
+      setQuestoes(data.content);
       setPagination(data);
       setCurrentPage(page);
       setFetchError(null);
@@ -272,7 +282,16 @@ function QuestoesContent() {
 
   // ─── CRUD Functions ───────────────────────────────────────────────────────
 
-  const handleQuestaoSubmit = async (data: any) => {
+  const handleQuestaoSubmit = async (data: {
+    concurso: { value: number; label: string } | null;
+    enunciado: string;
+    anulada: boolean;
+    desatualizada: boolean;
+    autoral: boolean;
+    subtemas: { value: number; label: string }[];
+    cargos: number[];
+    imageUrl: string;
+  }) => {
     const errs: string[] = [];
 
     if (currentAlternativas.length < 2) {
@@ -309,12 +328,12 @@ function QuestoesContent() {
     setFormLoading(true);
 
     try {
-      const payload: any = {
+      const payload: Types.QuestaoCreateRequest = {
         enunciado: data.enunciado,
         anulada: data.anulada,
         desatualizada: data.desatualizada,
         imageUrl: data.imageUrl,
-        subtemaIds: data.subtemas.map((s: any) => s.value),
+        subtemaIds: data.subtemas.map((s) => s.value),
         autoral: data.autoral,
         alternativas: currentAlternativas.map((alt, index) => ({
           ...alt,
@@ -324,7 +343,7 @@ function QuestoesContent() {
         }))
       };
 
-      if (!data.autoral) {
+      if (!data.autoral && data.concurso) {
         payload.concursoId = data.concurso.value;
         payload.cargos = data.cargos;
       }
@@ -339,9 +358,10 @@ function QuestoesContent() {
 
       await filterQuestoes(currentPage);
       resetQuestaoForm();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao salvar questão:', err);
-      setValidationErrors([err.message || 'Erro inesperado ao salvar questão. Verifique sua conexão.']);
+      const message = err instanceof Error ? err.message : 'Erro inesperado ao salvar questão. Verifique sua conexão.';
+      setValidationErrors([message]);
     } finally {
       setFormLoading(false);
     }
@@ -376,12 +396,13 @@ function QuestoesContent() {
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar detalhes da questão:', err);
+      const message = err instanceof Error ? err.message : 'Não foi possível carregar os detalhes da questão para edição.';
       setConfirmModal({
         isOpen: true,
         title: 'Erro ao carregar',
-        message: err.message || 'Não foi possível carregar os detalhes da questão para edição.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true
@@ -411,12 +432,13 @@ function QuestoesContent() {
       showToast('Questão excluída com sucesso', 'success');
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
       await filterQuestoes(currentPage);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao excluir questão:', err);
+      const message = err instanceof Error ? err.message : 'Erro ao excluir questão. O item pode estar sendo usado por outras entidades do sistema.';
       setConfirmModal({
         isOpen: true,
         title: 'Não foi possível excluir',
-        message: err.message || 'Erro ao excluir questão. O item pode estar sendo usado por outras entidades do sistema.',
+        message: message,
         itemId: null,
         type: 'danger',
         alertOnly: true
@@ -554,10 +576,10 @@ function QuestoesContent() {
     (urlAutoral && urlAutoral !== 'all')
   );
 
-  const selectStyles = {
-    control: (base: any) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.5rem' }),
-    singleValue: (base: any) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
-    placeholder: (base: any) => ({ ...base, fontSize: '0.875rem', color: '#9ca3af' })
+  const selectStyles: StylesConfig<SelectOption, false> = {
+    control: (base) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.5rem' }),
+    singleValue: (base) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
+    placeholder: (base) => ({ ...base, fontSize: '0.875rem', color: '#9ca3af' })
   };
 
   return (
@@ -750,7 +772,7 @@ function QuestoesContent() {
                 instanceId="nivel-select"
                 options={[{ value: '', label: 'Todos' }, { value: 'FUNDAMENTAL', label: 'Fundamental' }, { value: 'MEDIO', label: 'Médio' }, { value: 'SUPERIOR', label: 'Superior' }]}
                 value={localCargoNivel ? { value: localCargoNivel, label: formatNivel(localCargoNivel) } : { value: '', label: 'Todos' }}
-                onChange={(opt) => setLocalCargoNivel(opt?.value || '')}
+                onChange={(opt) => setLocalCargoNivel(String(opt?.value || ''))}
                 styles={selectStyles}
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
@@ -765,7 +787,7 @@ function QuestoesContent() {
                   { value: 'exclude', label: 'Excluir autorais' }
                 ]}
                 value={{ value: localAutoral, label: localAutoral === 'all' ? 'Todas' : localAutoral === 'only' ? 'Apenas autorais' : 'Excluir autorais' }}
-                onChange={(opt) => setLocalAutoral(opt?.value || 'all')}
+                onChange={(opt) => setLocalAutoral(String(opt?.value || 'all'))}
                 styles={selectStyles}
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
@@ -970,7 +992,7 @@ function QuestoesContent() {
                         <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 font-sans">
                            <div className="mb-4 pb-4 border-b border-gray-200">
                                <span className="text-xs font-black text-gray-400 uppercase block mb-2 tracking-widest">Última Justificativa do Usuário</span>
-                               <p className="text-sm text-gray-800 bg-white p-4 rounded-lg border border-gray-200 italic shadow-sm">"{latestResposta.justificativa}"</p>
+                               <p className="text-sm text-gray-800 bg-white p-4 rounded-lg border border-gray-200 italic shadow-sm">&ldquo;{latestResposta.justificativa}&rdquo;</p>
                            </div>
                            <div className="flex flex-wrap gap-6">
                               <div className="flex items-center text-xs text-gray-600 font-medium">

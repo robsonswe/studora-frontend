@@ -32,6 +32,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Feedback } from '@/components/ui/Feedback';
+import type { CSSProperties } from 'react';
 
 const COLORS = ['#4338CA', '#6366F1', '#818CF8', '#94A3B8', '#CBD5E1', '#FBBF24'];
 
@@ -77,8 +78,9 @@ export default function PerformancePage() {
       setConsistencia(consRes);
       setEvolucao(evolRes);
       setLearningRate(learnRes);
-    } catch (error: any) {
-      console.error('Erro ao carregar dados principais de performance:', error);
+    } catch (err: unknown) {
+      console.error('Erro ao carregar dados principais de performance:', err);
+      const message = err instanceof Error ? err.message : String(err);
       setError('Falha ao carregar métricas de evolução. Tente atualizar a página.');
     }
   };
@@ -89,8 +91,9 @@ export default function PerformancePage() {
       setDisciplinas(discRes.content);
       setDiscPagination(discRes);
       setDiscPaginationCurrentPage(page);
-    } catch (error: any) {
-      console.error('Erro ao carregar domínio por disciplinas:', error);
+    } catch (err: unknown) {
+      console.error('Erro ao carregar domínio por disciplinas:', err);
+      const message = err instanceof Error ? err.message : String(err);
       setError('Falha ao carregar ranking de disciplinas.');
     } finally {
       if (loading) setLoading(false);
@@ -103,8 +106,8 @@ export default function PerformancePage() {
     try {
       const detail = await analyticsService.getDisciplinaMasteryDetail(id);
       setDiscDetail(detail as Types.AnalyticsTopicMasteryDetailDto);
-    } catch (error) {
-      console.error('Erro ao carregar detalhes da disciplina:', error);
+    } catch (err: unknown) {
+      console.error('Erro ao carregar detalhes da disciplina:', err);
     } finally {
       setDetailLoading(false);
     }
@@ -174,7 +177,7 @@ export default function PerformancePage() {
     );
   };
 
-  const MasteryRow = ({ item, level = 0 }: { item: Types.AnalyticsTopicMasteryDto | any, level?: number }) => (
+  const MasteryRow = ({ item, level = 0 }: { item: Types.AnalyticsTopicMasteryDto, level?: number }) => (
     <div className={`flex flex-col border-b border-gray-50 last:border-0 ${level > 0 ? 'bg-gray-50/30' : ''}`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-100/50 transition-colors gap-4">
         <div className="flex items-center flex-1 min-w-0" style={{ paddingLeft: `${level * 1.5}rem` }}>
@@ -213,7 +216,7 @@ export default function PerformancePage() {
           </div>
         </div>
       </div>
-      {item.children && item.children.map((child: any) => (
+      {item.children && item.children.map((child: Types.AnalyticsTopicMasteryDto) => (
         <MasteryRow key={child.id} item={child} level={level + 1} />
       ))}
     </div>
@@ -319,7 +322,7 @@ export default function PerformancePage() {
                   boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
                   fontSize: '12px'
                 }}
-                formatter={(value: any) => [`${(value * 100).toFixed(1)}%`, 'Precisão']}
+                formatter={(value: any) => [`${(Number(value) * 100).toFixed(1)}%`, 'Precisão']}
               />
               <Area 
                 type="monotone" 
@@ -372,7 +375,7 @@ export default function PerformancePage() {
                   boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
                   fontSize: '12px'
                 }}
-                formatter={(value: any) => [`${value.toFixed(1)}%`, 'Domínio']}
+                formatter={(value: any) => [`${Number(value).toFixed(1)}%`, 'Domínio']}
               />
               <Bar dataKey="masteryScore" radius={[0, 8, 8, 0]} barSize={20}>
                 {topDisciplines.map((_, index) => (
