@@ -29,11 +29,15 @@
 
   /* Semantic Feedback Palette */
   --color-sage-50: oklch(95% 0.03 150);
+  --color-sage-400: oklch(80% 0.10 150);
   --color-sage-500: oklch(75% 0.12 150);
+  --color-sage-600: oklch(60% 0.12 150);
   --color-sage-700: oklch(40% 0.10 150);
 
   --color-terracotta-50: oklch(95% 0.03 25);
+  --color-terracotta-400: oklch(80% 0.10 25);
   --color-terracotta-500: oklch(65% 0.16 25);
+  --color-terracotta-600: oklch(55% 0.14 25);
   --color-terracotta-700: oklch(40% 0.10 25);
 
   /* Aliases for legacy code migration */

@@ -141,7 +141,7 @@ export const AlternativesList = ({ alternativas, selectedAlternativa, feedback, 
             badgeClass += 'bg-sage-500 text-white';
           } else if (isSelected && !isCorrect) {
             containerClass += 'bg-terracotta-50 border-terracotta-300 animate-error-shake ';
-            badgeClass += 'bg-terracotta-400 text-white';
+            badgeClass += 'bg-terracotta-500 text-white';
           } else {
             containerClass += 'bg-slate-50 border-slate-100 opacity-50 ';
             badgeClass += 'bg-slate-100 text-slate-400';
