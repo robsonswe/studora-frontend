@@ -25,6 +25,7 @@ import {
   XCircle,
   Hash,
   SlidersHorizontal,
+  ChevronDown,
   X
 } from 'lucide-react';
 import { Feedback } from '@/components/ui/Feedback';
@@ -115,6 +116,7 @@ function ConcursosContent() {
   const [subtemaPickerOpen, setSubtemaPickerOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ConcursoDto | null>(null);
   const [formTab, setFormTab] = useState<'dados' | 'conteudo'>('dados');
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState<{
     instituicao: { value: number, label: string } | null;
@@ -357,6 +359,10 @@ setFormData((prev) => ({
   };
 
   // ─── Form helpers ─────────────────────────────────────────────────────────
+
+   const toggleSection = (id: string) => {
+     setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
+   };
 
   const addTopico = (opt: { value: number, label: string, disciplina?: Types.DisciplinaReferenceDto, tema?: Types.TemaReferenceDto }) => {
     if (formData.topicos.find((t: TopicoEntry) => t.subtemaId === opt.value)) return;
@@ -632,7 +638,26 @@ if (editingItem) {
   const selectedSubtemaIds = new Set(formData.topicos.map((t: TopicoEntry) => t.subtemaId));
   const groupedTopicos = groupTopicos(formData.topicos);
 
-const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
+  const [topicoSearch, setTopicoSearch] = useState('');
+
+  const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  const filteredTopicos = groupedTopicos.map(discGroup => {
+    const discMatch = normalize(discGroup.disciplina?.nome || '').includes(normalize(topicoSearch));
+    
+    const filteredTemas = discGroup.temas.map(temaGroup => {
+      const temaMatch = normalize(temaGroup.tema?.nome || '').includes(normalize(topicoSearch));
+      const filteredSubtemas = temaGroup.topicos.filter(t => 
+        discMatch || temaMatch || normalize(t.subtemaLabel).includes(normalize(topicoSearch))
+      );
+      
+      return filteredSubtemas.length > 0 ? { ...temaGroup, topicos: filteredSubtemas } : null;
+    }).filter(Boolean) as typeof discGroup.temas;
+
+    return filteredTemas.length > 0 ? { ...discGroup, temas: filteredTemas } : null;
+  }).filter(Boolean) as typeof groupedTopicos;
+
+  const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
     menu: (base) => ({ ...base, zIndex: 9999 }),
     control: (base) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6b7280' }, padding: '2px' }),
@@ -975,92 +1000,206 @@ const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
         ) : null}
 
       <div className={formTab === 'conteudo' ? 'block' : 'hidden'}>
-          <div className="pt-2">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <Hash className="w-5 h-5 text-indigo-500 mr-2" />
-                <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Conteúdo Programático</h4>
-              </div>
+  <div className="pt-2">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex items-center gap-2.5">
+        <div className="p-2 bg-indigo-50 rounded-lg">
+          <Hash className="w-5 h-5 text-indigo-600" />
+        </div>
+        <div>
+          <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Conteúdo Programático</h4>
+          <p className="text-[11px] text-slate-500 font-medium">Gerencie a taxonomia e vinculação por cargo</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 sm:w-64">
+          <input
+            type="text"
+            placeholder="Filtrar tópicos..."
+            value={topicoSearch}
+            onChange={(e) => setTopicoSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+          />
+          <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          {topicoSearch && (
+            <button 
+              onClick={() => setTopicoSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setSubtemaPickerOpen(true)}
+          className="inline-flex items-center px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 active:scale-95 whitespace-nowrap"
+        >
+          <Plus className="w-3.5 h-3.5 mr-1.5" />
+          Adicionar Subtemas
+        </button>
+      </div>
+    </div>
+
+    {formData.topicos.length > 0 ? (
+      <div className="space-y-4">
+        {filteredTopicos.map((disciplinaGroup) => {
+          const discId = `disc-${disciplinaGroup.disciplina?.id ?? 0}`;
+          const isDiscExpanded = expandedSections[discId];
+          const totalSubtemas = disciplinaGroup.temas.reduce((acc, t) => acc + t.topicos.length, 0);
+
+          return (
+            <div key={discId} className="border border-slate-200/60 rounded-xl overflow-hidden bg-white shadow-sm">
+              {/* Disciplina Row */}
               <button
                 type="button"
-                onClick={() => setSubtemaPickerOpen(true)}
-                className="inline-flex items-center px-3 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors"
+                onClick={() => toggleSection(discId)}
+                className="w-full flex items-center justify-between px-5 py-4 bg-[oklch(98%_0.005_264)]/40 hover:bg-[oklch(97%_0.02_264)] transition-all duration-300 group cursor-pointer"
+                style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
               >
-                <Plus className="w-3.5 h-3.5 mr-1.5" />
-                Adicionar Subtemas
+                <div className="flex items-center gap-4">
+                  <ChevronRight className={`w-4 h-4 text-slate-300 transition-transform duration-500 ${isDiscExpanded ? 'rotate-90 text-[oklch(45%_0.22_264)]' : ''}`} 
+                    style={{ transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.25, 1)' }}
+                  />
+                  <span className="text-sm font-bold text-[oklch(25%_0.015_264)] tracking-tight uppercase">
+                    {disciplinaGroup.disciplina?.nome || 'Conhecimentos Gerais'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                   <span className="text-[10px] font-mono font-bold text-slate-400 tabular-nums bg-slate-100/60 px-2 py-1 rounded border border-slate-200/30">
+                    {totalSubtemas} {totalSubtemas === 1 ? 'TÓPICO' : 'TÓPICOS'}
+                  </span>
+                </div>
               </button>
-            </div>
 
-            {formData.topicos.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6">
-                {groupedTopicos.map((disciplinaGroup) => {
-                  return (
-                    <div key={disciplinaGroup.disciplina?.id ?? 0} className="bg-slate-50/50 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                      <div className="bg-slate-100/80 px-4 sm:px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-                        <span className="text-xs font-black text-slate-600 uppercase tracking-widest">
-                          {disciplinaGroup.disciplina?.nome || 'Sem disciplina'}
-                        </span>
-                      </div>
+              {/* Tema List */}
+              {isDiscExpanded && (
+                <div className="border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-300" style={{ animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                  {disciplinaGroup.temas.map((temaGroup) => {
+                    const temaId = `tema-${temaGroup.tema?.id ?? 0}-${disciplinaGroup.disciplina?.id ?? 0}`;
+                    const isTemaExpanded = expandedSections[temaId];
 
-                      <div className="divide-y divide-slate-100">
-                        {disciplinaGroup.temas.map((temaGroup) => {
-                          return (
-                            <div key={temaGroup.tema?.id ?? 0}>
-                              <div className="bg-white/40 px-4 sm:px-5 py-2">
-                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-tighter">
-                                  Tema: {temaGroup.tema?.nome || 'Sem tema'}
-                                </span>
-                              </div>
+                    return (
+                      <div key={temaId} className="group/tema border-b border-slate-50 last:border-b-0">
+                        <button
+                          type="button"
+                          onClick={() => toggleSection(temaId)}
+                          className={`w-full flex items-center justify-between px-6 py-3.5 hover:bg-[oklch(97%_0.02_264)]/50 transition-all cursor-pointer ${
+                            isTemaExpanded ? 'bg-[oklch(97%_0.02_264)]/40' : ''
+                          }`}
+                          style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
+                        >
+                          <div className="flex items-center gap-3 pl-4 border-l border-slate-100 group-hover/tema:border-[oklch(85%_0.05_264)] transition-colors">
+                            <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-300 ${
+                              isTemaExpanded ? 'rotate-90 text-[oklch(73%_0.17_65)]' : 'text-slate-300'
+                            }`} style={{ transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.25, 1)' }} />
+                            <span className={`text-[11px] font-bold uppercase tracking-wide text-left ${
+                              isTemaExpanded ? 'text-[oklch(25%_0.015_264)]' : 'text-slate-500'
+                            }`}>
+                              {temaGroup.tema?.nome || 'Tópicos Gerais'}
+                            </span>
+                          </div>
+                        </button>
 
-                              <div className="bg-white divide-y divide-gray-50">
-                                {temaGroup.topicos.map((topico) => {
-                                  return (
-                                    <div key={topico.subtemaId} className="px-4 sm:px-5 py-5 sm:py-4 hover:bg-slate-50 transition-colors">
-                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-3">
-                                        <span className="text-sm font-bold text-gray-800 leading-tight">
-                                          {topico.subtemaLabel.split(' - ').pop()}
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() => removeTopico(topico.subtemaId)}
-                                          className="text-[10px] font-black text-red-500 hover:text-red-700 uppercase tracking-widest bg-red-50 border border-red-100/50 px-3 py-1.5 sm:px-2 sm:py-1 rounded-lg sm:rounded transition-all w-max"
+                        {/* Subtema Strategy Grid */}
+                        {isTemaExpanded && (
+                          <div className="px-6 pb-6 pt-2 space-y-4 bg-[oklch(98%_0.005_264)]/20 animate-in fade-in duration-300">
+                            {temaGroup.topicos.map((topico) => (
+                              <div key={topico.subtemaId} className="pl-11 relative">
+                                {/* Visual Thread */}
+                                <div className="absolute left-7 top-0 bottom-0 w-px bg-slate-200/40" />
+                                <div className="absolute left-7 top-4 w-3 h-px bg-slate-200/40" />
+
+                                <div className="bg-white border border-slate-200/60 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.02)] overflow-hidden">
+                                  <div className="px-4 py-2.5 bg-slate-50/30 border-b border-slate-100 flex items-center justify-between">
+                                    <div className="flex flex-col text-left">
+                                      <span className="text-[13px] font-bold text-[oklch(35%_0.015_264)] tracking-tight leading-tight">
+                                        {topico.subtemaLabel.split(' - ').pop()}
+                                      </span>
+                                      <span className="text-[9px] font-mono text-slate-400 mt-0.5 uppercase tracking-[0.05em]">ID #{topico.subtemaId}</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeTopico(topico.subtemaId)}
+                                      className="p-1.5 text-slate-300 hover:text-[oklch(65%_0.16_25)] hover:bg-[oklch(95%_0.03_25)] rounded-md transition-all"
+                                      title="Remover"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                  
+                                  <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {formData.cargos.map((cargo) => {
+                                      const [cargoNome, cargoAreaPart] = cargo.label.split(' - ');
+                                      const cargoArea = cargoAreaPart?.split(' (')[0] || '';
+                                      
+                                      return (
+                                        <label 
+                                          key={cargo.value} 
+                                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all cursor-pointer select-none ${
+                                            topico.cargoIds.includes(cargo.value)
+                                              ? 'bg-indigo-50/60 border-indigo-200 shadow-sm'
+                                              : 'bg-white border-slate-100 hover:border-slate-200'
+                                          }`}
                                         >
-                                          Remover
-                                        </button>
-                                      </div>
-                                      <div className="flex flex-wrap gap-x-6 gap-y-3 sm:gap-y-2">
-                                        {formData.cargos.map((cargo: { value: number, label: string }) => (
-                                          <label key={cargo.value} className="inline-flex items-center text-[11px] font-bold text-gray-500 uppercase cursor-pointer hover:text-indigo-600 transition-all py-1">
+                                          <div className="flex-shrink-0 flex items-center justify-center">
                                             <input
                                               type="checkbox"
                                               checked={topico.cargoIds.includes(cargo.value)}
                                               onChange={() => toggleTopicoCargo(topico.subtemaId, cargo.value)}
-                                              className="h-4 w-4 sm:h-3.5 sm:w-3.5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-2.5 sm:mr-2"
+                                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
                                             />
-                                            {cargo.label.split(' - ')[0]}
-                                          </label>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+                                          </div>
+                                          <div className="flex flex-col min-w-0">
+                                            <span className={`text-[10px] font-bold uppercase tracking-tight leading-none truncate ${
+                                              topico.cargoIds.includes(cargo.value) ? 'text-indigo-900' : 'text-slate-600'
+                                            }`}>
+                                              {cargoNome}
+                                            </span>
+                                            {cargoArea && (
+                                              <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mt-1 truncate">
+                                                {cargoArea}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8 px-4 bg-slate-50/30 rounded-lg border border-dashed border-slate-200">
-                <p className="text-xs text-gray-400 font-medium">Nenhum subtema adicionado ainda.</p>
-                <p className="text-xs text-gray-400 mt-1">Clique em "Adicionar Subtemas" para buscar e selecionar.</p>
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {filteredTopicos.length === 0 && topicoSearch && (
+          <div className="py-12 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhum tópico encontrado</p>
+            <p className="text-xs text-slate-400 mt-1">Tente ajustar o termo da sua pesquisa.</p>
           </div>
+        )}
+      </div>
+    ) : (
+      <div className="flex flex-col items-center justify-center py-16 px-4 bg-slate-50/30 rounded-2xl border-2 border-dashed border-slate-200">
+        <div className="p-4 bg-white rounded-full shadow-sm mb-4">
+          <Hash className="w-8 h-8 text-slate-300" />
         </div>
+        <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Lista Vazia</p>
+        <p className="text-xs text-slate-400 mt-1 max-w-[240px] text-center leading-relaxed">
+          Selecione os subtemas que compõem este edital para vincular aos cargos.
+        </p>
+      </div>
+    )}
+  </div>
+</div>
+
       </FormModal>
 
       <ConfirmModal
