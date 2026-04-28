@@ -25,6 +25,8 @@ import {
   ClipboardList,
   Play,
   Check,
+  SlidersHorizontal,
+  X,
 } from 'lucide-react';
 import { Feedback } from '@/components/ui/Feedback';
 import SimuladoCargoModal from '@/components/concursos/SimuladoCargoModal';
@@ -85,6 +87,10 @@ export default function ConcursoCargoDetailPage() {
   const [cargo, setCargo] = useState<Types.ConcursoCargoSummaryDto | null>(null);
 
   const [showSimuladoModal, setShowSimuladoModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'conteudo' | 'analise'>('conteudo');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   usePageTitle(cargo ? `${cargo.cargoNome} — ${concurso?.instituicao.nome}` : undefined);
 
@@ -122,6 +128,39 @@ export default function ConcursoCargoDetailPage() {
     return { basicos, especificos };
   }, [cargo, concurso]);
 
+  const filteredCategorizedTopicos = useMemo(() => {
+    const filterGroup = (group: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>>) => {
+      const filtered: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>> = {};
+      const normSearch = normalize(searchTerm);
+
+      Object.entries(group).forEach(([disc, temas]) => {
+        const discMatch = normalize(disc).includes(normSearch);
+        const filteredTemas: Record<string, Types.ConcursoCargoSubtemaDto[]> = {};
+
+        Object.entries(temas).forEach(([tema, subtopicos]) => {
+          const temaMatch = normalize(tema).includes(normSearch);
+          const filteredSubtopicos = subtopicos.filter(t => 
+            discMatch || temaMatch || normalize(t.nome).includes(normSearch)
+          );
+
+          if (filteredSubtopicos.length > 0) {
+            filteredTemas[tema] = filteredSubtopicos;
+          }
+        });
+
+        if (Object.keys(filteredTemas).length > 0) {
+          filtered[disc] = filteredTemas;
+        }
+      });
+      return filtered;
+    };
+
+    return {
+      basicos: filterGroup(categorizedTopicos.basicos),
+      especificos: filterGroup(categorizedTopicos.especificos)
+    };
+  }, [categorizedTopicos, searchTerm]);
+
   const highlights = useMemo<HighlightMap>(() => {
     if (!concurso || !cargo) return {};
     return {
@@ -150,8 +189,6 @@ export default function ConcursoCargoDetailPage() {
     };
     load();
   }, [concursoId, cargoId]);
-
-  const [activeTab, setActiveTab] = useState<'conteudo' | 'analise'>('conteudo');
 
   const isValidUrl = (s: string) => {
     try { return ['http:', 'https:'].includes(new URL(s).protocol); } catch { return false; }
@@ -397,30 +434,74 @@ export default function ConcursoCargoDetailPage() {
       {/* Tab Content */}
       <div className="grid grid-cols-1 items-start gap-6">
         {activeTab === 'conteudo' ? (
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            {Object.keys(categorizedTopicos.basicos).length === 0 && 
-             Object.keys(categorizedTopicos.especificos).length === 0 ? (
-              <div className="py-20 text-center">
-                <div className="p-4 bg-slate-50 rounded-full w-fit mx-auto mb-4 border border-slate-100">
-                  <BookOpen className="w-8 h-8 text-slate-300" />
+          <div className="space-y-6">
+            {/* Search and Filters bar */}
+            {(Object.keys(categorizedTopicos.basicos).length > 0 || Object.keys(categorizedTopicos.especificos).length > 0) && (
+              <div className="flex items-center gap-2 max-w-md">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Filtrar por disciplina, tema ou subtema..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm"
+                  />
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  {searchTerm && (
+                    <button 
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Lista Vazia</p>
-                <p className="text-xs text-slate-400 mt-1">Nenhum tópico cadastrado para este cargo.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {renderSyllabusGroup(
-                  "Conhecimentos Básicos", 
-                  <ClipboardList className="w-4 h-4 text-indigo-500" />, 
-                  categorizedTopicos.basicos
-                )}
-                {renderSyllabusGroup(
-                  "Conhecimentos Específicos", 
-                  <Target className="w-4 h-4 text-amber-500" />, 
-                  categorizedTopicos.especificos
-                )}
               </div>
             )}
+
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+              {Object.keys(filteredCategorizedTopicos.basicos).length === 0 && 
+               Object.keys(filteredCategorizedTopicos.especificos).length === 0 ? (
+                <div className="py-20 text-center">
+                  <div className="p-4 bg-slate-50 rounded-full w-fit mx-auto mb-4 border border-slate-100">
+                    {searchTerm ? (
+                      <SlidersHorizontal className="w-8 h-8 text-slate-300" />
+                    ) : (
+                      <BookOpen className="w-8 h-8 text-slate-300" />
+                    )}
+                  </div>
+                  <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+                    {searchTerm ? 'Nenhum resultado' : 'Lista Vazia'}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {searchTerm 
+                      ? 'Não encontramos tópicos para sua pesquisa.' 
+                      : 'Nenhum tópico cadastrado para este cargo.'}
+                  </p>
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="mt-4 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                    >
+                      Limpar pesquisa
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {renderSyllabusGroup(
+                    "Conhecimentos Básicos", 
+                    <ClipboardList className="w-4 h-4 text-indigo-500" />, 
+                    filteredCategorizedTopicos.basicos
+                  )}
+                  {renderSyllabusGroup(
+                    "Conhecimentos Específicos", 
+                    <Target className="w-4 h-4 text-amber-500" />, 
+                    filteredCategorizedTopicos.especificos
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <EditalAnalysisReport 
