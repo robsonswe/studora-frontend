@@ -543,7 +543,7 @@ export default function ConcursosPage() {
 
               {/* Card footer */}
               <div className="px-5 py-3 sm:px-6 bg-slate-50/40 border-t border-slate-50 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 text-xs font-semibold text-slate-400 min-w-0">
+                <div className="hidden sm:flex items-center gap-3 text-xs font-semibold text-slate-400 min-w-0">
                   <span className="inline-flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-slate-300" />
                     {concurso.dataProva
@@ -561,19 +561,17 @@ export default function ConcursosPage() {
                   </span>
                 </div>
 
+                <div className="flex sm:hidden items-center gap-3 text-xs font-semibold text-slate-400">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-300" />
+                    {concurso.dataProva
+                      ? <span className="text-slate-500">{formatDateTime(concurso.dataProva)}</span>
+                      : <span className="italic text-slate-300">Data a definir</span>
+                    }
+                  </span>
+                </div>
+
                 <div className="flex items-center gap-4 flex-shrink-0">
-                  {concurso.edital && isValidUrl(concurso.edital) && (
-                    <a
-                      href={concurso.edital}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-600 transition-colors"
-                    >
-                      <LinkIcon className="w-3.5 h-3.5" />
-                      Edital
-                    </a>
-                  )}
                   <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 group-hover:text-indigo-700 transition-colors inline-flex items-center gap-0.5">
                     Ver concurso
                     <ChevronRight className="w-3.5 h-3.5" />
