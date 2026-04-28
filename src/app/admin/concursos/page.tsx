@@ -874,6 +874,38 @@ const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
             </div>
 
             <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="ano" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                    Ano
+                  </label>
+                  <input
+                    type="number"
+                    id="ano"
+                    min="1900"
+                    max="2100"
+                    value={formData.ano}
+                    onChange={(e) => setFormData({...formData, ano: parseInt(e.target.value) || new Date().getFullYear()})}
+                    className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="mes" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                    Mês
+                  </label>
+                  <select
+                    id="mes"
+                    value={formData.mes}
+                    onChange={(e) => setFormData({...formData, mes: parseInt(e.target.value) || 1})}
+                    className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-sm"
+                  >
+                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label htmlFor="dataProva" className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                   Data de Aplicação
