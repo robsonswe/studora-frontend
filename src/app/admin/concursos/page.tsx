@@ -1128,43 +1128,64 @@ if (editingItem) {
                                     </button>
                                   </div>
                                   
-                                  <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                    {formData.cargos.map((cargo) => {
-                                      const [cargoNome, cargoAreaPart] = cargo.label.split(' - ');
-                                      const cargoArea = cargoAreaPart?.split(' (')[0] || '';
-                                      
-                                      return (
-                                        <label 
-                                          key={cargo.value} 
-                                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all cursor-pointer select-none ${
-                                            topico.cargoIds.includes(cargo.value)
-                                              ? 'bg-indigo-50/60 border-indigo-200 shadow-sm'
-                                              : 'bg-white border-slate-100 hover:border-slate-200'
-                                          }`}
-                                        >
-                                          <div className="flex-shrink-0 flex items-center justify-center">
-                                            <input
-                                              type="checkbox"
-                                              checked={topico.cargoIds.includes(cargo.value)}
-                                              onChange={() => toggleTopicoCargo(topico.subtemaId, cargo.value)}
-                                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
-                                            />
-                                          </div>
-                                          <div className="flex flex-col min-w-0">
-                                            <span className={`text-[10px] font-bold uppercase tracking-tight leading-none truncate ${
-                                              topico.cargoIds.includes(cargo.value) ? 'text-indigo-900' : 'text-slate-600'
-                                            }`}>
-                                              {cargoNome}
-                                            </span>
-                                            {cargoArea && (
-                                              <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mt-1 truncate">
-                                                {cargoArea}
+                                  <div className="p-3">
+                                    <div className="flex justify-start mb-3">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const allCargoIds = formData.cargos.map(c => c.value);
+                                          setFormData(prev => ({
+                                            ...prev,
+                                            topicos: prev.topicos.map(t => 
+                                              t.subtemaId === topico.subtemaId ? { ...t, cargoIds: allCargoIds } : t
+                                            )
+                                          }));
+                                        }}
+                                        className="text-[9px] font-bold uppercase tracking-widest text-indigo-500 hover:text-indigo-700 transition-colors flex items-center gap-1.5 bg-indigo-50/50 px-2.5 py-1.5 rounded-lg border border-indigo-100/50"
+                                        title="Selecionar todos os cargos"
+                                      >
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        Selecionar todos os cargos
+                                      </button>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                      {formData.cargos.map((cargo) => {
+                                        const [cargoNome, cargoAreaPart] = cargo.label.split(' - ');
+                                        const cargoArea = cargoAreaPart?.split(' (')[0] || '';
+                                        
+                                        return (
+                                          <label 
+                                            key={cargo.value} 
+                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all cursor-pointer select-none ${
+                                              topico.cargoIds.includes(cargo.value)
+                                                ? 'bg-indigo-50/60 border-indigo-200 shadow-sm'
+                                                : 'bg-white border-slate-100 hover:border-slate-200'
+                                            }`}
+                                          >
+                                            <div className="flex-shrink-0 flex items-center justify-center">
+                                              <input
+                                                type="checkbox"
+                                                checked={topico.cargoIds.includes(cargo.value)}
+                                                onChange={() => toggleTopicoCargo(topico.subtemaId, cargo.value)}
+                                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
+                                              />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                              <span className={`text-[10px] font-bold uppercase tracking-tight leading-none truncate ${
+                                                topico.cargoIds.includes(cargo.value) ? 'text-indigo-900' : 'text-slate-600'
+                                              }`}>
+                                                {cargoNome}
                                               </span>
-                                            )}
-                                          </div>
-                                        </label>
-                                      );
-                                    })}
+                                              {cargoArea && (
+                                                <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mt-1 truncate">
+                                                  {cargoArea}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
