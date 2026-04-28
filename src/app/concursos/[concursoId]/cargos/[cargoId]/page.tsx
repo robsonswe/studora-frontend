@@ -88,18 +88,39 @@ export default function ConcursoCargoDetailPage() {
 
   usePageTitle(cargo ? `${cargo.cargoNome} — ${concurso?.instituicao.nome}` : undefined);
 
-  const groupedTopicos = useMemo(() => {
-    if (!cargo?.topicos) return {};
-    const g: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>> = {};
+  const categorizedTopicos = useMemo(() => {
+    if (!cargo || !concurso) return { basicos: {}, especificos: {} };
+
+    const cargosSameNivel = concurso.cargos.filter(c => c.nivel === cargo.nivel);
+    const totalCargosSameNivel = cargosSameNivel.length;
+
+    // Count how many cargos of the same level have each subtema
+    const subtemaCounts = new Map<number, number>();
+    concurso.cargos.forEach(c => {
+       if (c.nivel === cargo.nivel) {
+         c.topicos.forEach(t => {
+           subtemaCounts.set(t.id, (subtemaCounts.get(t.id) || 0) + 1);
+         });
+       }
+    });
+
+    const basicos: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>> = {};
+    const especificos: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>> = {};
+
     cargo.topicos.forEach(t => {
+      // It's basic if shared by all cargos of the same level (if there's more than 1 cargo)
+      const isBasico = totalCargosSameNivel > 1 && subtemaCounts.get(t.id) === totalCargosSameNivel;
+      const target = isBasico ? basicos : especificos;
+
       const disc = t.disciplina?.nome || 'Outras Disciplinas';
       const tema = t.tema?.nome || 'Geral';
-      if (!g[disc]) g[disc] = {};
-      if (!g[disc][tema]) g[disc][tema] = [];
-      g[disc][tema].push(t);
+      if (!target[disc]) target[disc] = {};
+      if (!target[disc][tema]) target[disc][tema] = [];
+      target[disc][tema].push(t);
     });
-    return g;
-  }, [cargo]);
+
+    return { basicos, especificos };
+  }, [cargo, concurso]);
 
   const highlights = useMemo<HighlightMap>(() => {
     if (!concurso || !cargo) return {};
@@ -134,6 +155,94 @@ export default function ConcursoCargoDetailPage() {
 
   const isValidUrl = (s: string) => {
     try { return ['http:', 'https:'].includes(new URL(s).protocol); } catch { return false; }
+  };
+
+  const renderSyllabusGroup = (title: string, icon: React.ReactNode, groups: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>>) => {
+    const entries = Object.entries(groups);
+    if (entries.length === 0) return null;
+
+    return (
+      <div className="py-2">
+        <div className="flex items-center gap-3 px-6 py-4 bg-slate-50/50 border-y border-slate-100">
+           <div className="p-1.5 bg-white rounded-lg shadow-sm border border-slate-200/50">
+             {icon}
+           </div>
+           <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
+             {title}
+           </h3>
+        </div>
+        <div className="divide-y divide-slate-50">
+          {entries.map(([disciplina, temas]) => (
+            <div key={disciplina}>
+              <div className="px-6 py-3 bg-white flex items-center gap-3">
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[oklch(45%_0.22_264)] bg-[oklch(97%_0.02_264)] px-3 py-1 rounded-full border border-[oklch(85%_0.05_264)]/50">{disciplina}</span>
+                <div className="h-px flex-1 bg-[oklch(90%_0.010_264)]/40" />
+              </div>
+              {Object.entries(temas).map(([tema, subtopicos]) => (
+                <div key={tema} className="px-6 py-4">
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-3">
+                    <ChevronRight className="w-3 h-3 text-slate-300" /> {tema}
+                  </h4>
+                  <div className="space-y-2 pl-4">
+                    {subtopicos.map(topico => {
+                      const studied = (topico.totalEstudos ?? 0) > 0;
+                      return (
+                        <div key={topico.id} className="group rounded-lg border border-slate-100 bg-slate-50/20 hover:border-[oklch(85%_0.05_264)] hover:bg-white transition-all duration-200 p-3">
+                          <div className="flex items-start gap-2.5">
+                            <div className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${studied ? 'bg-[oklch(75%_0.12_150)]' : 'bg-slate-200'}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors leading-snug">{topico.nome}</p>
+                              
+                              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                                {/* Neste Edital Context */}
+                                <div className="flex items-center gap-1.5 bg-[oklch(97%_0.02_264)]/50 px-2 py-0.5 rounded border border-[oklch(85%_0.05_264)]/30">
+                                  <span className="text-[9px] font-black uppercase tracking-tighter text-[oklch(45%_0.22_264)] opacity-70">Neste Edital:</span>
+                                  <span className="text-[10px] font-bold text-[oklch(45%_0.22_264)] tabular-nums">
+                                    {topico.questoesConcursoCargo?.totalQuestoes ?? 0} qst.
+                                  </span>
+                                  <div className="w-px h-2.5 bg-[oklch(85%_0.05_264)]/30 mx-0.5" />
+                                  <PerformanceBadge 
+                                    acertadas={topico.questoesConcursoCargo?.acertadas} 
+                                    respondidas={topico.questoesConcursoCargo?.respondidas} 
+                                  />
+                                </div>
+
+                                {/* Desempenho Geral */}
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] font-black uppercase tracking-tighter text-slate-400">Geral:</span>
+                                  <PerformanceBadge 
+                                    acertadas={topico.questaoStats?.total?.acertadas} 
+                                    respondidas={topico.questaoStats?.total?.respondidas} 
+                                  />
+                                </div>
+                                
+                                {(topico.questaoStats?.total?.ultimaQuestao ?? null) && (
+                                  <span className="text-[10px] font-medium text-slate-400 inline-flex items-center gap-1">
+                                    <BarChart2 className="w-2.5 h-2.5" /> Questão: {formatDateShort(topico.questaoStats?.total?.ultimaQuestao ?? undefined)}
+                                  </span>
+                                )}
+                                <span className={`text-[10px] font-medium inline-flex items-center gap-1 ${studied ? 'text-slate-400' : 'text-slate-300'}`}>
+                                  <Clock className="w-2.5 h-2.5" /> Estudo: {formatDateShort(topico.ultimoEstudo ?? undefined)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <StatsBreakdownPanel 
+                            stats={topico.questaoStats} 
+                            highlights={highlights} 
+                            title="Desempenho no tópico" 
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   if (loading) return (
@@ -180,7 +289,7 @@ export default function ConcursoCargoDetailPage() {
     </div>
   );
 
-  const concursoBreadcrumbLabel = `${concurso.instituicao.nome} - ${concurso.banca.nome} - ${concurso.mes}/${concurso.ano}`;
+  const concursoBreadcrumbLabel = `${concurso.instituicao.nome} - ${concurso.banca.sigla || concurso.banca.nome} - ${concurso.mes}/${concurso.ano}`;
 
   return (
     <div className="space-y-8 pb-20">
@@ -205,7 +314,7 @@ export default function ConcursoCargoDetailPage() {
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 sm:px-8 sm:py-5 border-b border-slate-100 flex items-start justify-between gap-4">
           <div className="flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 mb-1">{concurso.banca.nome}</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 mb-1">{concurso.banca.sigla || concurso.banca.nome}</p>
             <h1 className="text-base font-black text-slate-900 leading-tight tracking-tight">{concurso.instituicao.nome}</h1>
             <p className="text-sm font-semibold text-slate-400 tracking-tight">{concurso.instituicao.area}</p>
           </div>
@@ -288,83 +397,30 @@ export default function ConcursoCargoDetailPage() {
       {/* Tab Content */}
       <div className="grid grid-cols-1 items-start gap-6">
         {activeTab === 'conteudo' ? (
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden pt-4">
-            <div className="divide-y divide-slate-50">
-              {Object.keys(groupedTopicos).length === 0 ? (
-                <div className="py-16 text-center">
-                  <BookOpen className="w-8 h-8 text-slate-200 mx-auto mb-3" />
-                  <p className="text-sm font-semibold text-slate-400">Nenhum tópico cadastrado para este cargo.</p>
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            {Object.keys(categorizedTopicos.basicos).length === 0 && 
+             Object.keys(categorizedTopicos.especificos).length === 0 ? (
+              <div className="py-20 text-center">
+                <div className="p-4 bg-slate-50 rounded-full w-fit mx-auto mb-4 border border-slate-100">
+                  <BookOpen className="w-8 h-8 text-slate-300" />
                 </div>
-              ) : Object.entries(groupedTopicos).map(([disciplina, temas]) => (
-                <div key={disciplina}>
-                  <div className="px-6 py-3 bg-slate-50/50 flex items-center gap-3">
-                    <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-500 bg-white px-3 py-1 rounded-full border border-indigo-100/60">{disciplina}</span>
-                    <div className="h-px flex-1 bg-slate-100" />
-                  </div>
-                  {Object.entries(temas).map(([tema, subtopicos]) => (
-                    <div key={tema} className="px-6 py-4">
-                      <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-3">
-                        <ChevronRight className="w-3 h-3 text-slate-300" /> {tema}
-                      </h4>
-                      <div className="space-y-2 pl-4">
-                        {subtopicos.map(topico => {
-                          const studied = (topico.totalEstudos ?? 0) > 0;
-                          return (
-                            <div key={topico.id} className="group rounded-lg border border-slate-100 bg-slate-50/20 hover:border-indigo-100 hover:bg-white transition-all duration-200 p-3">
-                              <div className="flex items-start gap-2.5">
-                                <div className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${studied ? 'bg-emerald-400' : 'bg-slate-200'}`} />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors leading-snug">{topico.nome}</p>
-                                  
-                                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                                    {/* Neste Edital Context */}
-                                    <div className="flex items-center gap-1.5 bg-indigo-50/50 px-2 py-0.5 rounded border border-indigo-100/50">
-                                      <span className="text-[9px] font-black uppercase tracking-tighter text-indigo-400">Neste Edital:</span>
-                                      <span className="text-[10px] font-bold text-indigo-600 tabular-nums">
-                                        {topico.questoesConcursoCargo?.totalQuestoes ?? 0} qst.
-                                      </span>
-                                      <div className="w-px h-2.5 bg-indigo-100 mx-0.5" />
-                                      <PerformanceBadge 
-                                        acertadas={topico.questoesConcursoCargo?.acertadas} 
-                                        respondidas={topico.questoesConcursoCargo?.respondidas} 
-                                      />
-                                    </div>
-
-                                    {/* Desempenho Geral */}
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-[9px] font-black uppercase tracking-tighter text-slate-400">Geral:</span>
-                                      <PerformanceBadge 
-                                        acertadas={topico.questaoStats?.total?.acertadas} 
-                                        respondidas={topico.questaoStats?.total?.respondidas} 
-                                      />
-                                    </div>
-                                    
-                                    {(topico.questaoStats?.total?.ultimaQuestao ?? null) && (
-                                      <span className="text-[10px] font-medium text-slate-400 inline-flex items-center gap-1">
-                                        <BarChart2 className="w-2.5 h-2.5" /> Questão: {formatDateShort(topico.questaoStats?.total?.ultimaQuestao ?? undefined)}
-                                      </span>
-                                    )}
-                                    <span className={`text-[10px] font-medium inline-flex items-center gap-1 ${studied ? 'text-slate-400' : 'text-slate-300'}`}>
-                                      <Clock className="w-2.5 h-2.5" /> Estudo: {formatDateShort(topico.ultimoEstudo ?? undefined)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <StatsBreakdownPanel 
-                                stats={topico.questaoStats} 
-                                highlights={highlights} 
-                                title="Desempenho no tópico" 
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Lista Vazia</p>
+                <p className="text-xs text-slate-400 mt-1">Nenhum tópico cadastrado para este cargo.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {renderSyllabusGroup(
+                  "Conhecimentos Básicos", 
+                  <ClipboardList className="w-4 h-4 text-indigo-500" />, 
+                  categorizedTopicos.basicos
+                )}
+                {renderSyllabusGroup(
+                  "Conhecimentos Específicos", 
+                  <Target className="w-4 h-4 text-amber-500" />, 
+                  categorizedTopicos.especificos
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <EditalAnalysisReport 

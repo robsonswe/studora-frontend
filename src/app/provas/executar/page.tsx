@@ -13,6 +13,8 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
+  Target
 } from 'lucide-react';
 import { Feedback } from '@/components/ui/Feedback';
 import { useToast } from '@/components/ui/ToastContext';
@@ -283,6 +285,7 @@ function ProvaContent() {
                 ...concurso, 
                 bancaId: concurso.banca.id,
                 bancaNome: concurso.banca.nome, 
+                bancaSigla: concurso.banca.sigla,
                 instituicaoId: concurso.instituicao.id,
                 instituicaoNome: concurso.instituicao.nome, 
                 instituicaoArea: concurso.instituicao.area 
@@ -334,37 +337,92 @@ function ProvaContent() {
           <div className="lg:col-span-4">
             <div className="bg-white shadow-sm rounded-xl p-5 border border-slate-200 sticky top-24">
               <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-4">
-                Navegação por Disciplina
+                Navegação da Prova
               </h4>
-              <div className="space-y-6 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
+              <div className="space-y-8 max-h-[calc(100vh-300px)] overflow-y-auto pr-2 custom-scrollbar">
                 {(() => {
-                  const groups: { name: string, indices: number[] }[] = [];
-                  questoes.forEach((q, index) => {
-                    const discName = q.subtemas?.[0]?.disciplina?.nome || 'Outros';
-                    let group = groups.find(g => g.name === discName);
-                    if (!group) {
-                      group = { name: discName, indices: [] };
-                      groups.push(group);
+                  if (!concurso || !cargo) return null;
+
+                  const sameNivelCargos = concurso.cargos.filter(c => c.nivel === cargo.nivel);
+                  const totalSameNivel = sameNivelCargos.length;
+                  
+                  // Map subtemas to basic status
+                  const subtemaBasicMap = new Map<number, boolean>();
+                  const subtemaCounts = new Map<number, number>();
+                  
+                  concurso.cargos.forEach(c => {
+                    if (c.nivel === cargo.nivel) {
+                      c.topicos.forEach(t => {
+                        subtemaCounts.set(t.id, (subtemaCounts.get(t.id) || 0) + 1);
+                      });
                     }
-                    group.indices.push(index);
+                  });
+                  
+                  subtemaCounts.forEach((count, id) => {
+                    subtemaBasicMap.set(id, totalSameNivel > 1 && count === totalSameNivel);
                   });
 
-                  return groups.map(group => (
-                    <div key={group.name} className="space-y-2">
-                      <p className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-widest border-b border-indigo-50 pb-1 mb-2 truncate" title={group.name}>
-                        {group.name}
-                      </p>
-                      <div className="grid grid-cols-5 gap-2">
-                        {group.indices.map((index) => (
-                          <button
-                            key={index}
-                            onClick={() => setCurrentQuestionIndex(index)}
-                            className={`h-10 w-full rounded-lg flex items-center justify-center text-sm font-medium transition-all ${getQuestionStatusColor(index)}`}
-                          >
-                            {index + 1}
-                          </button>
-                        ))}
+                  interface NavGroup {
+                    category: 'Conhecimentos Básicos' | 'Conhecimentos Específicos';
+                    disciplines: { name: string, indices: number[] }[];
+                  }
+
+                  const groups: NavGroup[] = [
+                    { category: 'Conhecimentos Básicos', disciplines: [] },
+                    { category: 'Conhecimentos Específicos', disciplines: [] }
+                  ];
+
+                  questoes.forEach((q, index) => {
+                    // A question is specific if ANY of its subtemas is specific
+                    const isSpecific = q.subtemas.some(s => subtemaBasicMap.get(s.id) === false);
+                    const group = isSpecific ? groups[1] : groups[0];
+                    
+                    const discName = q.subtemas?.[0]?.disciplina?.nome || 'Outros';
+                    let discGroup = group.disciplines.find(d => d.name === discName);
+                    if (!discGroup) {
+                      discGroup = { name: discName, indices: [] };
+                      group.disciplines.push(discGroup);
+                    }
+                    discGroup.indices.push(index);
+                  });
+
+                  return groups.filter(g => g.disciplines.length > 0).map(group => (
+                    <div key={group.category} className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        {group.category === 'Conhecimentos Básicos' ? (
+                          <div className="p-1 bg-indigo-50 rounded">
+                            <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
+                          </div>
+                        ) : (
+                          <div className="p-1 bg-amber-50 rounded">
+                            <Target className="w-3.5 h-3.5 text-amber-600" />
+                          </div>
+                        )}
+                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                          {group.category}
+                        </span>
+                        <div className="h-px flex-1 bg-slate-100" />
                       </div>
+
+                      {group.disciplines.map(disc => (
+                        <div key={disc.name} className="space-y-2 pl-2">
+                          <p className="text-[10px] font-extrabold text-[oklch(45%_0.22_264)] uppercase tracking-widest truncate" title={disc.name}>
+                            {disc.name}
+                          </p>
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {disc.indices.map((index) => (
+                              <button
+                                key={index}
+                                onClick={() => setCurrentQuestionIndex(index)}
+                                className={`h-9 w-full rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-300 ${getQuestionStatusColor(index)}`}
+                                style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
+                              >
+                                {index + 1}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ));
                 })()}

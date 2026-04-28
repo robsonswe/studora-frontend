@@ -1289,7 +1289,7 @@ if (editingItem) {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
                       <span className="font-mono tabular-nums text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-bold">ID #{concurso.id}</span>
-                      <span className="truncate">{concurso.banca.nome} · <span className="font-mono tabular-nums">{concurso.mes.toString().padStart(2, '0')}/{concurso.ano}</span></span>
+                      <span className="truncate">{concurso.banca.sigla || concurso.banca.nome} · <span className="font-mono tabular-nums">{concurso.mes.toString().padStart(2, '0')}/{concurso.ano}</span></span>
                       {concurso.finalizado && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest bg-green-100 text-green-700">
                           Finalizado

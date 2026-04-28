@@ -337,8 +337,7 @@ export default function SimuladoCargoModal({
             <div className="mt-8 pt-6 border-t border-slate-200/60 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-slate-400 font-medium">Banca</span>
-                <span className="text-[10px] font-bold text-slate-600">{concurso.banca.nome}</span>
-              </div>
+                <span className="text-[10px] font-bold text-slate-600">{concurso.banca.sigla || concurso.banca.nome}</span>              </div>
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-slate-400 font-medium">Nível</span>
                 <span className="text-[10px] font-bold text-slate-600">{formatNivel(cargo.nivel)}</span>

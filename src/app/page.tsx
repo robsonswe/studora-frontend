@@ -179,7 +179,7 @@ export default function Dashboard() {
                       <h4 className="text-sm font-medium text-gray-900 truncate">{s.nome}</h4>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs">
                         {s.banca && (
-                          <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100/50">{s.banca.nome}</span>
+                          <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100/50">{s.banca.sigla || s.banca.nome}</span>
                         )}
                         {s.finishedAt ? (
                           <span className="flex items-center text-emerald-600 font-medium">
@@ -316,7 +316,7 @@ export default function Dashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-800 truncate group-hover:text-amber-800 transition-colors">{c.instituicao.nome}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      <span className="text-amber-600/70">{c.banca.nome}</span>
+                      <span className="text-amber-600/70">{c.banca.sigla || c.banca.nome}</span>
                       <span className="mx-1">·</span>
                       <span>{c.ano}</span>
                     </p>

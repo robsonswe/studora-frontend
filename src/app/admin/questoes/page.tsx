@@ -477,7 +477,7 @@ function QuestoesContent() {
     const data = await concursoService.getAll({ size: 50 });
     return data.content.map(c => ({
       value: c.id,
-      label: `${c.mes}/${c.ano} - ${c.instituicao.nome} - ${c.banca.nome}`
+      label: `${c.mes}/${c.ano} - ${c.instituicao.nome} - ${c.banca.sigla || c.banca.nome}`
     })).filter(o => o.label.toLowerCase().includes(inputValue.toLowerCase()));
   };
 

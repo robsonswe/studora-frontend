@@ -638,7 +638,7 @@ const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
                             </span>
                           )}
 
-                          {s.banca && <span className="text-slate-400">Banca: <span className="font-bold text-slate-700">{s.banca.nome}</span></span>}
+                          {s.banca && <span className="text-slate-400">Banca: <span className="font-bold text-slate-700">{s.banca.sigla || s.banca.nome}</span></span>}
                           {s.cargo && <span className="text-slate-400">Cargo: <span className="font-bold text-slate-700">{s.cargo.nome}</span></span>}
                         </div>
                         
