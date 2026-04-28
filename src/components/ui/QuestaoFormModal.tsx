@@ -1,21 +1,22 @@
 import { useState, useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import AsyncSelect from 'react-select/async';
-import Select from 'react-select/async';
+import Select from 'react-select';
 import {
   XCircle,
   Plus,
   AlertCircle,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import * as Types from '@/types';
 import { formatNivel } from '@/utils/formatters';
 import {
   concursoService,
-  subtemaService
 } from '@/services/api';
 import { Feedback } from './Feedback';
 import BaseModal from './BaseModal';
+import SubtemaPickerModal from '@/components/concursos/SubtemaPickerModal';
 
 interface QuestaoFormData {
   concurso: { value: number; label: string } | null;
@@ -65,8 +66,8 @@ export default function QuestaoFormModal({
 }: QuestaoFormModalProps) {
   const [availableCargos, setAvailableCargos] = useState<Types.CargoSummaryDto[]>([]);
   const [activeTab, setActiveTab] = useState<'dados' | 'alternativas'>('dados');
+  const [isSubtemaPickerOpen, setIsSubtemaPickerOpen] = useState(false);
   const crudWatchedFields = crudForm.watch();
-
 
   // Error indicators for mobile tabs
   const hasDadosErrors = validationErrors.length > 0 || Object.keys(crudForm.formState.errors).length > 0;
@@ -93,14 +94,6 @@ export default function QuestaoFormModal({
     })).filter(o => o.label.toLowerCase().includes(inputValue.toLowerCase()));
   };
 
-  const loadCrudSubtemaOptions = async (inputValue: string) => {
-    const data = await subtemaService.getAll({ nome: inputValue, size: 20 });
-    return data.content.map(s => ({
-      value: s.id,
-      label: s.disciplina?.nome ? `${s.disciplina.nome} - ${s.tema?.nome} - ${s.nome}` : s.nome
-    }));
-  };
-
   const crudSelectStyles = {
     menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
     control: (base: any) => ({
@@ -124,6 +117,8 @@ export default function QuestaoFormModal({
     multiValueLabel: (base: any) => ({ ...base, color: '#4338ca', fontSize: '0.8rem', fontWeight: 600 }),
     multiValueRemove: (base: any) => ({ ...base, color: '#6366f1', ':hover': { backgroundColor: '#c7d2fe', color: '#312e81' } }),
   };
+
+  const watchedSubtemas = crudWatchedFields.subtemas || [];
 
   return (
     <BaseModal
@@ -180,7 +175,6 @@ export default function QuestaoFormModal({
             {activeTab === 'alternativas' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 animate-in fade-in slide-in-from-bottom-1 duration-200" />}
           </button>
         </div>
-
 
         {/* ── Two-panel body ── */}
         <form
@@ -300,25 +294,43 @@ export default function QuestaoFormModal({
                 )}
               </div>
 
-              {/* Subtemas */}
+              {/* Subtemas usando a nova abordagem (Chips + Modal) */}
               <div>
-                <label className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
-                  Subtemas
-                  <span className="text-red-400 font-black">*</span>
-                </label>
-                <AsyncSelect
-                  id="crud-subtemas"
-                  instanceId="crud-subtemas-select"
-                  isMulti
-                  cacheOptions
-                  defaultOptions
-                  loadOptions={loadCrudSubtemaOptions}
-                  value={crudWatchedFields.subtemas}
-                  onChange={(val) => crudForm.setValue('subtemas', val as any)}
-                  placeholder="Busque por disciplina, tema ou subtema…"
-                  styles={crudSelectStyles}
-                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest">
+                    Subtemas
+                    <span className="text-red-400 font-black">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsSubtemaPickerOpen(true)}
+                    className="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded transition-colors shadow-sm border border-indigo-100"
+                  >
+                    + Adicionar / Editar
+                  </button>
+                </div>
+                {watchedSubtemas.length === 0 ? (
+                  <div className="text-sm text-slate-400 italic p-3 border border-slate-200 rounded-lg bg-white shadow-sm">
+                    Nenhum subtema selecionado.
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2 p-3 border border-slate-200 rounded-lg bg-white shadow-sm">
+                    {watchedSubtemas.map(st => (
+                      <span key={st.value} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        {st.label}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            crudForm.setValue('subtemas', watchedSubtemas.filter(s => s.value !== st.value));
+                          }}
+                          className="hover:bg-indigo-200 rounded-full p-0.5 transition-colors text-indigo-500 hover:text-indigo-800"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* URL da imagem */}
@@ -521,6 +533,23 @@ export default function QuestaoFormModal({
           </div>
         </div>
 
+        {/* Instanciamento do Modal de Subtemas */}
+        <SubtemaPickerModal
+          isOpen={isSubtemaPickerOpen}
+          onClose={() => setIsSubtemaPickerOpen(false)}
+          onConfirm={(selected) => {
+            crudForm.setValue(
+              'subtemas',
+              selected.map(s => ({ value: s.subtemaId, label: s.label || `Subtema ${s.subtemaId}` }))
+            );
+            setIsSubtemaPickerOpen(false);
+          }}
+          initiallySelected={watchedSubtemas.map(s => ({
+            subtemaId: s.value,
+            label: s.label,
+            cargoIds: []
+          }))}
+        />
     </BaseModal>
   );
 }

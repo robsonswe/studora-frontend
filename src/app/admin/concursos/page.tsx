@@ -28,6 +28,7 @@ import {
   X
 } from 'lucide-react';
 import { Feedback } from '@/components/ui/Feedback';
+import SubtemaPickerModal from '@/components/concursos/SubtemaPickerModal';
 import { useToast } from '@/components/ui/ToastContext';
 import type { CSSProperties } from 'react';
 
@@ -111,6 +112,7 @@ function ConcursosContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [subtemaPickerOpen, setSubtemaPickerOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ConcursoDto | null>(null);
   const [formTab, setFormTab] = useState<'dados' | 'conteudo'>('dados');
 
@@ -384,15 +386,13 @@ setFormData((prev) => ({
   const toggleTopicoCargo = (subtemaId: number, cargoId: number) => {
     setFormData((prev) => ({
       ...prev,
-      topicos: prev.topicos
-        .map((t: TopicoEntry) => {
-          if (t.subtemaId !== subtemaId) return t;
-          const newCargoIds = t.cargoIds.includes(cargoId)
-            ? t.cargoIds.filter(id => id !== cargoId)
-            : [...t.cargoIds, cargoId];
-          return { ...t, cargoIds: newCargoIds };
-        })
-        .filter((t: TopicoEntry) => t.cargoIds.length > 0)
+      topicos: prev.topicos.map((t: TopicoEntry) => {
+        if (t.subtemaId !== subtemaId) return t;
+        const newCargoIds = t.cargoIds.includes(cargoId)
+          ? t.cargoIds.filter(id => id !== cargoId)
+          : [...t.cargoIds, cargoId];
+        return { ...t, cargoIds: newCargoIds };
+      })
     }));
   };
 
@@ -402,12 +402,10 @@ setFormData((prev) => ({
     setFormData((prev) => ({
       ...prev,
       cargos: newCargos,
-      topicos: prev.topicos
-        .map((t: TopicoEntry) => ({
-          ...t,
-          cargoIds: t.cargoIds.filter((id: number) => newCargoIds.includes(id))
-        }))
-        .filter((t: TopicoEntry) => t.cargoIds.length > 0)
+      topicos: prev.topicos.map((t: TopicoEntry) => ({
+        ...t,
+        cargoIds: t.cargoIds.filter((id: number) => newCargoIds.includes(id))
+      }))
     }));
   };
 
@@ -977,29 +975,24 @@ const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
         ) : null}
 
       <div className={formTab === 'conteudo' ? 'block' : 'hidden'}>
-          {formData.cargos.length > 0 && (
           <div className="pt-2">
-            <div className="flex items-center mb-4">
-              <Hash className="w-5 h-5 text-indigo-500 mr-2" />
-              <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Conteúdo Programático</h4>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <Hash className="w-5 h-5 text-indigo-500 mr-2" />
+                <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Conteúdo Programático</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSubtemaPickerOpen(true)}
+                className="inline-flex items-center px-3 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                Adicionar Subtemas
+              </button>
             </div>
-            <p className="text-xs text-gray-400 mb-6 font-medium leading-relaxed">Vincule subtemas aos cargos para definir o edital da prova.</p>
 
-            <AsyncSelect
-              instanceId="subtema-add-select"
-              cacheOptions
-              defaultOptions
-              loadOptions={loadSubtemaOptions}
-              filterOption={(opt) => !selectedSubtemaIds.has(Number(opt.value))}
-              value={null}
-              onChange={(opt: { value: number, label: string } | null) => { if (opt) addTopico(opt); }}
-              placeholder="Adicionar subtema ao edital..."
-              styles={selectStyles}
-              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-            />
-
-            {formData.topicos.length > 0 && (
-              <div className="mt-6 grid grid-cols-1 gap-6">
+            {formData.topicos.length > 0 ? (
+              <div className="grid grid-cols-1 gap-6">
                 {groupedTopicos.map((disciplinaGroup) => {
                   return (
                     <div key={disciplinaGroup.disciplina?.id ?? 0} className="bg-slate-50/50 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
@@ -1060,9 +1053,13 @@ const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
                   );
                 })}
               </div>
+            ) : (
+              <div className="text-center py-8 px-4 bg-slate-50/30 rounded-lg border border-dashed border-slate-200">
+                <p className="text-xs text-gray-400 font-medium">Nenhum subtema adicionado ainda.</p>
+                <p className="text-xs text-gray-400 mt-1">Clique em "Adicionar Subtemas" para buscar e selecionar.</p>
+              </div>
             )}
           </div>
-          )}
         </div>
       </FormModal>
 
@@ -1076,6 +1073,38 @@ const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
         loading={localLoading}
         alertOnly={confirmModal.alertOnly}
         confirmLabel={confirmModal.alertOnly ? 'Ok, entendi' : 'Confirmar Exclusão'}
+      />
+
+      <SubtemaPickerModal
+        isOpen={subtemaPickerOpen}
+        onClose={() => setSubtemaPickerOpen(false)}
+        onConfirm={(selected) => {
+          const newTopicos = selected
+            .filter(s => !selectedSubtemaIds.has(s.subtemaId))
+            .map(s => {
+              return {
+                subtemaId: s.subtemaId,
+                subtemaLabel: s.label || `Subtema ${s.subtemaId}`,
+                disciplina: s.disciplina,
+                tema: s.tema,
+                cargoIds: s.cargoIds,
+              };
+            });
+            
+          setFormData(prev => ({
+            ...prev,
+            topicos: [...prev.topicos, ...newTopicos],
+          }));
+          
+          setSubtemaPickerOpen(false); 
+        }}
+        initiallySelected={formData.topicos.map(t => ({ 
+          subtemaId: t.subtemaId, 
+          label: t.subtemaLabel,
+          disciplina: t.disciplina,
+          tema: t.tema,
+          cargoIds: t.cargoIds 
+        }))}
       />
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
