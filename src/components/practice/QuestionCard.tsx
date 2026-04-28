@@ -76,9 +76,9 @@ export const QuestionHeader = ({ concurso, cargos, anulada, desatualizada, autor
   return (
     <div className="px-6 py-4 bg-slate-50 border-b border-slate-100">
       <div className="flex flex-wrap items-center gap-2 mb-2">
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
-          {concurso?.bancaNome || 'Banca não especificada'}
-        </span>
+<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+           {concurso?.bancaSigla || concurso?.bancaNome || 'Banca não especificada'}
+         </span>
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 tabular-nums">
           {concurso?.ano || '—'}
         </span>

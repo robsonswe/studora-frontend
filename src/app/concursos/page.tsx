@@ -129,7 +129,7 @@ type ConcursoParams = Types.PaginationParams & {
 
   const loadBancaOptions = async (inputValue: string) => {
     const data = await bancaService.getAll({ nome: inputValue, size: 20 });
-    return data.content.map(b => ({ value: b.id, label: b.nome }));
+    return data.content.map(b => ({ value: b.id, label: b.sigla || b.nome }));
   };
 
   const loadInstituicaoOptions = async (inputValue: string) => {
@@ -560,7 +560,7 @@ type ConcursoParams = Types.PaginationParams & {
             <div className="p-4 sm:p-6 lg:p-8">
               <div className="flex flex-wrap items-center gap-4 mb-6">
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest bg-indigo-50/50 text-indigo-600 border border-indigo-100/40">
-                  {concurso.banca.nome}
+                  {concurso.banca.sigla || concurso.banca.nome}
                 </span>
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-400 tracking-tight">
                   <span>{concurso.ano}</span>

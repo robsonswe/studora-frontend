@@ -34,7 +34,7 @@ function InstituicoesContent() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InstituicaoDto | null>(null);
-  const [formData, setFormData] = useState<{ nome: string, area: string }>({ nome: '', area: '' });
+  const [formData, setFormData] = useState<{ nome: string, area: string, sigla: string }>({ nome: '', area: '', sigla: '' });
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [filterNome, setFilterNome] = useState(urlNome);
@@ -103,10 +103,11 @@ function InstituicoesContent() {
     setSubmissionError(null);
 
     try {
-      const payload = {
-        nome: formData.nome.trim(),
-        area: formData.area.trim()
-      };
+        const payload = {
+          nome: formData.nome.trim(),
+          area: formData.area.trim(),
+          sigla: formData.sigla.trim() || undefined
+        };
 
       if (editingItem) {
         await instituicaoService.update(editingItem.id, payload);
@@ -130,7 +131,7 @@ function InstituicoesContent() {
 
   const handleEdit = (item: InstituicaoDto) => {
     setEditingItem(item);
-    setFormData({ nome: item.nome, area: item.area });
+    setFormData({ nome: item.nome, area: item.area, sigla: item.sigla || '' });
     setModalOpen(true);
   };
 
@@ -171,14 +172,14 @@ function InstituicoesContent() {
   };
 
   const resetForm = () => {
-    setFormData({ nome: '', area: '' });
+    setFormData({ nome: '', area: '', sigla: '' });
     setEditingItem(null);
     setModalOpen(false);
     setSubmissionError(null);
   };
 
   const openNewForm = () => {
-    setFormData({ nome: '', area: '' });
+    setFormData({ nome: '', area: '', sigla: '' });
     setEditingItem(null);
     setSubmissionError(null);
     setModalOpen(true);
@@ -269,7 +270,7 @@ function InstituicoesContent() {
         loading={localLoading}
         submitLabel={editingItem ? 'Atualizar' : 'Salvar'}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-1">
               Nome
@@ -283,6 +284,20 @@ function InstituicoesContent() {
               className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
               required
               maxLength={255}
+            />
+          </div>
+          <div>
+            <label htmlFor="sigla" className="block text-sm font-medium text-gray-700 mb-1">
+              Sigla
+            </label>
+            <input
+              type="text"
+              id="sigla"
+              autoComplete="off"
+              value={formData.sigla}
+              onChange={(e) => setFormData({ ...formData, sigla: e.target.value })}
+              className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+              maxLength={50}
             />
           </div>
           <div>
@@ -363,14 +378,14 @@ function InstituicoesContent() {
             {instituicoes.map((inst) => (
               <li key={inst.id} className="hover:bg-slate-50 transition-colors duration-150">
                 <div className="px-4 py-3 sm:px-6 flex justify-between items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-slate-900 truncate mb-0.5" title={inst.nome}>
-                      {inst.nome}
-                    </div>
-                    <div className="text-xs text-slate-500 font-medium">
-                      {inst.area}
-                    </div>
-                  </div>
+                   <div className="flex-1 min-w-0">
+                     <div className="text-sm font-semibold text-slate-900 truncate mb-0.5" title={`${inst.nome}${inst.sigla ? ` (${inst.sigla})` : ''}`}>
+                       {inst.sigla ? `${inst.nome} (${inst.sigla})` : inst.nome}
+                     </div>
+                     <div className="text-xs text-slate-500 font-medium">
+                       {inst.area}
+                     </div>
+                   </div>
                   <div className="flex space-x-2 flex-shrink-0">
                     <button
                       onClick={() => handleEdit(inst)}

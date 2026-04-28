@@ -34,7 +34,7 @@ function BancasContent() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BancaDto | null>(null);
-  const [formData, setFormData] = useState<{ nome: string }>({ nome: '' });
+  const [formData, setFormData] = useState<{ nome: string, sigla: string }>({ nome: '', sigla: '' });
   const [localLoading, setLocalLoading] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [filterNome, setFilterNome] = useState(urlNome);
@@ -103,9 +103,10 @@ function BancasContent() {
     setSubmissionError(null);
 
     try {
-      const payload = {
-        nome: formData.nome.trim()
-      };
+        const payload = {
+          nome: formData.nome.trim(),
+          sigla: formData.sigla.trim() || undefined
+        };
 
       if (editingItem) {
         await bancaService.update(editingItem.id, payload);
@@ -128,7 +129,7 @@ function BancasContent() {
 
   const handleEdit = (item: BancaDto) => {
     setEditingItem(item);
-    setFormData({ nome: item.nome });
+    setFormData({ nome: item.nome, sigla: item.sigla || '' });
     setModalOpen(true);
   };
 
@@ -169,14 +170,14 @@ function BancasContent() {
   };
 
   const resetForm = () => {
-    setFormData({ nome: '' });
+    setFormData({ nome: '', sigla: '' });
     setEditingItem(null);
     setModalOpen(false);
     setSubmissionError(null);
   };
 
   const openNewForm = () => {
-    setFormData({ nome: '' });
+    setFormData({ nome: '', sigla: '' });
     setEditingItem(null);
     setSubmissionError(null);
     setModalOpen(true);
@@ -269,20 +270,36 @@ function BancasContent() {
         loading={localLoading}
         submitLabel={editingItem ? 'Atualizar' : 'Salvar'}
       >
-        <div className="mb-4">
-          <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-1">
-            Nome
-          </label>
-          <input
-            type="text"
-            id="nome"
-            autoComplete="off"
-            value={formData.nome}
-            onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-            className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
-            required
-            maxLength={255}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-1">
+              Nome
+            </label>
+            <input
+              type="text"
+              id="nome"
+              autoComplete="off"
+              value={formData.nome}
+              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+              className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+              required
+              maxLength={255}
+            />
+          </div>
+          <div>
+            <label htmlFor="sigla" className="block text-sm font-medium text-gray-700 mb-1">
+              Sigla
+            </label>
+            <input
+              type="text"
+              id="sigla"
+              autoComplete="off"
+              value={formData.sigla}
+              onChange={(e) => setFormData({ ...formData, sigla: e.target.value })}
+              className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
+              maxLength={50}
+            />
+          </div>
         </div>
 
         {submissionError && (
@@ -337,11 +354,11 @@ function BancasContent() {
             {bancas.map((banca) => (
               <li key={banca.id} className="hover:bg-gray-50 transition-colors duration-150">
                 <div className="px-4 py-4 sm:px-6 flex justify-between items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-indigo-600 truncate" title={banca.nome}>
-                      {banca.nome}
-                    </div>
-                  </div>
+                   <div className="flex-1 min-w-0">
+                     <div className="text-sm font-medium text-indigo-600 truncate" title={`${banca.nome}${banca.sigla ? ` (${banca.sigla})` : ''}`}>
+                       {banca.sigla ? `${banca.nome} (${banca.sigla})` : banca.nome}
+                     </div>
+                   </div>
                   <div className="flex space-x-2 flex-shrink-0">
                     <button
                       onClick={() => handleEdit(banca)}

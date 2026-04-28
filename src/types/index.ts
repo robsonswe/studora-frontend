@@ -299,6 +299,8 @@ export interface BancaSummaryDto {
   id: number;
   /** Nome da banca organizadora. Example: "Cebraspe (CESPE)" */
   nome: string;
+  /** Sigla da banca organizadora. Example: "CESPE" */
+  sigla?: string;
   /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
   questaoStats?: QuestaoStatsDto;
 }
@@ -311,6 +313,8 @@ export interface BancaDetailDto {
   id: number;
   /** Nome da banca organizadora. */
   nome: string;
+  /** Sigla da banca organizadora. */
+  sigla?: string;
   /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
   questaoStats?: QuestaoStatsDto;
 }
@@ -320,6 +324,8 @@ export interface BancaDetailDto {
  */
 export interface BancaCreateRequest {
   nome: string;
+  /** Sigla da banca organizadora (opcional). */
+  sigla?: string;
 }
 
 /**
@@ -327,6 +333,8 @@ export interface BancaCreateRequest {
  */
 export interface BancaUpdateRequest {
   nome: string;
+  /** Sigla da banca organizadora (opcional). */
+  sigla?: string;
 }
 
 /**
@@ -339,6 +347,8 @@ export interface InstituicaoSummaryDto {
   nome: string;
   /** Área de atuação da instituição. Example: "Judiciária" */
   area: string;
+  /** Sigla da instituição. Example: "TJSP" */
+  sigla?: string;
   /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
   questaoStats?: QuestaoStatsDto;
 }
@@ -353,6 +363,8 @@ export interface InstituicaoDetailDto {
   nome: string;
   /** Área de atuação da instituição. */
   area: string;
+  /** Sigla da instituição. */
+  sigla?: string;
   /** Estatísticas de questões. Presente apenas quando `metrics` é fornecido. */
   questaoStats?: QuestaoStatsDto;
 }
@@ -363,6 +375,8 @@ export interface InstituicaoDetailDto {
 export interface InstituicaoCreateRequest {
   nome: string;
   area: string;
+  /** Sigla da instituição (opcional). */
+  sigla?: string;
 }
 
 /**
@@ -371,6 +385,8 @@ export interface InstituicaoCreateRequest {
 export interface InstituicaoUpdateRequest {
   nome: string;
   area: string;
+  /** Sigla da instituição (opcional). */
+  sigla?: string;
 }
 
 /**
@@ -435,10 +451,14 @@ export interface ConcursoQuestaoDto {
   bancaId: number;
   /** Nome da banca. */
   bancaNome: string;
+  /** Sigla da banca. */
+  bancaSigla?: string;
   /** ID da instituição. */
   instituicaoId: number;
   /** Nome da institution. */
   instituicaoNome: string;
+  /** Sigla da institution. */
+  instituicaoSigla?: string;
   /** Área da institution. */
   instituicaoArea: string;
 }

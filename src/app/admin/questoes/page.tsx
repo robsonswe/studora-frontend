@@ -485,7 +485,7 @@ function QuestoesContent() {
 
   const loadBancaOptions = async (inputValue: string) => {
     const data = await bancaService.getAll({ nome: inputValue, size: 20 });
-    return data.content.map(b => ({ value: b.id, label: b.nome }));
+    return data.content.map(b => ({ value: b.id, label: b.sigla || b.nome }));
   };
 
   const loadDisciplinaOptions = async (inputValue: string) => {

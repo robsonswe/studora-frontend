@@ -221,7 +221,7 @@ export default function QuestaoPracticePage() {
   // ─── Filter Option Loaders ────────────────────────────────────────────────
   const loadBancaOptions = async (inputValue: string) => {
     const data = await bancaService.getAll({ nome: inputValue, size: 20 });
-    return [{ value: 0, label: 'Todas as bancas' }, ...data.content.map((b) => ({ value: b.id, label: b.nome }))];
+    return [{ value: 0, label: 'Todas as bancas' }, ...data.content.map((b) => ({ value: b.id, label: b.sigla || b.nome }))];
   };
 
   const loadDisciplinaOptions = async (inputValue: string) => {

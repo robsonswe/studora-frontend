@@ -238,7 +238,7 @@ export default function SimuladosPage() {
     try {
       const data = await bancaService.getAll({ nome: inputValue || undefined, size: 20 });
       setCachedBancas(data.content);
-      return data.content.map(b => ({ value: b.id, label: b.nome }));
+      return data.content.map(b => ({ value: b.id, label: b.sigla || b.nome }));
     } catch { return []; }
   };
 

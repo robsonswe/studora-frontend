@@ -289,25 +289,25 @@ setFormData((prev) => ({
 
   // ─── Async option loaders ─────────────────────────────────────────────────
 
-  const loadInstituicaoOptions = async (inputValue: string) => {
-    try {
-      const data = await instituicaoService.getAll({ nome: inputValue, size: 20 });
-      return data.content.map(i => ({ value: i.id, label: i.nome }));
-} catch (err: unknown) {
-      console.warn('Erro ao carregar instituições:', err);
-      return [];
-    }
-  };
+   const loadInstituicaoOptions = async (inputValue: string) => {
+     try {
+       const data = await instituicaoService.getAll({ nome: inputValue, size: 20 });
+       return data.content.map(i => ({ value: i.id, label: i.nome }));
+     } catch (err: unknown) {
+       console.warn('Erro ao carregar instituições:', err);
+       return [];
+     }
+   };
 
-  const loadBancaOptions = async (inputValue: string) => {
-    try {
-      const data = await bancaService.getAll({ nome: inputValue, size: 20 });
-      return data.content.map(b => ({ value: b.id, label: b.nome }));
-} catch (err: unknown) {
-      console.warn('Erro ao carregar bancas:', err);
-      return [];
-    }
-  };
+   const loadBancaOptions = async (inputValue: string) => {
+     try {
+       const data = await bancaService.getAll({ nome: inputValue, size: 20 });
+       return data.content.map(b => ({ value: b.id, label: b.sigla || b.nome }));
+     } catch (err: unknown) {
+       console.warn('Erro ao carregar bancas:', err);
+       return [];
+     }
+   };
 
   const loadCargoOptions = async (inputValue: string) => {
     try {
