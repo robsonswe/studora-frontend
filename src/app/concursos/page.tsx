@@ -22,22 +22,15 @@ import {
   Link as LinkIcon,
   CheckCircle,
   Loader2,
-  AlertCircle,
   SlidersHorizontal,
   ChevronRight,
   Calendar,
-  X
+  Archive,
 } from 'lucide-react';
 import { Feedback } from '@/components/ui/Feedback';
 import { useToast } from '@/components/ui/ToastContext';
 
 type ConcursoDto = Types.ConcursoSummaryDto;
-
-interface Toast {
-  id: number;
-  type: 'success' | 'error';
-  message: string;
-}
 
 export default function ConcursosPage() {
   const router = useRouter();
@@ -53,7 +46,6 @@ export default function ConcursosPage() {
     last: true
   });
   const [currentPage, setCurrentPage] = useState(0);
-  const [toggleLoading, setToggleLoading] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -73,7 +65,7 @@ export default function ConcursosPage() {
 
   usePageTitle('Concursos');
 
-type ConcursoParams = Types.PaginationParams & {
+  type ConcursoParams = Types.PaginationParams & {
     bancaId?: number;
     instituicaoId?: number;
     instituicaoArea?: string;
@@ -164,7 +156,7 @@ type ConcursoParams = Types.PaginationParams & {
       borderRadius: '0.75rem',
       boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
       padding: '0.5rem',
-      border: '1px border-gray-100',
+      border: '1px solid #f1f5f9',
       zIndex: 50
     }),
     option: (base, state) => ({
@@ -178,26 +170,6 @@ type ConcursoParams = Types.PaginationParams & {
     }),
     singleValue: (base) => ({ ...base, color: '#1f2937', fontWeight: '500' }),
     placeholder: (base) => ({ ...base, color: '#9ca3af', fontSize: '0.875rem' })
-  };
-
-  const handleStartProva = (concursoId: number, cargoId: number, instituicaoId: number) => {
-    router.push(`/provas/executar?concursoId=${concursoId}&cargoId=${cargoId}&instituicaoId=${instituicaoId}`);
-  };
-
-  const handleToggleInscricao = async (concursoCargoId: number, cargoId: number) => {
-    setToggleLoading(cargoId);
-    try {
-      await concursoService.toggleInscricao(concursoCargoId);
-      await loadConcursos(currentPage);
-      showToast('Preferências de inscrição atualizadas com sucesso.', 'success');
-    } catch (error) {
-      const errorMessage = error instanceof ApiError
-        ? error.message
-        : 'Ocorreu um erro ao atualizar sua inscrição. Por favor, tente novamente.';
-      showToast(errorMessage, 'error');
-    } finally {
-      setToggleLoading(null);
-    }
   };
 
   const isValidUrl = (string: string): boolean => {
@@ -234,7 +206,7 @@ type ConcursoParams = Types.PaginationParams & {
         }
       />
 
-      {/* Mobile filter summary bar */}
+      {/* Mobile filter bar */}
       <div className="sm:hidden mb-6">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -267,15 +239,13 @@ type ConcursoParams = Types.PaginationParams & {
       </div>
 
       {/* Desktop filter card */}
-      <div className="hidden sm:block bg-white rounded-xl border border-slate-200 shadow-sm mb-10 overflow-hidden animate-fade-in-up transition-all duration-300 hover:border-indigo-100">
-        <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-slate-50 bg-slate-50/20">
+      <div className="hidden sm:block bg-white rounded-xl border border-slate-200 shadow-sm mb-10 overflow-hidden transition-all duration-300 hover:border-indigo-100">
+        <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/20">
           <div className="flex items-center justify-between">
-            <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-              Filtros
-            </h2>
+            <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Filtros</h2>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { reset(); setShowAdvancedFilters(false); setShowMobileFilters(false); }}
+                onClick={() => { reset(); setShowAdvancedFilters(false); }}
                 className="text-xs text-slate-400 hover:text-indigo-600 font-bold transition-colors active:scale-95 tracking-tight px-3 py-2 rounded-lg hover:bg-slate-50"
               >
                 Limpar filtros
@@ -290,10 +260,10 @@ type ConcursoParams = Types.PaginationParams & {
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 lg:p-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="p-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <div className="space-y-2">
-              <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Banca Organizadora</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Banca Organizadora</label>
               <AsyncSelect
                 instanceId="banca-select"
                 cacheOptions
@@ -308,7 +278,7 @@ type ConcursoParams = Types.PaginationParams & {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Instituição</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Instituição</label>
               <AsyncSelect
                 instanceId="instituicao-select"
                 cacheOptions
@@ -323,7 +293,7 @@ type ConcursoParams = Types.PaginationParams & {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Nível de Escolaridade</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nível de Escolaridade</label>
               <Select
                 instanceId="nivel-select"
                 options={[
@@ -332,14 +302,16 @@ type ConcursoParams = Types.PaginationParams & {
                   { value: 'MEDIO', label: 'Médio' },
                   { value: 'SUPERIOR', label: 'Superior' }
                 ]}
-                value={watchedFields.selectedCargoNivel ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) } : { value: '', label: 'Todos os níveis' }}
+                value={watchedFields.selectedCargoNivel
+                  ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) }
+                  : { value: '', label: 'Todos os níveis' }}
                 onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')}
                 styles={selectStyles}
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Minhas Inscrições</label>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Minhas Inscrições</label>
               <Select
                 instanceId="inscrito-select"
                 options={[
@@ -347,7 +319,9 @@ type ConcursoParams = Types.PaginationParams & {
                   { value: 'true', label: 'Já inscrito' },
                   { value: 'false', label: 'Não inscrito' }
                 ]}
-                value={watchedFields.selectedInscrito ? { value: watchedFields.selectedInscrito, label: watchedFields.selectedInscrito === 'true' ? 'Já inscrito' : 'Não inscrito' } : { value: '', label: 'Todos' }}
+                value={watchedFields.selectedInscrito
+                  ? { value: watchedFields.selectedInscrito, label: watchedFields.selectedInscrito === 'true' ? 'Já inscrito' : 'Não inscrito' }
+                  : { value: '', label: 'Todos' }}
                 onChange={(opt) => setValue('selectedInscrito', opt?.value || '')}
                 styles={selectStyles}
                 menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
@@ -355,46 +329,40 @@ type ConcursoParams = Types.PaginationParams & {
             </div>
           </div>
 
-          <div
-            className={`grid transition-all duration-300 ease-in-out ${
-              showAdvancedFilters ? 'grid-rows-[1fr] opacity-100 mt-6' : 'grid-rows-[0fr] opacity-0 mt-0'
-            }`}
-          >
-            <div className="overflow-hidden">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                <div className="space-y-2">
-                  <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Área de Atuação (Instituição)</label>
-                  <AsyncSelect
-                    instanceId="instituicao-area-select"
-                    cacheOptions
-                    defaultOptions
-                    loadOptions={loadInstituicaoAreaOptions}
-                    value={watchedFields.selectedInstituicaoArea}
-                    onChange={(val) => setValue('selectedInstituicaoArea', val)}
-                    isClearable
-                    placeholder="Filtrar por área..."
-                    styles={selectStyles}
-                    menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Área de Atuação (Cargo)</label>
-                  <AsyncSelect
-                    instanceId="cargo-area-select"
-                    cacheOptions
-                    defaultOptions
-                    loadOptions={loadCargoAreaOptions}
-                    value={watchedFields.selectedCargoArea}
-                    onChange={(val) => setValue('selectedCargoArea', val)}
-                    isClearable
-                    placeholder="Filtrar por área do cargo..."
-                    styles={selectStyles}
-                    menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                  />
-                </div>
+          {showAdvancedFilters && (
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 mt-4 pt-4 border-t border-slate-50">
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Área (Instituição)</label>
+                <AsyncSelect
+                  instanceId="instituicao-area-select"
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadInstituicaoAreaOptions}
+                  value={watchedFields.selectedInstituicaoArea}
+                  onChange={(val) => setValue('selectedInstituicaoArea', val)}
+                  isClearable
+                  placeholder="Filtrar por área..."
+                  styles={selectStyles}
+                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Área de Atuação (Cargo)</label>
+                <AsyncSelect
+                  instanceId="cargo-area-select"
+                  cacheOptions
+                  defaultOptions
+                  loadOptions={loadCargoAreaOptions}
+                  value={watchedFields.selectedCargoArea}
+                  onChange={(val) => setValue('selectedCargoArea', val)}
+                  isClearable
+                  placeholder="Filtrar por área do cargo..."
+                  styles={selectStyles}
+                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                />
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -415,109 +383,42 @@ type ConcursoParams = Types.PaginationParams & {
         <div className="space-y-6">
           <div className="space-y-2">
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Banca Organizadora</label>
-            <AsyncSelect
-              instanceId="mobile-banca-select"
-              cacheOptions
-              defaultOptions
-              loadOptions={loadBancaOptions}
-              value={watchedFields.selectedBanca}
-              onChange={(val) => setValue('selectedBanca', val)}
-              isClearable
-              placeholder="Pesquisar banca..."
-              styles={selectStyles}
-              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-            />
+            <AsyncSelect instanceId="mobile-banca-select" cacheOptions defaultOptions loadOptions={loadBancaOptions} value={watchedFields.selectedBanca} onChange={(val) => setValue('selectedBanca', val)} isClearable placeholder="Pesquisar banca..." styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null} />
           </div>
           <div className="space-y-2">
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Instituição</label>
-            <AsyncSelect
-              instanceId="mobile-instituicao-select"
-              cacheOptions
-              defaultOptions
-              loadOptions={loadInstituicaoOptions}
-              value={watchedFields.selectedInstituicao}
-              onChange={(val) => setValue('selectedInstituicao', val)}
-              isClearable
-              placeholder="Pesquisar instituição..."
-              styles={selectStyles}
-              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-            />
+            <AsyncSelect instanceId="mobile-instituicao-select" cacheOptions defaultOptions loadOptions={loadInstituicaoOptions} value={watchedFields.selectedInstituicao} onChange={(val) => setValue('selectedInstituicao', val)} isClearable placeholder="Pesquisar instituição..." styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null} />
           </div>
           <div className="space-y-2">
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nível de Escolaridade</label>
-            <Select
-              instanceId="mobile-nivel-select"
-              options={[
-                { value: '', label: 'Todos os níveis' },
-                { value: 'FUNDAMENTAL', label: 'Fundamental' },
-                { value: 'MEDIO', label: 'Médio' },
-                { value: 'SUPERIOR', label: 'Superior' }
-              ]}
-              value={watchedFields.selectedCargoNivel ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) } : { value: '', label: 'Todos os níveis' }}
-              onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')}
-              styles={selectStyles}
-              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-            />
+            <Select instanceId="mobile-nivel-select" options={[{ value: '', label: 'Todos os níveis' }, { value: 'FUNDAMENTAL', label: 'Fundamental' }, { value: 'MEDIO', label: 'Médio' }, { value: 'SUPERIOR', label: 'Superior' }]} value={watchedFields.selectedCargoNivel ? { value: watchedFields.selectedCargoNivel, label: formatNivel(watchedFields.selectedCargoNivel) } : { value: '', label: 'Todos os níveis' }} onChange={(opt) => setValue('selectedCargoNivel', opt?.value || '')} styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null} />
           </div>
           <div className="space-y-2">
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Minhas Inscrições</label>
-            <Select
-              instanceId="mobile-inscrito-select"
-              options={[
-                { value: '', label: 'Todos' },
-                { value: 'true', label: 'Já inscrito' },
-                { value: 'false', label: 'Não inscrito' }
-              ]}
-              value={watchedFields.selectedInscrito ? { value: watchedFields.selectedInscrito, label: watchedFields.selectedInscrito === 'true' ? 'Já inscrito' : 'Não inscrito' } : { value: '', label: 'Todos' }}
-              onChange={(opt) => setValue('selectedInscrito', opt?.value || '')}
-              styles={selectStyles}
-              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-            />
+            <Select instanceId="mobile-inscrito-select" options={[{ value: '', label: 'Todos' }, { value: 'true', label: 'Já inscrito' }, { value: 'false', label: 'Não inscrito' }]} value={watchedFields.selectedInscrito ? { value: watchedFields.selectedInscrito, label: watchedFields.selectedInscrito === 'true' ? 'Já inscrito' : 'Não inscrito' } : { value: '', label: 'Todos' }} onChange={(opt) => setValue('selectedInscrito', opt?.value || '')} styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null} />
           </div>
           <div className="space-y-2">
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Área (Instituição)</label>
-            <AsyncSelect
-              instanceId="mobile-instituicao-area-select"
-              cacheOptions
-              defaultOptions
-              loadOptions={loadInstituicaoAreaOptions}
-              value={watchedFields.selectedInstituicaoArea}
-              onChange={(val) => setValue('selectedInstituicaoArea', val)}
-              isClearable
-              placeholder="Filtrar por área..."
-              styles={selectStyles}
-              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-            />
+            <AsyncSelect instanceId="mobile-instituicao-area-select" cacheOptions defaultOptions loadOptions={loadInstituicaoAreaOptions} value={watchedFields.selectedInstituicaoArea} onChange={(val) => setValue('selectedInstituicaoArea', val)} isClearable placeholder="Filtrar por área..." styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null} />
           </div>
           <div className="space-y-2">
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Área (Cargo)</label>
-            <AsyncSelect
-              instanceId="mobile-cargo-area-select"
-              cacheOptions
-              defaultOptions
-              loadOptions={loadCargoAreaOptions}
-              value={watchedFields.selectedCargoArea}
-              onChange={(val) => setValue('selectedCargoArea', val)}
-              isClearable
-              placeholder="Filtrar por área do cargo..."
-              styles={selectStyles}
-              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-            />
+            <AsyncSelect instanceId="mobile-cargo-area-select" cacheOptions defaultOptions loadOptions={loadCargoAreaOptions} value={watchedFields.selectedCargoArea} onChange={(val) => setValue('selectedCargoArea', val)} isClearable placeholder="Filtrar por área do cargo..." styles={selectStyles} menuPortalTarget={typeof document !== 'undefined' ? document.body : null} />
           </div>
         </div>
       </Drawer>
 
       {/* Results */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {loading && (
-          <div className="flex flex-col items-center justify-center py-24 space-y-4 animate-in fade-in duration-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent"></div>
-            <p className="text-sm font-semibold text-slate-500 tracking-tight">Localizando concursos disponíveis...</p>
+          <div className="flex flex-col items-center justify-center py-24 space-y-4">
+            <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
+            <p className="text-sm font-semibold text-slate-400 tracking-tight">Localizando concursos disponíveis...</p>
           </div>
         )}
 
         {loadError && !loading && (
-          <div className="animate-in zoom-in-95 duration-300">
+          <div>
             <Feedback
               type="error"
               title="Erro ao carregar dados"
@@ -536,12 +437,14 @@ type ConcursoParams = Types.PaginationParams & {
         )}
 
         {!loading && !loadError && concursos.length === 0 && (
-          <div className="bg-white border border-gray-100 rounded-xl p-8 sm:p-16 text-center shadow-sm animate-in fade-in zoom-in-95 duration-500">
-            <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-              <BookOpen className="w-8 h-8 text-gray-400" />
+          <div className="bg-white border border-slate-200 rounded-xl p-8 sm:p-16 text-center shadow-sm">
+            <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+              <BookOpen className="w-8 h-8 text-slate-300" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2 tracking-tight">Nenhum concurso corresponde à sua busca</h3>
-            <p className="text-slate-500 mb-8 text-sm font-medium leading-relaxed max-w-xs mx-auto">Experimente remover alguns filtros ou utilizar termos mais genéricos.</p>
+            <h3 className="text-base font-bold text-slate-900 mb-2 tracking-tight">Nenhum concurso encontrado</h3>
+            <p className="text-slate-400 mb-8 text-sm font-medium leading-relaxed max-w-xs mx-auto">
+              Experimente remover alguns filtros ou utilizar termos mais genéricos.
+            </p>
             <button
               onClick={() => { reset(); setShowAdvancedFilters(false); setShowMobileFilters(false); }}
               className="text-indigo-600 hover:text-indigo-700 text-sm font-bold transition-colors inline-flex items-center gap-2 active:scale-95"
@@ -551,146 +454,160 @@ type ConcursoParams = Types.PaginationParams & {
           </div>
         )}
 
-        {!loading && concursos.map((concurso, concursoIndex) => (
-          <div
-            key={concurso.id}
-            className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:border-indigo-100/80 animate-fade-in-up group"
-            style={{ animationDelay: `${concursoIndex * 50}ms` }}
-          >
-            <div className="p-4 sm:p-6 lg:p-8">
-              <div className="flex flex-wrap items-center gap-4 mb-6">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest bg-indigo-50/50 text-indigo-600 border border-indigo-100/40">
+        {!loading && !loadError && concursos.map((concurso) => {
+          // Build area → Set<nivel> map from cargos
+          const areaMap = concurso.cargos.reduce((acc, cargo) => {
+            const area = cargo.area || 'Geral';
+            if (!acc[area]) acc[area] = new Set<string>();
+            acc[area].add(cargo.nivel);
+            return acc;
+          }, {} as Record<string, Set<string>>);
+
+          const areas = Object.entries(areaMap);
+          const inscritoCargo = concurso.cargos.find(c => c.inscrito);
+
+          return (
+            <div
+              key={concurso.id}
+              onClick={() => router.push(`/concursos/${concurso.id}`)}
+              className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm cursor-pointer hover:border-indigo-100/80 hover:shadow-md transition-all duration-200 group"
+            >
+              {/* Card header: banca + year + area + status */}
+              <div className="px-5 py-3.5 sm:px-6 border-b border-slate-50 flex items-center gap-2.5 flex-wrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest bg-indigo-50/60 text-indigo-600 border border-indigo-100/50">
                   {concurso.banca.sigla || concurso.banca.nome}
                 </span>
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-400 tracking-tight">
-                  <span>{concurso.ano}</span>
-                  <span className="w-1 h-1 rounded-full bg-slate-200" />
-                  <span>{concurso.instituicao.area}</span>
+                <span className="text-xs font-semibold text-slate-400">{concurso.ano}</span>
+                <span className="w-1 h-1 rounded-full bg-slate-200" />
+                <span className="text-xs font-semibold text-slate-400">{concurso.instituicao.area}</span>
+
+                <div className="ml-auto flex items-center gap-2">
+                  {concurso.finalizado && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded">
+                      <Archive className="w-2.5 h-2.5" />
+                      Encerrado
+                    </span>
+                  )}
+                  {inscritoCargo && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50/60 border border-emerald-100/50 px-2 py-0.5 rounded">
+                      <CheckCircle className="w-2.5 h-2.5" />
+                      Inscrito
+                    </span>
+                  )}
                 </div>
-                {concurso.edital && isValidUrl(concurso.edital) && (
-                  <a
-                    href={concurso.edital}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-indigo-500 hover:text-indigo-700 font-bold inline-flex items-center gap-1.5 transition-all sm:ml-auto active:scale-95 tracking-tight group/link"
-                  >
-                    <LinkIcon className="w-3.5 h-3.5 text-indigo-400 group-hover/link:text-indigo-600 transition-colors" />
-                    Visualizar Edital
-                  </a>
+              </div>
+
+              {/* Card body */}
+              <div className="px-5 py-4 sm:px-6 sm:py-5">
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight leading-tight mb-4 group-hover:text-indigo-900 transition-colors">
+                  {concurso.instituicao.nome}
+                </h3>
+
+                {/* Areas + niveis — the key redesign */}
+                {areas.length > 0 && (
+                  <div className="space-y-2.5">
+                    {areas.map(([area, niveis]) => {
+                      const nivelList = Array.from(niveis).sort();
+                      return (
+                        <div key={area} className="flex items-center gap-3 min-w-0">
+                          <span className="text-sm font-semibold text-slate-600 flex-1 min-w-0 truncate">
+                            {area}
+                          </span>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {nivelList.map(nivel => (
+                              <span
+                                key={nivel}
+                                className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-slate-50 text-slate-500 border border-slate-100"
+                              >
+                                {formatNivel(nivel)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Inscrito cargo detail — read only */}
+                {inscritoCargo && (
+                  <div className="mt-4 pt-4 border-t border-slate-50 flex items-center gap-2">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                    <p className="text-xs font-semibold text-slate-500">
+                      <span className="text-slate-400 font-medium">Inscrito em: </span>
+                      {inscritoCargo.cargoNome}
+                    </p>
+                  </div>
                 )}
               </div>
 
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 mb-4 sm:mb-6 lg:mb-8 tracking-tight group-hover:text-indigo-900 transition-colors leading-tight">{concurso.instituicao.nome}</h3>
+              {/* Card footer */}
+              <div className="px-5 py-3 sm:px-6 bg-slate-50/40 border-t border-slate-50 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 text-xs font-semibold text-slate-400 min-w-0">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-300" />
+                    {concurso.dataProva
+                      ? <span className="text-slate-500">{formatDateTime(concurso.dataProva)}</span>
+                      : <span className="italic text-slate-300">Data a definir</span>
+                    }
+                  </span>
+                  <span className="w-1 h-1 rounded-full bg-slate-200 flex-shrink-0" />
+                  <span className="flex-shrink-0">
+                    {concurso.cargos.length} cargo{concurso.cargos.length !== 1 ? 's' : ''}
+                  </span>
+                  <span className="w-1 h-1 rounded-full bg-slate-200 flex-shrink-0" />
+                  <span className="flex-shrink-0">
+                    {areas.length} área{areas.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
 
-              <div className="space-y-0 border-t border-gray-100 -mx-4 sm:-mx-6 lg:-mx-8">
-                {concurso.cargos.map((cargo, index) => {
-                  const isInscribedInAny = concurso.cargos.some(c => c.inscrito);
-
-                  return (
-                    <div
-                      key={cargo.id}
-                      className={`px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 transition-colors ${
-                        index !== concurso.cargos.length - 1 ? 'border-b border-slate-50' : ''
-                      }`}
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  {concurso.edital && isValidUrl(concurso.edital) && (
+                    <a
+                      href={concurso.edital}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-600 transition-colors"
                     >
-                      <button
-                        onClick={() => router.push(`/concursos/${concurso.id}/cargos/${cargo.cargoId}`)}
-                        className="min-w-0 flex-1 text-left group/cargo hover:text-indigo-900 transition-colors"
-                      >
-                        <div className="flex items-center flex-wrap gap-2.5 mb-1.5">
-                          <p className="text-base font-bold text-slate-800 group-hover/cargo:text-indigo-700 tracking-tight leading-snug transition-colors">
-                            {cargo.cargoNome}
-                          </p>
-                          {cargo.inscrito ? (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter text-emerald-600 bg-emerald-50/50 px-1.5 py-0.5 rounded border border-emerald-100/50 animate-in zoom-in-95 duration-300">
-                              <CheckCircle className="w-2.5 h-2.5" />
-                              Inscrito
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="flex items-center flex-wrap gap-2 text-xs font-semibold text-slate-400 tracking-tight">
-                          <span className="text-slate-400/70">{cargo.area}</span>
-                          <span className="w-1 h-1 rounded-full bg-slate-200" />
-                          <span>{formatNivel(cargo.nivel)}</span>
-                          <span className="w-1 h-1 rounded-full bg-slate-200" />
-                          <span className="inline-flex items-center gap-1 text-slate-300">
-                            <Calendar className="w-3 h-3" />
-                            {concurso.dataProva ? (
-                              <span className="text-slate-500">{formatDateTime(concurso.dataProva)}</span>
-                            ) : (
-                              <span className="text-slate-400/60 italic">Data a definir</span>
-                            )}
-                          </span>
-                        </div>
-                      </button>
-
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                        {cargo.topicos && cargo.topicos.length > 0 && (
-                          <button
-                            onClick={() => router.push(`/concursos/${concurso.id}/cargos/${cargo.cargoId}`)}
-                            className="text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/50 text-center active:scale-95 inline-flex items-center justify-center gap-1.5"
-                          >
-                            Detalhes
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-
-                        {(cargo.inscrito || !isInscribedInAny) && (
-                          <button
-                            onClick={() => handleToggleInscricao(cargo.id, cargo.cargoId)}
-                            disabled={toggleLoading === cargo.cargoId}
-                            className={`text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border text-center ${
-                              cargo.inscrito
-                                ? 'text-slate-400 border-slate-200 hover:bg-slate-50 hover:text-red-500 hover:border-red-100'
-                                : 'text-indigo-500 border-indigo-100/60 hover:bg-indigo-50 hover:text-indigo-700'
-                            } disabled:opacity-50 disabled:cursor-not-allowed active:scale-95`}
-                          >
-                            {toggleLoading === cargo.cargoId ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : cargo.inscrito ? (
-                              'Remover Inscrição'
-                            ) : (
-                              'Marcar Inscrição'
-                            )}
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => handleStartProva(concurso.id, cargo.cargoId, concurso.instituicao.id)}
-                          className="inline-flex items-center justify-center w-full sm:w-auto px-6 py-2.5 sm:py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm hover:shadow-indigo-200/50 active:scale-95 border border-indigo-700/10"
-                        >
-                          Resolver Prova
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                      <LinkIcon className="w-3.5 h-3.5" />
+                      Edital
+                    </a>
+                  )}
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 group-hover:text-indigo-700 transition-colors inline-flex items-center gap-0.5">
+                    Ver concurso
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Pagination */}
       {!loading && !loadError && pagination.totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-10 pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-600 hidden sm:block">
-            <span className="font-medium">{(currentPage * pagination.pageSize) + 1}</span>–
-            <span className="font-medium">{Math.min((currentPage + 1) * pagination.pageSize, pagination.totalElements)}</span> de{' '}
-            <span className="font-medium">{pagination.totalElements}</span> concursos
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-10 pt-6 border-t border-slate-100">
+          <p className="text-sm text-slate-500 hidden sm:block font-medium">
+            <span className="font-bold text-slate-700">{(currentPage * pagination.pageSize) + 1}</span>
+            {' – '}
+            <span className="font-bold text-slate-700">{Math.min((currentPage + 1) * pagination.pageSize, pagination.totalElements)}</span>
+            {' de '}
+            <span className="font-bold text-slate-700">{pagination.totalElements}</span>
+            {' concursos'}
           </p>
           <nav className="flex gap-2 w-full sm:w-auto">
             <button
               onClick={() => loadConcursos(currentPage - 1)}
               disabled={currentPage === 0}
-              className="flex-1 sm:flex-none px-4 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50 hover:border-gray-300 font-medium text-gray-700 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+              className="flex-1 sm:flex-none px-5 py-2 text-sm rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 hover:border-slate-300 font-semibold text-slate-600 transition-all"
             >
               Anterior
             </button>
             <button
               onClick={() => loadConcursos(currentPage + 1)}
               disabled={currentPage === pagination.totalPages - 1}
-              className="flex-1 sm:flex-none px-4 py-2 text-sm rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50 hover:border-gray-300 font-medium text-gray-700 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+              className="flex-1 sm:flex-none px-5 py-2 text-sm rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-50 hover:border-slate-300 font-semibold text-slate-600 transition-all"
             >
               Próxima
             </button>
