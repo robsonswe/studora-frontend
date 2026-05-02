@@ -551,7 +551,6 @@ export default function QuestaoPracticePage() {
 
         <QuestionCard
           concurso={concurso ?? undefined}
-          cargos={currentQuestion.cargos}
           enunciado={currentQuestion.enunciado}
           imageUrl={currentQuestion.imageUrl}
           subtemas={currentQuestion.subtemas}

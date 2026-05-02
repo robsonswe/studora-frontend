@@ -26,10 +26,12 @@ import {
   Hash,
   SlidersHorizontal,
   ChevronDown,
-  X
+  X,
+  Layout
 } from 'lucide-react';
 import { Feedback } from '@/components/ui/Feedback';
 import SubtemaPickerModal from '@/components/concursos/SubtemaPickerModal';
+import { SecaoPesosModal } from '@/components/concursos/SecaoPesosModal';
 import { useToast } from '@/components/ui/ToastContext';
 import type { CSSProperties } from 'react';
 
@@ -41,6 +43,29 @@ interface TopicoEntry {
   disciplina?: Types.DisciplinaReferenceDto;
   tema?: Types.TemaReferenceDto;
   cargoIds: number[];
+  secaoIds: string[]; // IDs locais (UIDs) das seções
+}
+
+interface SecaoPesoEntry {
+  id?: number;
+  cargoId: number;
+  peso: number;
+  notaMinima: number;
+}
+
+interface SecaoEntry {
+  id: string; // UID local
+  nome: string;
+  ordem: number;
+  numQuestoes: number;
+  pesos: SecaoPesoEntry[];
+}
+
+interface ProvaEntry {
+  id: string; // UID local
+  nome: string;
+  cargoIds: number[];
+  secoes: SecaoEntry[];
 }
 
 interface TopicosByDisciplina {
@@ -114,8 +139,14 @@ function ConcursosContent() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [subtemaPickerOpen, setSubtemaPickerOpen] = useState(false);
+  const [pesosModal, setPesosModal] = useState<{
+    isOpen: boolean;
+    provaId: string;
+    secaoId: string;
+    pesos: SecaoPesoEntry[];
+  }>({ isOpen: false, provaId: '', secaoId: '', pesos: [] });
   const [editingItem, setEditingItem] = useState<ConcursoDto | null>(null);
-  const [formTab, setFormTab] = useState<'dados' | 'conteudo'>('dados');
+  const [formTab, setFormTab] = useState<'dados' | 'provas' | 'conteudo'>('dados');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState<{
@@ -127,6 +158,7 @@ function ConcursosContent() {
     dataProva: string;
     finalizado: boolean;
     cargos: { value: number, label: string }[];
+    provas: ProvaEntry[];
     topicos: TopicoEntry[]
   }>({
     instituicao: null as { value: number, label: string } | null,
@@ -137,6 +169,7 @@ function ConcursosContent() {
     dataProva: '',
     finalizado: false,
     cargos: [] as { value: number, label: string }[],
+    provas: [] as ProvaEntry[],
     topicos: [] as TopicoEntry[]
   });
 
@@ -377,6 +410,7 @@ setFormData((prev) => ({
           disciplina: opt.disciplina,
           tema: opt.tema,
           cargoIds,
+          secaoIds: [],
         },
       ],
     }));
@@ -402,16 +436,153 @@ setFormData((prev) => ({
     }));
   };
 
+  const toggleTopicoSecao = (subtemaId: number, secaoId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      topicos: prev.topicos.map((t) => {
+        if (t.subtemaId !== subtemaId) return t;
+
+        // Find the provaId associated with this secaoId across all provas
+        const prova = prev.provas.find(p => p.secoes.some(s => s.id === secaoId));
+        if (!prova) return t;
+
+        // Get all secao IDs for this prova
+        const secaoIdsInProva = prova.secoes.map(s => s.id);
+
+        // Remove any existing secao from the same prova, then add the new one if not currently selected
+        const otherSecoesInProva = t.secaoIds.filter(id => !secaoIdsInProva.includes(id));
+        const isSelected = t.secaoIds.includes(secaoId);
+
+        const newSecaoIds = isSelected 
+          ? otherSecoesInProva 
+          : [...otherSecoesInProva, secaoId];
+
+        return { ...t, secaoIds: newSecaoIds };
+      })
+    }));
+  };
+  const addProva = () => {
+    const newProva: ProvaEntry = {
+      id: `local-${Math.random().toString(36).substring(2, 9)}`,
+      nome: 'Nova Prova',
+      cargoIds: [],
+      secoes: []
+    };
+    setFormData(prev => ({ ...prev, provas: [...prev.provas, newProva] }));
+  };
+
+  const removeProva = (provaId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      provas: prev.provas.filter(p => p.id !== provaId),
+      topicos: prev.topicos.map(t => ({
+        ...t,
+        secaoIds: t.secaoIds.filter(sid => !prev.provas.find(p => p.id === provaId)?.secoes.some(s => s.id === sid))
+      }))
+    }));
+  };
+
+  const updateProva = (provaId: string, updates: Partial<ProvaEntry>) => {
+    setFormData(prev => ({
+      ...prev,
+      provas: prev.provas.map(p => p.id === provaId ? { ...p, ...updates } : p)
+    }));
+  };
+
+  const addSecao = (provaId: string) => {
+    const prova = formData.provas.find(p => p.id === provaId);
+    const relevantCargoIds = prova?.cargoIds || [];
+    
+    const newSecao: SecaoEntry = {
+      id: `local-${Math.random().toString(36).substring(2, 9)}`,
+      nome: 'Nova Seção',
+      ordem: prova?.secoes.length || 0,
+      numQuestoes: 0,
+      pesos: relevantCargoIds.map(cargoId => ({
+        cargoId: cargoId,
+        peso: 1, 
+        notaMinima: 0
+      }))
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      provas: prev.provas.map(p => p.id === provaId ? { ...p, secoes: [...p.secoes, newSecao] } : p)
+    }));
+  };
+
+  const removeSecao = (provaId: string, secaoId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      provas: prev.provas.map(p => p.id === provaId ? { ...p, secoes: p.secoes.filter(s => s.id !== secaoId) } : p),
+      topicos: prev.topicos.map(t => ({
+        ...t,
+        secaoIds: t.secaoIds.filter(sid => sid !== secaoId)
+      }))
+    }));
+  };
+
+  const updateSecao = (provaId: string, secaoId: string, updates: Partial<SecaoEntry>) => {
+    setFormData(prev => ({
+      ...prev,
+      provas: prev.provas.map(p => p.id === provaId ? {
+        ...p,
+        secoes: p.secoes.map(s => s.id === secaoId ? { ...s, ...updates } : s)
+      } : p)
+    }));
+  };
+
+  const updateSecaoPeso = (provaId: string, secaoId: string, cargoId: number, updates: Partial<SecaoPesoEntry>) => {
+    setFormData(prev => ({
+      ...prev,
+      provas: prev.provas.map(p => p.id === provaId ? {
+        ...p,
+        secoes: p.secoes.map(s => s.id === secaoId ? {
+          ...s,
+          pesos: s.pesos.map(pw => pw.cargoId === cargoId ? { ...pw, ...updates } : pw)
+        } : s)
+      } : p)
+    }));
+  };
+
+  const addSecaoPeso = (provaId: string, secaoId: string, cargoId: number) => {
+    setFormData(prev => ({
+      ...prev,
+      provas: prev.provas.map(p => p.id === provaId ? {
+        ...p,
+        secoes: p.secoes.map(s => s.id === secaoId ? {
+          ...s,
+          pesos: [...(s.pesos || []), { cargoId, peso: 1, notaMinima: 0 }]
+        } : s)
+      } : p)
+    }));
+  };
+
   const handleCargoChange = (opts: readonly { value: number; label: string }[] | null) => {
     const newCargos = opts ? [...opts] : [];
     const newCargoIds = newCargos.map((c) => c.value);
     setFormData((prev) => ({
       ...prev,
       cargos: newCargos,
-      topicos: prev.topicos.map((t: TopicoEntry) => ({
-        ...t,
-        cargoIds: t.cargoIds.filter((id: number) => newCargoIds.includes(id))
-      }))
+      provas: prev.provas.map(p => {
+        // Sync cargoIds for the prova itself
+        const activeCargoIds = p.cargoIds.filter(id => newCargoIds.includes(id));
+        return {
+          ...p,
+          cargoIds: activeCargoIds,
+          secoes: p.secoes.map(s => {
+            // Keep existing pesos if cargo is still active
+            const updatedPesos = s.pesos.filter(pw => newCargoIds.includes(pw.cargoId));
+            // Add new cargos with default values (1, 0)
+            newCargoIds.forEach(id => {
+              if (!updatedPesos.find(pw => pw.cargoId === id)) {
+                updatedPesos.push({ cargoId: id, peso: 1, notaMinima: 0 });
+              }
+            });
+            return { ...s, pesos: updatedPesos };
+          })
+        };
+      })
     }));
   };
 
@@ -437,7 +608,9 @@ setFormData((prev) => ({
     if (formData.edital && !isValidUrl(formData.edital)) errors.push('O edital deve ser um link válido (http:// ou https://)');
 
     formData.topicos.forEach((t: TopicoEntry) => {
-      if (t.cargoIds.length === 0) errors.push(`O tópico "${t.subtemaLabel}" deve estar vinculado a pelo menos um cargo`);
+      if (t.secaoIds.length === 0) {
+        errors.push(`O tópico "${t.subtemaLabel}" deve estar vinculado a pelo menos uma seção`);
+      }
     });
 
     if (errors.length > 0) {
@@ -447,7 +620,7 @@ setFormData((prev) => ({
 
     setLocalLoading(true);
     try {
-      const payload: Types.ConcursoCreateRequest = {
+      const payload: any = { // Keeping any for compatibility with both create/update interfaces in a single object
         instituicaoId: formData.instituicao!.value,
         bancaId: formData.banca!.value,
         ano: formData.ano,
@@ -456,10 +629,21 @@ setFormData((prev) => ({
         dataProva: localInputValueToUtc(formData.dataProva) ?? undefined,
         finalizado: formData.finalizado,
         cargos: formData.cargos.map((c: { value: number }) => c.value),
-        topicos: formData.topicos.reduce((acc: Record<number, number[]>, t: TopicoEntry) => {
-          acc[t.subtemaId] = t.cargoIds;
-          return acc;
-        }, {})
+        provas: formData.provas.map(p => ({
+          id: p.id.startsWith('local-') ? null : Number(p.id),
+          nome: p.nome,
+          cargoIds: p.cargoIds,
+          secoes: p.secoes.map(s => ({
+            id: s.id.startsWith('local-') ? null : Number(s.id),
+            nome: s.nome,
+            ordem: s.ordem,
+            numQuestoes: s.numQuestoes,
+            subtemaIds: formData.topicos
+              .filter(t => t.secaoIds.includes(s.id))
+              .map(t => t.subtemaId),
+            pesos: s.pesos
+          }))
+        }))
       };
 
 if (editingItem) {
@@ -509,21 +693,37 @@ if (editingItem) {
       const detail = await concursoService.getById(item.id);
       setEditingItem(item);
       
+      const localProvas: ProvaEntry[] = (detail.provas || []).map(p => ({
+        id: String(p.id),
+        nome: p.nome,
+        cargoIds: p.cargoIds || [],
+        secoes: (p.secoes || []).map(s => ({
+          id: String(s.id),
+          nome: s.nome,
+          ordem: (s as any).ordem ?? 0,
+          numQuestoes: (s as any).numQuestoes ?? 0,
+          pesos: (s as any).pesos || []
+        }))
+      }));
+
       const topicoMap = new Map<number, TopicoEntry>();
-      detail.cargos.forEach(cargo => {
-        (cargo.topicos || []).forEach(topico => {
-          if (!topicoMap.has(topico.id)) {
-            topicoMap.set(topico.id, {
-              subtemaId: topico.id,
-              subtemaLabel: topico.disciplina?.nome
-                ? `${topico.disciplina.nome} - ${topico.tema?.nome} - ${topico.nome}`
-                : topico.nome,
-              disciplina: topico.disciplina,
-              tema: topico.tema,
-              cargoIds: [],
-            });
-          }
-          topicoMap.get(topico.id)!.cargoIds.push(cargo.cargoId);
+      (detail.provas || []).forEach(prova => {
+        prova.secoes.forEach(secao => {
+          ((secao as any).subtemas || []).forEach((subtema: any) => {
+            if (!topicoMap.has(subtema.id)) {
+              topicoMap.set(subtema.id, {
+                subtemaId: subtema.id,
+                subtemaLabel: subtema.disciplina?.nome
+                  ? `${subtema.disciplina.nome} - ${subtema.tema?.nome} - ${subtema.nome}`
+                  : subtema.nome,
+                disciplina: subtema.disciplina,
+                tema: subtema.tema,
+                cargoIds: [],
+                secaoIds: [],
+              });
+            }
+            topicoMap.get(subtema.id)!.secaoIds.push(String(secao.id));
+          });
         });
       });
 
@@ -536,6 +736,7 @@ if (editingItem) {
         dataProva: utcToLocalInputValue(detail.dataProva),
         finalizado: detail.finalizado,
         cargos: detail.cargos.map(c => ({ value: c.cargoId, label: `${c.cargoNome} - ${c.area} (${formatNivel(c.nivel)})` })),
+        provas: localProvas,
         topicos: Array.from(topicoMap.values()),
       });
 
@@ -602,11 +803,13 @@ if (editingItem) {
       dataProva: '',
       finalizado: false,
       cargos: [],
+      provas: [],
       topicos: []
     });
     setEditingItem(null);
     setModalOpen(false);
     setValidationErrors([]);
+    setFormTab('dados');
   };
 
   const openNewForm = () => {
@@ -619,6 +822,7 @@ if (editingItem) {
       dataProva: '',
       finalizado: false,
       cargos: [],
+      provas: [],
       topicos: []
     });
     setEditingItem(null);
@@ -854,6 +1058,15 @@ if (editingItem) {
           </button>
           <button
             type="button"
+            onClick={() => setFormTab('provas')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              formTab === 'provas' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Provas & Estrutura
+          </button>
+          <button
+            type="button"
             onClick={() => setFormTab('conteudo')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               formTab === 'conteudo' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -999,6 +1212,129 @@ if (editingItem) {
           </div>
         ) : null}
 
+        {formTab === 'provas' ? (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-indigo-50 rounded-lg">
+                  <Layout className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Provas do Concurso</h4>
+                  <p className="text-[11px] text-slate-500 font-medium">Defina as provas e suas seções estruturais</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={addProva}
+                className="inline-flex items-center px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-all shadow-sm active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> Adicionar Prova
+              </button>
+            </div>
+
+            {formData.provas.length === 0 ? (
+              <div className="py-12 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhuma prova cadastrada</p>
+                <p className="text-xs text-slate-400 mt-1">Adicione pelo menos uma prova para definir a estrutura.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {formData.provas.map((prova) => (
+                  <div key={prova.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="px-5 py-4 bg-slate-50/50 border-b border-slate-200 flex items-center justify-between gap-4">
+                      <div className="flex-1 flex items-center gap-4">
+                        <input
+                          type="text"
+                          value={prova.nome}
+                          onChange={(e) => updateProva(prova.id, { nome: e.target.value })}
+                          className="flex-1 bg-transparent border-none p-0 text-sm font-bold text-slate-900 focus:ring-0 placeholder:text-slate-400"
+                          placeholder="Nome da prova (ex: Prova Objetiva)"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeProva(prova.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="p-5 space-y-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cargos que realizam esta prova</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {formData.cargos.map((cargo) => (
+                            <label key={cargo.value} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-slate-50 hover:bg-slate-50 cursor-pointer transition-all">
+                              <input
+                                type="checkbox"
+                                checked={prova.cargoIds.some(id => String(id) === String(cargo.value))}
+                                onChange={() => {
+                                  const isSelected = prova.cargoIds.some(id => String(id) === String(cargo.value));
+                                  const newIds = isSelected
+                                    ? prova.cargoIds.filter(id => String(id) !== String(cargo.value))
+                                    : [...prova.cargoIds, cargo.value];
+                                  updateProva(prova.id, { cargoIds: newIds });
+                                }}
+                                className="h-3.5 w-3.5 text-indigo-600 border-slate-300 rounded"
+                              />
+                              <span className="text-[11px] font-medium text-slate-600 truncate">{cargo.label.split(' - ')[0]}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Seções da Prova</label>
+                          <button
+                            type="button"
+                            onClick={() => addSecao(prova.id)}
+                            className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" /> Adicionar Seção
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {prova.secoes.map((secao) => (
+                            <div key={secao.id} className="flex items-center gap-3 p-3 bg-slate-50/30 border border-slate-100 rounded-lg group">
+                              <input
+                                type="text"
+                                value={secao.nome}
+                                onChange={(e) => updateSecao(prova.id, secao.id, { nome: e.target.value })}
+                                className="flex-1 bg-white border border-slate-200 rounded px-2.5 py-1.5 text-xs font-medium focus:ring-1 focus:ring-indigo-500"
+                                placeholder="Nome da seção (ex: Conhecimentos Básicos)"
+                              />
+                              <div className="flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setPesosModal({ isOpen: true, provaId: prova.id, secaoId: secao.id, pesos: (secao.pesos || []).filter(pw => prova.cargoIds.includes(pw.cargoId)) })}
+                                  className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1.5 rounded hover:bg-indigo-100 transition-colors"
+                                >
+                                  Configurar Pesos ({prova. cargoIds.length})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeSecao(prova.id, secao.id)}
+                                  className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+
       <div className={formTab === 'conteudo' ? 'block' : 'hidden'}>
   <div className="pt-2">
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -1129,62 +1465,43 @@ if (editingItem) {
                                   </div>
                                   
                                   <div className="p-3">
-                                    <div className="flex justify-start mb-3">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const allCargoIds = formData.cargos.map(c => c.value);
-                                          setFormData(prev => ({
-                                            ...prev,
-                                            topicos: prev.topicos.map(t => 
-                                              t.subtemaId === topico.subtemaId ? { ...t, cargoIds: allCargoIds } : t
-                                            )
-                                          }));
-                                        }}
-                                        className="text-[9px] font-bold uppercase tracking-widest text-indigo-500 hover:text-indigo-700 transition-colors flex items-center gap-1.5 bg-indigo-50/50 px-2.5 py-1.5 rounded-lg border border-indigo-100/50"
-                                        title="Selecionar todos os cargos"
-                                      >
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        Selecionar todos os cargos
-                                      </button>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                      {formData.cargos.map((cargo) => {
-                                        const [cargoNome, cargoAreaPart] = cargo.label.split(' - ');
-                                        const cargoArea = cargoAreaPart?.split(' (')[0] || '';
-                                        
-                                        return (
-                                          <label 
-                                            key={cargo.value} 
-                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all cursor-pointer select-none ${
-                                              topico.cargoIds.includes(cargo.value)
-                                                ? 'bg-indigo-50/60 border-indigo-200 shadow-sm'
-                                                : 'bg-white border-slate-100 hover:border-slate-200'
-                                            }`}
-                                          >
-                                            <div className="flex-shrink-0 flex items-center justify-center">
-                                              <input
-                                                type="checkbox"
-                                                checked={topico.cargoIds.includes(cargo.value)}
-                                                onChange={() => toggleTopicoCargo(topico.subtemaId, cargo.value)}
-                                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
-                                              />
-                                            </div>
-                                            <div className="flex flex-col min-w-0">
-                                              <span className={`text-[10px] font-bold uppercase tracking-tight leading-none truncate ${
-                                                topico.cargoIds.includes(cargo.value) ? 'text-indigo-900' : 'text-slate-600'
-                                              }`}>
-                                                {cargoNome}
-                                              </span>
-                                              {cargoArea && (
-                                                <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mt-1 truncate">
-                                                  {cargoArea}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </label>
-                                        );
-                                      })}
+                                    <div className="grid grid-cols-1 gap-4">
+                                      {formData.provas.map((prova) => (
+                                        <div key={prova.id} className="space-y-2">
+                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                            <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                            {prova.nome}
+                                          </p>
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                            {prova.secoes.map((secao) => (
+                                              <label 
+                                                key={secao.id} 
+                                                className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-all cursor-pointer select-none ${
+                                                  topico.secaoIds.includes(secao.id)
+                                                    ? 'bg-indigo-50/60 border-indigo-200 shadow-sm'
+                                                    : 'bg-white border-slate-100 hover:border-slate-200'
+                                                }`}
+                                              >
+                                                <div className="flex-shrink-0 flex items-center justify-center">
+                                                  <input
+                                                    type="radio"
+                                                    name={`secao-${topico.subtemaId}-${prova.id}`}
+                                                    checked={topico.secaoIds.includes(secao.id)}
+                                                    onChange={() => toggleTopicoSecao(topico.subtemaId, secao.id)}
+                                                    className="h-3.5 w-3.5 text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                                                  />
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                  <span className={`text-[10px] font-bold uppercase tracking-tight leading-none truncate ${
+                                                    topico.secaoIds.includes(secao.id) ? 'text-indigo-900' : 'text-slate-600'
+                                                  }`}>
+                                                    {secao.nome}
+                                                  </span>
+                                                </div>                                              </label>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ))}
                                     </div>
                                   </div>
                                 </div>
@@ -1239,6 +1556,7 @@ if (editingItem) {
         isOpen={subtemaPickerOpen}
         onClose={() => setSubtemaPickerOpen(false)}
         onConfirm={(selected) => {
+          const currentCargoIds = formData.cargos.map((c: { value: number }) => c.value);
           const newTopicos = selected
             .filter(s => !selectedSubtemaIds.has(s.subtemaId))
             .map(s => {
@@ -1247,7 +1565,8 @@ if (editingItem) {
                 subtemaLabel: s.label || `Subtema ${s.subtemaId}`,
                 disciplina: s.disciplina,
                 tema: s.tema,
-                cargoIds: s.cargoIds,
+                cargoIds: currentCargoIds,
+                secaoIds: [],
               };
             });
             
@@ -1263,8 +1582,31 @@ if (editingItem) {
           label: t.subtemaLabel,
           disciplina: t.disciplina,
           tema: t.tema,
-          cargoIds: t.cargoIds 
+          secaoIds: t.secaoIds 
         }))}
+      />
+
+      <SecaoPesosModal
+        isOpen={pesosModal.isOpen}
+        onClose={() => setPesosModal(prev => ({ ...prev, isOpen: false }))}
+        onSave={(newPesos) => {
+          setFormData(prev => ({
+            ...prev,
+            provas: prev.provas.map(p => {
+              if (p.id !== pesosModal.provaId) return p;
+              return {
+                ...p,
+                secoes: p.secoes.map(s => {
+                  if (s.id !== pesosModal.secaoId) return s;
+                  return { ...s, pesos: newPesos };
+                })
+              };
+            })
+          }));
+          setPesosModal(prev => ({ ...prev, isOpen: false }));
+        }}
+        initialPesos={pesosModal.pesos}
+        availableCargos={formData.cargos.filter(c => formData.provas.find(p => p.id === pesosModal.provaId)?.cargoIds.includes(c.value))}
       />
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">

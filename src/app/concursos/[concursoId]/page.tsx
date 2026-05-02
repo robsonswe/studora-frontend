@@ -53,9 +53,22 @@ export default function ConcursoDetailPage() {
     loadConcurso();
   }, [loadConcurso]);
 
-  const handleStartProva = (cargoId: number) => {
+  // Group cargos by area
+  const groupedCargos = concurso ? concurso.cargos.reduce((acc, cargo) => {
+    const area = cargo.area || 'Outras Áreas';
+    if (!acc[area]) acc[area] = [];
+    acc[area].push(cargo);
+    return acc;
+  }, {} as Record<string, Types.ConcursoCargoSummaryDto[]>) : {};
+
+  const handleStartCargo = (cargoId: number) => {
     if (!concurso) return;
     router.push(`/provas/executar?concursoId=${concurso.id}&cargoId=${cargoId}&instituicaoId=${concurso.instituicao.id}`);
+  };
+
+  const handleStartProva = (provaId: number) => {
+    if (!concurso) return;
+    router.push(`/provas/executar?concursoId=${concurso.id}&provaId=${provaId}&instituicaoId=${concurso.instituicao.id}`);
   };
 
   const handleToggleInscricao = async (concursoCargoId: number, cargoId: number) => {
@@ -193,74 +206,109 @@ export default function ConcursoDetailPage() {
         </div>
       </div>
 
-      <div className="space-y-3">
-        <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-1">
-          Cargos Disponíveis
-        </h2>
-        {concurso.cargos.map((cargo, index) => (
-          <div
-            key={cargo.cargoId}
-            className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:border-indigo-100/80 transition-colors"
-          >
-            <div className="px-5 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
-              <button
-                onClick={() => router.push(`/concursos/${concurso.id}/cargos/${cargo.cargoId}`)}
-                className="min-w-0 flex-1 text-left group/cargo hover:text-indigo-900 transition-colors"
-              >
-                <div className="flex items-center flex-wrap gap-2.5 mb-1.5">
-                  <p className="text-base font-bold text-slate-800 group-hover/cargo:text-indigo-700 tracking-tight leading-snug transition-colors">
-                    {cargo.cargoNome}
-                  </p>
-                  {cargo.inscrito ? (
-                    <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter text-emerald-600 bg-emerald-50/50 px-1.5 py-0.5 rounded border border-emerald-100/50">
-                      <CheckCircle className="w-2.5 h-2.5" />
-                      Inscrito
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex items-center flex-wrap gap-2 text-xs font-semibold text-slate-400 tracking-tight">
-                  <span className="text-slate-400/70">{cargo.area}</span>
-                  <span className="w-1 h-1 rounded-full bg-slate-200" />
-                  <span>{formatNivel(cargo.nivel)}</span>
-                </div>
-              </button>
+      <div className="space-y-8">
+        {Object.entries(groupedCargos).map(([area, areaCargos]) => (
+          <div key={area} className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+              <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {area}
+              </h2>
+              <span className="text-[10px] font-bold text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                {areaCargos.length} {areaCargos.length === 1 ? 'cargo' : 'cargos'}
+              </span>
+            </div>
+            
+            <div className="space-y-3">
+              {areaCargos.map((cargo) => {
+                const cargoProvas = (concurso.provas || []).filter(p => p.cargoIds?.includes(cargo.cargoId));
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                {cargo.topicos && cargo.topicos.length > 0 && (
-                  <button
-                    onClick={() => router.push(`/concursos/${concurso.id}/cargos/${cargo.cargoId}`)}
-                    className="text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/50 text-center active:scale-95 inline-flex items-center justify-center gap-1.5"
+                return (
+                  <div
+                    key={cargo.cargoId}
+                    className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:border-indigo-100/80 transition-colors"
                   >
-                    Detalhes
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                    <div className="px-5 py-4 sm:px-6 sm:py-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-8">
+                      <div className="flex-1 min-w-0">
+                        <button
+                          onClick={() => router.push(`/concursos/${concurso.id}/cargos/${cargo.cargoId}`)}
+                          className="text-left group/cargo hover:text-indigo-900 transition-colors"
+                        >
+                          <div className="flex items-center flex-wrap gap-2.5 mb-1.5">
+                            <p className="text-base font-bold text-slate-800 group-hover/cargo:text-indigo-700 tracking-tight leading-snug transition-colors">
+                              {cargo.cargoNome}
+                            </p>
+                            {cargo.inscrito ? (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter text-emerald-600 bg-emerald-50/50 px-1.5 py-0.5 rounded border border-emerald-100/50">
+                                <CheckCircle className="w-2.5 h-2.5" />
+                                Inscrito
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="flex items-center flex-wrap gap-2 text-xs font-semibold text-slate-400 tracking-tight">
+                            <span>{formatNivel(cargo.nivel)}</span>
+                            {cargo.topicos && cargo.topicos.length > 0 && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-slate-200" />
+                                <span>{cargo.topicos.length} tópicos vinculados</span>
+                              </>
+                            )}
+                          </div>
+                        </button>
+                      </div>
 
-                {cargo.inscrito ? (
-                  <button
-                    onClick={() => handleToggleInscricao(cargo.id, cargo.cargoId)}
-                    disabled={toggleLoading === cargo.cargoId}
-                    className="text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-red-500 hover:border-red-100 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-                  >
-                    {toggleLoading === cargo.cargoId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Remover Inscrição'}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleToggleInscricao(cargo.id, cargo.cargoId)}
-                    disabled={toggleLoading === cargo.cargoId}
-                    className="text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border border-indigo-100/60 text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-                  >
-                    {toggleLoading === cargo.cargoId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Marcar Inscrição'}
-                  </button>
-                )}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => router.push(`/concursos/${concurso.id}/cargos/${cargo.cargoId}`)}
+                            className="flex-1 sm:flex-none text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/50 text-center active:scale-95 inline-flex items-center justify-center gap-1.5"
+                          >
+                            Detalhes
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
 
-                <button
-                  onClick={() => handleStartProva(cargo.cargoId)}
-                  className="inline-flex items-center justify-center w-full sm:w-auto px-6 py-2.5 sm:py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm hover:shadow-indigo-200/50 active:scale-95 border border-indigo-700/10"
-                >
-                  Resolver Prova
-                </button>
-              </div>
+                          <button
+                            onClick={() => handleToggleInscricao(cargo.id, cargo.cargoId)}
+                            disabled={toggleLoading === cargo.cargoId}
+                            className={`flex-1 sm:flex-none text-[11px] font-bold uppercase tracking-widest px-4 py-2.5 sm:py-2 rounded-lg transition-all border active:scale-95 flex items-center justify-center min-w-[140px] ${
+                              cargo.inscrito 
+                                ? 'border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-red-500 hover:border-red-100'
+                                : 'border-indigo-100/60 text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            {toggleLoading === cargo.cargoId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (cargo.inscrito ? 'Remover Inscrição' : 'Marcar Inscrição')}
+                          </button>
+                        </div>
+
+                        <div className="h-px sm:h-8 w-full sm:w-px bg-slate-100" />
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {cargoProvas.length > 0 ? (
+                            cargoProvas.map(prova => (
+                              <button
+                                key={prova.id}
+                                onClick={() => handleStartProva(prova.id)}
+                                className="inline-flex items-center justify-center flex-1 sm:flex-none px-5 py-2.5 sm:py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm hover:shadow-indigo-200/50 active:scale-95 border border-indigo-700/10 gap-2"
+                              >
+                                <ClipboardList className="w-3.5 h-3.5" />
+                                {prova.nome}
+                              </button>
+                            ))
+                          ) : (
+                            <button
+                              onClick={() => handleStartCargo(cargo.cargoId)}
+                              className="inline-flex items-center justify-center flex-1 sm:flex-none px-5 py-2.5 sm:py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm hover:shadow-indigo-200/50 active:scale-95 border border-indigo-700/10 gap-2"
+                            >
+                              <ClipboardList className="w-3.5 h-3.5" />
+                              Resolver Prova
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}

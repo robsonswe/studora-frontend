@@ -25,7 +25,7 @@ interface QuestaoFormData {
   desatualizada: boolean;
   autoral: boolean;
   subtemas: { value: number; label: string }[];
-  cargos: number[];
+  secoes: number[];
   imageUrl: string;
 }
 
@@ -64,7 +64,7 @@ export default function QuestaoFormModal({
   onMoverAlternativaParaBaixo,
   alternativeErrors
 }: QuestaoFormModalProps) {
-  const [availableCargos, setAvailableCargos] = useState<Types.CargoSummaryDto[]>([]);
+  const [availableSecoes, setAvailableSecoes] = useState<{ id: number; label: string; provaId?: number }[]>([]);
   const [activeTab, setActiveTab] = useState<'dados' | 'alternativas'>('dados');
   const [isSubtemaPickerOpen, setIsSubtemaPickerOpen] = useState(false);
   const crudWatchedFields = crudForm.watch();
@@ -78,11 +78,21 @@ export default function QuestaoFormModal({
     if (crudWatchedFields.concurso?.value) {
       concursoService.getById(crudWatchedFields.concurso.value)
         .then(detail => {
-          setAvailableCargos(detail.cargos.map(c => ({ id: c.cargoId, nome: c.cargoNome, nivel: c.nivel, area: c.area })));
+          const secoes: { id: number; label: string; provaId: number }[] = [];
+          (detail.provas || []).forEach(prova => {
+            (prova.secoes || []).forEach(secao => {
+              secoes.push({
+                id: secao.id,
+                provaId: prova.id,
+                label: `${prova.nome} — ${secao.nome}`
+              });
+            });
+          });
+          setAvailableSecoes(secoes);
         })
         .catch(console.error);
     } else {
-      setAvailableCargos([]);
+      setAvailableSecoes([]);
     }
   }, [crudWatchedFields.concurso?.value]);
 
@@ -264,7 +274,7 @@ export default function QuestaoFormModal({
                         defaultOptions
                         loadOptions={loadConcursoOptions}
                         value={crudWatchedFields.concurso}
-                        onChange={(val) => { crudForm.setValue('concurso', val); crudForm.setValue('cargos', []); }}
+                        onChange={(val) => { crudForm.setValue('concurso', val); crudForm.setValue('secoes', []); }}
                         placeholder="Busque pelo ano, instituição ou banca…"
                         styles={crudSelectStyles}
                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
@@ -272,19 +282,33 @@ export default function QuestaoFormModal({
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
-                        Cargos
+                        Seções da Prova
                       </label>
                       <Select
-                        id="crud-cargos"
-                        instanceId="crud-cargos-select"
+                        id="crud-secoes"
+                        instanceId="crud-secoes-select"
                         isMulti
-                        options={availableCargos.map(c => ({ value: c.id, label: `${c.nome} — ${c.area} (${formatNivel(c.nivel)})` }))}
-                        value={crudWatchedFields.cargos.map(id => {
-                          const cargo = availableCargos.find(c => c.id === id);
-                          return { value: id, label: cargo ? `${cargo.nome} — ${cargo.area} (${formatNivel(cargo.nivel)})` : `Cargo ID: ${id}` };
+                        options={availableSecoes.map(s => ({ value: s.id, label: s.label, provaId: s.provaId }))}
+                        value={(crudWatchedFields.secoes || []).map(id => {
+                          const secao = availableSecoes.find(s => s.id === id);
+                          return { value: id, label: secao ? secao.label : `Seção ID: ${id}`, provaId: secao?.provaId };
                         })}
-                        onChange={(sel) => crudForm.setValue('cargos', sel ? sel.map(o => o.value) : [])}
-                        placeholder={crudWatchedFields.concurso ? 'Selecione um ou mais cargos…' : 'Selecione um concurso primeiro'}
+                        onChange={(sel) => {
+                          const newSecoes: number[] = [];
+                          const selected = sel as any[];
+                          const seenProvaIds = new Set<number>();
+                          
+                          // Process in reverse to keep the most recent selection if collision occurs
+                          for (let i = selected.length - 1; i >= 0; i--) {
+                            const item = selected[i];
+                            if (!seenProvaIds.has(item.provaId)) {
+                              newSecoes.push(item.value);
+                              seenProvaIds.add(item.provaId);
+                            }
+                          }
+                          crudForm.setValue('secoes', newSecoes);
+                        }}
+                        placeholder={crudWatchedFields.concurso ? 'Selecione uma seção por prova…' : 'Selecione um concurso primeiro'}
                         isDisabled={!crudWatchedFields.concurso}
                         styles={crudSelectStyles}
                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}

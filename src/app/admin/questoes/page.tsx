@@ -141,7 +141,7 @@ function QuestoesContent() {
       desatualizada: false,
       autoral: false,
       subtemas: [] as { value: number, label: string }[],
-      cargos: [] as number[],
+      secoes: [] as number[],
       imageUrl: ''
     }
   });
@@ -290,7 +290,7 @@ function QuestoesContent() {
     desatualizada: boolean;
     autoral: boolean;
     subtemas: { value: number; label: string }[];
-    cargos: number[];
+    secoes: number[];
     imageUrl: string;
   }) => {
     const errs: string[] = [];
@@ -308,8 +308,8 @@ function QuestoesContent() {
       }
     }
 
-    if (!data.autoral && data.cargos.length === 0) {
-      errs.push('A questão deve estar associada a pelo menos um cargo');
+    if (!data.autoral && (data.secoes?.length === 0)) {
+      errs.push('A questão deve estar associada a pelo menos uma seção de prova');
     }
 
     if (!data.autoral && !data.concurso) {
@@ -345,8 +345,7 @@ function QuestoesContent() {
       };
 
       if (!data.autoral && data.concurso) {
-        payload.concursoId = data.concurso.value;
-        payload.cargos = data.cargos;
+        payload.secoesIds = data.secoes;
       }
 
       if (editingItem) {
@@ -389,7 +388,13 @@ function QuestoesContent() {
         label: s.disciplina?.nome ? `${s.disciplina.nome} - ${s.tema?.nome} - ${s.nome}` : s.nome
       })));
 
-      crudForm.setValue('cargos', detail.cargoIds || detail.cargos.map(c => c.id));
+      const secoesIds: number[] = [];
+      (detail.concurso?.cargos || []).forEach(cargo => {
+        (cargo.secoes || []).forEach(secao => {
+          secoesIds.push(secao.id);
+        });
+      });
+      crudForm.setValue('secoes', secoesIds);
       crudForm.setValue('imageUrl', detail.imageUrl || '');
 
       setCurrentAlternativas([...detail.alternativas].sort((a, b) => a.ordem - b.ordem));
@@ -457,7 +462,7 @@ function QuestoesContent() {
       desatualizada: false,
       autoral: false,
       subtemas: [],
-      cargos: [],
+      secoes: [],
       imageUrl: ''
     });
     setCurrentAlternativas([]);
@@ -860,7 +865,7 @@ function QuestoesContent() {
                         </div>
                         {!questao.autoral && (
                           <div className="text-xs text-gray-500 leading-relaxed">
-                            {(questao.cargos || []).map(c => `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
+                            {(questao.concurso?.cargos || []).map(c => `${c.nome} - ${c.area} (${formatNivel(c.nivel)})`).join(' | ')}
                           </div>
                         )}
                       </div>

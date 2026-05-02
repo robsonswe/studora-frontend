@@ -440,6 +440,36 @@ export interface CargoUpdateRequest {
 }
 
 /**
+ * DTO para representar uma seção de prova embutida em um cargo de questão.
+ */
+export interface SecaoQuestaoDto {
+  /** ID da seção da prova. */
+  id: number;
+  /** Nome da seção. */
+  nome: string;
+  /** Nome da prova à qual pertence. */
+  provaNome: string;
+  /** ID da prova à qual pertence. */
+  provaId: number;
+}
+
+/**
+ * DTO para representar um cargo embutido no contexto da questão (com suas seções).
+ */
+export interface CargoQuestaoDto {
+  /** ID do cargo. */
+  id: number;
+  /** Nome do cargo. */
+  nome: string;
+  /** Nível do cargo. */
+  nivel: NivelCargo;
+  /** Área de atuação do cargo. */
+  area: string;
+  /** Seções da prova às quais este cargo está associado. */
+  secoes: SecaoQuestaoDto[];
+}
+
+/**
  * DTO com contexto do concurso para exibição em questões.
  */
 export interface ConcursoQuestaoDto {
@@ -461,6 +491,8 @@ export interface ConcursoQuestaoDto {
   instituicaoSigla?: string;
   /** Área da institution. */
   instituicaoArea: string;
+  /** Cargos (com seções aninhadas) associados a esta questão neste concurso. */
+  cargos: CargoQuestaoDto[];
 }
 
 /**
@@ -528,9 +560,54 @@ export interface ConcursoSummaryDto {
 }
 
 /**
- * DTO detalhado para visualização de um concurso, incluindo detalhes de instituição e banca.
+ * DTO de uma seção de prova (ProvaSecaoDto).
  */
-export type ConcursoDetailDto = ConcursoSummaryDto;
+export interface ProvaSecaoDto {
+  /** ID da seção. */
+  id: number;
+  /** Nome da seção. */
+  nome: string;
+  /** Ordem da seção. */
+  ordem?: number;
+  /** Número de questões na seção. */
+  numQuestoes?: number;
+  /** Pesos por cargo. */
+  pesos?: ProvaSecaoPesoDto[];
+  /** IDs dos subtemas associados a esta seção. */
+  subtemaIds: number[];
+}
+
+export interface ProvaSecaoPesoDto {
+  id: number;
+  concursoCargoId?: number;
+  cargoId?: number;
+  peso?: number;
+  notaMinima?: number;
+}
+
+/**
+ * DTO detalhado de uma prova (ProvaDetailDto).
+ */
+export interface ProvaDetailDto {
+  /** ID da prova. */
+  id: number;
+  /** ID do concurso ao qual a prova pertence. */
+  concursoId: number;
+  /** Nome da prova. */
+  nome: string;
+  /** IDs dos cargos associados a esta prova. */
+  cargoIds: number[];
+  /** Seções da prova. */
+  secoes: ProvaSecaoDto[];
+}
+
+/**
+ * DTO detalhado para visualização de um concurso, incluindo detalhes de instituição, banca e provas.
+ */
+export interface ConcursoDetailDto extends ConcursoSummaryDto {
+  /** Provas associadas ao concurso (cada prova tem suas seções). */
+  provas?: ProvaDetailDto[];
+}
 
 /**
  * Request DTO para criação de um concurso.
@@ -552,12 +629,28 @@ export interface ConcursoCreateRequest {
   finalizado?: boolean;
   /** Lista de IDs dos cargos associados ao concurso. */
   cargos: number[];
-  /**
-   * Mapa de subtemas para cargos. Cada chave é o subtemaId e o valor é um array de cargoIds
-   * que devem ser associados a este subtema neste concurso.
-   * Exemplo: { 12: [1, 2, 6], 5: [1, 2, 5] } — subtema 12 é associado aos cargos 1, 2 e 6.
-   */
-  topicos?: Record<number, number[]>;
+  /** Lista de provas do concurso. */
+  provas?: ProvaCreateRequest[];
+}
+
+export interface ProvaCreateRequest {
+  nome: string;
+  cargoIds?: number[];
+  secoes?: ProvaSecaoCreateRequest[];
+}
+
+export interface ProvaSecaoCreateRequest {
+  nome: string;
+  ordem?: number;
+  numQuestoes?: number;
+  subtemaIds?: number[];
+  pesos?: ProvaSecaoPesoCreateRequest[];
+}
+
+export interface ProvaSecaoPesoCreateRequest {
+  cargoId?: number;
+  peso?: number;
+  notaMinima?: number;
 }
 
 /**
@@ -580,13 +673,31 @@ export interface ConcursoUpdateRequest {
   finalizado?: boolean;
   /** Lista de IDs dos cargos associados ao concurso. */
   cargos: number[];
-  /**
-   * Mapa de subtemas para cargos. Cada chave é o subtemaId e o valor é um array de cargoIds
-   * que devem ser associados a este subtema neste concurso.
-   * Se omitido, os topicos existentes não são alterados.
-   * Exemplo: { 12: [1, 2, 6], 5: [1, 2, 5] } — subtema 12 é associado aos cargos 1, 2 e 6.
-   */
-  topicos?: Record<number, number[]>;
+  /** Lista de provas do concurso. */
+  provas?: ProvaUpdateRequest[];
+}
+
+export interface ProvaUpdateRequest {
+  id?: number | null;
+  nome: string;
+  cargoIds?: number[];
+  secoes?: ProvaSecaoUpdateRequest[];
+}
+
+export interface ProvaSecaoUpdateRequest {
+  id?: number | null;
+  nome: string;
+  ordem?: number;
+  numQuestoes?: number;
+  subtemaIds?: number[];
+  pesos?: ProvaSecaoPesoUpdateRequest[];
+}
+
+export interface ProvaSecaoPesoUpdateRequest {
+  id?: number | null;
+  cargoId?: number;
+  peso?: number;
+  notaMinima?: number;
 }
 
 /**
@@ -601,6 +712,27 @@ export interface ConcursoFilter {
   cargoNivel?: string;
   inscrito?: boolean;
   finalizado?: boolean;
+}
+
+/**
+ * DTO para filtragem de questões.
+ */
+export interface QuestaoFilter {
+  bancaId?: number;
+  instituicaoId?: number;
+  concursoId?: number;
+  provaId?: number;
+  provaSecaoId?: number;
+  cargoId?: number;
+  disciplinaId?: number;
+  temaId?: number;
+  subtemaId?: number;
+  instituicaoArea?: string;
+  cargoArea?: string;
+  cargoNivel?: string;
+  anulada?: boolean;
+  desatualizada?: boolean;
+  autoral?: boolean;
 }
 
 /**
@@ -714,8 +846,6 @@ export interface QuestaoSummaryDto {
   imageUrl?: string;
   /** Subtemas associados à questão (hierarquia completa). */
   subtemas: SubtemaQuestaoDto[];
-  /** Cargos associados à questão. */
-  cargos: CargoSummaryDto[];
   /** Alternativas da questão. */
   alternativas: AlternativaDto[];
   /** Histórico recente de respostas para esta questão. (Visível apenas se respondida recentemente ou admin). */
@@ -746,10 +876,6 @@ export interface QuestaoDetailDto {
   subtemas: SubtemaQuestaoDto[];
   /** IDs dos subtemas para o formulário. */
   subtemaIds?: number[];
-  /** Cargos associados à questão. */
-  cargos: CargoSummaryDto[];
-  /** IDs dos cargos para o formulário. */
-  cargoIds?: number[];
   /** Alternativas da questão. */
   alternativas: AlternativaDto[];
   /** Resumo da resposta mais recente do usuário para esta questão. (Visível apenas se respondida recentemente ou admin). */
@@ -765,8 +891,8 @@ export interface QuestaoCreateRequest {
   enunciado: string;
   alternativas: AlternativaCreateRequest[];
   subtemaIds: number[];
-  cargos?: number[];
-  concursoId?: number;
+  /** IDs das seções da prova às quais esta questão pertence (ignorado se autoral=true). */
+  secoesIds?: number[];
   imageUrl?: string;
   /** Se verdadeiro, a questão é autoral e não requer concurso ou cargo. Padrão: false. */
   autoral?: boolean;
@@ -783,8 +909,8 @@ export interface QuestaoUpdateRequest {
   enunciado?: string;
   alternativas?: AlternativaUpdateRequest[];
   subtemaIds?: number[];
-  cargos?: number[];
-  concursoId?: number;
+  /** IDs das seções da prova às quais esta questão pertence. */
+  secoesIds?: number[];
   imageUrl?: string;
   anulada?: boolean;
   /** Tipo da questão. Não pode ser alterado após a criação. */

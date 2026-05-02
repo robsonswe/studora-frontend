@@ -320,7 +320,6 @@ export default function SimuladoDetailPage() {
           <div className="lg:col-span-8 space-y-6">
             <QuestionCard
               concurso={concurso ?? undefined}
-              cargos={currentQuestion.cargos}
               enunciado={currentQuestion.enunciado}
               imageUrl={currentQuestion.imageUrl}
               subtemas={currentQuestion.subtemas}
@@ -373,22 +372,34 @@ export default function SimuladoDetailPage() {
               </h4>
               <div className="space-y-6 max-h-[calc(100vh-350px)] overflow-y-auto pr-2">
                 {(() => {
-                  const groups: { name: string, indices: number[] }[] = [];
+                  interface NavGroup {
+                    name: string;
+                    indices: number[];
+                  }
+
+                  const groups: NavGroup[] = [];
+                  
                   simulado.questoes.forEach((q, index) => {
                     const discName = q.subtemas?.[0]?.disciplina?.nome || 'Outros';
                     let group = groups.find(g => g.name === discName);
+                    
                     if (!group) {
                       group = { name: discName, indices: [] };
                       groups.push(group);
                     }
+                    
                     group.indices.push(index);
                   });
 
-                  return groups.map(group => (
-                    <div key={group.name} className="space-y-2">
-                      <p className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-widest border-b border-indigo-50 pb-1 mb-2 truncate" title={group.name}>
-                        {group.name}
-                      </p>
+                  return groups.sort((a, b) => a.name.localeCompare(b.name)).map(group => (
+                    <div key={group.name} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-widest truncate" title={group.name}>
+                          {group.name}
+                        </span>
+                        <div className="h-px flex-1 bg-slate-100" />
+                      </div>
+                      
                       <div className="grid grid-cols-5 gap-2">
                         {group.indices.map((index) => (
                           <button

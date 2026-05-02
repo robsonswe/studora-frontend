@@ -25,7 +25,9 @@ function ProvaContent() {
   const { showToast } = useToast();
   
   const concursoId = Number(searchParams.get('concursoId'));
-  const cargoId = Number(searchParams.get('cargoId'));
+  const cargoId = searchParams.get('cargoId') ? Number(searchParams.get('cargoId')) : undefined;
+  const provaId = searchParams.get('provaId') ? Number(searchParams.get('provaId')) : undefined;
+  const provaSecaoId = searchParams.get('provaSecaoId') ? Number(searchParams.get('provaSecaoId')) : undefined;
   const instituicaoId = Number(searchParams.get('instituicaoId'));
 
   // Data State
@@ -79,7 +81,7 @@ function ProvaContent() {
 
   useEffect(() => {
     loadData();
-  }, [concursoId, cargoId, instituicaoId]);
+  }, [concursoId, cargoId, provaId, provaSecaoId, instituicaoId]);
 
   useEffect(() => {
     if (currentQuestion) {
@@ -123,29 +125,36 @@ function ProvaContent() {
   };
 
   const loadData = async () => {
-    if (!concursoId || !cargoId || !instituicaoId) {
-      setError('Parâmetros inválidos');
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
       
-      const [concursoRes, questoesRes] = await Promise.all([
-        concursoService.getById(concursoId),
-        questaoService.getAll({
-          concursoId,
-          cargoId,
-          instituicaoId,
-          size: 1000 // Big size to return all
-        })
-      ]);
+      let finalConcursoId = concursoId;
 
+      const questoesRes = await questaoService.getAll({
+        concursoId: finalConcursoId || undefined,
+        cargoId,
+        provaId,
+        provaSecaoId,
+        size: 1000 // Big size to return all
+      });
+
+      const fetchedQuestoes = questoesRes.content;
+
+      if (!finalConcursoId && fetchedQuestoes.length > 0 && fetchedQuestoes[0].concurso) {
+        finalConcursoId = fetchedQuestoes[0].concurso.id;
+      }
+
+      if (!finalConcursoId) {
+        setError('Parâmetros insuficientes para carregar os dados.');
+        setLoading(false);
+        return;
+      }
+
+      const concursoRes = await concursoService.getById(finalConcursoId);
       setConcurso(concursoRes);
       
-      const sortedQuestoes = [...questoesRes.content].sort((a, b) => {
+      const sortedQuestoes = [...fetchedQuestoes].sort((a, b) => {
         const discA = a.subtemas?.[0]?.disciplina?.nome || 'Outros';
         const discB = b.subtemas?.[0]?.disciplina?.nome || 'Outros';
         if (discA !== discB) return discA.localeCompare(discB);
@@ -222,6 +231,23 @@ function ProvaContent() {
     return resp?.correta ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-red-100 text-red-700 border border-red-300';
   };
 
+  const cargo = concurso?.cargos.find(c => c.cargoId === cargoId);
+  const progressPercentage = (stats.total > 0) ? (stats.answered / stats.total) * 100 : 0;
+  const displayAlternativas = currentQuestion ? [...currentQuestion.alternativas].sort((a, b) => a.ordem - b.ordem) : [];
+  
+  const questionConcurso = useMemo(() => {
+    if (!currentQuestion?.concurso) return undefined;
+    const filteredCargos = currentQuestion.concurso.cargos
+      .map(c => ({
+        ...c,
+        secoes: c.secoes?.filter(s => s.provaId === provaId) || []
+      }))
+      .filter(c => c.secoes.length > 0);
+    return filteredCargos.length > 0 
+      ? { ...currentQuestion.concurso, cargos: filteredCargos }
+      : undefined;
+  }, [currentQuestion, provaId]);
+
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex justify-center items-center">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
@@ -246,10 +272,6 @@ function ProvaContent() {
       </div>
     </div>
   );
-
-  const cargo = concurso?.cargos.find(c => c.cargoId === cargoId);
-  const progressPercentage = (stats.total > 0) ? (stats.answered / stats.total) * 100 : 0;
-  const displayAlternativas = [...currentQuestion.alternativas].sort((a, b) => a.ordem - b.ordem);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -281,16 +303,7 @@ function ProvaContent() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 space-y-6">
             <QuestionCard
-              concurso={concurso ? { 
-                ...concurso, 
-                bancaId: concurso.banca.id,
-                bancaNome: concurso.banca.nome, 
-                bancaSigla: concurso.banca.sigla,
-                instituicaoId: concurso.instituicao.id,
-                instituicaoNome: concurso.instituicao.nome, 
-                instituicaoArea: concurso.instituicao.area 
-              } : undefined}
-              cargos={currentQuestion.cargos}
+              concurso={questionConcurso ?? currentQuestion.concurso ?? undefined}
               enunciado={currentQuestion.enunciado}
               imageUrl={currentQuestion.imageUrl}
               subtemas={currentQuestion.subtemas}
@@ -341,41 +354,28 @@ function ProvaContent() {
               </h4>
               <div className="space-y-8 max-h-[calc(100vh-300px)] overflow-y-auto pr-2 custom-scrollbar">
                 {(() => {
-                  if (!concurso || !cargo) return null;
-
-                  const sameNivelCargos = concurso.cargos.filter(c => c.nivel === cargo.nivel);
-                  const totalSameNivel = sameNivelCargos.length;
-                  
-                  // Map subtemas to basic status
-                  const subtemaBasicMap = new Map<number, boolean>();
-                  const subtemaCounts = new Map<number, number>();
-                  
-                  concurso.cargos.forEach(c => {
-                    if (c.nivel === cargo.nivel) {
-                      c.topicos.forEach(t => {
-                        subtemaCounts.set(t.id, (subtemaCounts.get(t.id) || 0) + 1);
-                      });
-                    }
-                  });
-                  
-                  subtemaCounts.forEach((count, id) => {
-                    subtemaBasicMap.set(id, totalSameNivel > 1 && count === totalSameNivel);
-                  });
+                  if (!concurso) return null;
 
                   interface NavGroup {
-                    category: 'Conhecimentos Básicos' | 'Conhecimentos Específicos';
+                    category: string;
                     disciplines: { name: string, indices: number[] }[];
                   }
 
-                  const groups: NavGroup[] = [
-                    { category: 'Conhecimentos Básicos', disciplines: [] },
-                    { category: 'Conhecimentos Específicos', disciplines: [] }
-                  ];
+                  const groups: NavGroup[] = [];
 
                   questoes.forEach((q, index) => {
-                    // A question is specific if ANY of its subtemas is specific
-                    const isSpecific = q.subtemas.some(s => subtemaBasicMap.get(s.id) === false);
-                    const group = isSpecific ? groups[1] : groups[0];
+                    // Get secoes from question's concurso.cargos (CargoQuestaoDto type which has secoes)
+                    const allSecoes = q.concurso?.cargos?.flatMap(c => c.secoes) || [];
+                    
+                    // Filter to secao that matches the current provaId
+                    const secao = allSecoes.find(s => s.provaId === provaId);
+                    
+                    const category = secao ? secao.nome : 'Outros';
+                    let group = groups.find(g => g.category === category);
+                    if (!group) {
+                      group = { category, disciplines: [] };
+                      groups.push(group);
+                    }
                     
                     const discName = q.subtemas?.[0]?.disciplina?.nome || 'Outros';
                     let discGroup = group.disciplines.find(d => d.name === discName);
@@ -386,10 +386,10 @@ function ProvaContent() {
                     discGroup.indices.push(index);
                   });
 
-                  return groups.filter(g => g.disciplines.length > 0).map(group => (
+                  return groups.map(group => (
                     <div key={group.category} className="space-y-4">
                       <div className="flex items-center gap-2">
-                        {group.category === 'Conhecimentos Básicos' ? (
+                        {group.category.toLowerCase().includes('básico') ? (
                           <div className="p-1 bg-indigo-50 rounded">
                             <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
                           </div>

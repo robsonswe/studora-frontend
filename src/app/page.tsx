@@ -272,7 +272,7 @@ export default function Dashboard() {
                                 <span className="text-[0.6875rem] font-medium font-mono text-indigo-500 uppercase tracking-[0.05em]">Nível</span>
                                 <p className="text-xs text-gray-700 font-medium mt-0.5">
                                   {(() => {
-                                    const uniqueNiveis = Array.from(new Set((r.questao?.cargos || []).map(c => formatNivel(c.nivel))));
+                                    const uniqueNiveis = Array.from(new Set((r.questao?.concurso?.cargos || []).map(c => formatNivel(c.nivel))));
                                     if (uniqueNiveis.length === 0) return 'Não informado';
                                     if (uniqueNiveis.length === 1) return uniqueNiveis[0];
                                     const last = uniqueNiveis.pop();

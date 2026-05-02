@@ -95,45 +95,47 @@ export default function ConcursoCargoDetailPage() {
   usePageTitle(cargo ? `${cargo.cargoNome} — ${concurso?.instituicao.nome}` : undefined);
 
   const categorizedTopicos = useMemo(() => {
-    if (!cargo || !concurso) return { basicos: {}, especificos: {} };
+    if (!cargo || !concurso) return {};
 
-    const cargosSameNivel = concurso.cargos.filter(c => c.nivel === cargo.nivel);
-    const totalCargosSameNivel = cargosSameNivel.length;
-
-    // Count how many cargos of the same level have each subtema
-    const subtemaCounts = new Map<number, number>();
-    concurso.cargos.forEach(c => {
-       if (c.nivel === cargo.nivel) {
-         c.topicos.forEach(t => {
-           subtemaCounts.set(t.id, (subtemaCounts.get(t.id) || 0) + 1);
-         });
-       }
+    // Find all provas associated with this cargo
+    const cargoProvas = (concurso.provas || []).filter(p => p.cargoIds?.includes(Number(cargoId)));
+    
+    // Create a map of subtemaId -> secao info
+    const subtemaToSecao = new Map<number, string>();
+    cargoProvas.forEach(p => {
+      p.secoes?.forEach(s => {
+        s.subtemaIds?.forEach(sid => {
+          // We use the section name as the group identifier
+          subtemaToSecao.set(sid, s.nome);
+        });
+      });
     });
 
-    const basicos: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>> = {};
-    const especificos: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>> = {};
+    const groups: Record<string, Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>>> = {};
 
-    cargo.topicos.forEach(t => {
-      // It's basic if shared by all cargos of the same level (if there's more than 1 cargo)
-      const isBasico = totalCargosSameNivel > 1 && subtemaCounts.get(t.id) === totalCargosSameNivel;
-      const target = isBasico ? basicos : especificos;
-
+    (cargo.topicos || []).forEach(t => {
+      const groupName = subtemaToSecao.get(t.id) || 'Outros Tópicos';
+      
       const disc = t.disciplina?.nome || 'Outras Disciplinas';
       const tema = t.tema?.nome || 'Geral';
-      if (!target[disc]) target[disc] = {};
-      if (!target[disc][tema]) target[disc][tema] = [];
-      target[disc][tema].push(t);
+      
+      if (!groups[groupName]) groups[groupName] = {};
+      if (!groups[groupName][disc]) groups[groupName][disc] = {};
+      if (!groups[groupName][disc][tema]) groups[groupName][disc][tema] = [];
+      groups[groupName][disc][tema].push(t);
     });
 
-    return { basicos, especificos };
-  }, [cargo, concurso]);
+    return groups;
+  }, [cargo, concurso, cargoId]);
 
   const filteredCategorizedTopicos = useMemo(() => {
-    const filterGroup = (group: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>>) => {
-      const filtered: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>> = {};
-      const normSearch = normalize(searchTerm);
+    const filtered: Record<string, Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>>> = {};
+    const normSearch = normalize(searchTerm);
 
-      Object.entries(group).forEach(([disc, temas]) => {
+    Object.entries(categorizedTopicos).forEach(([groupName, groupData]) => {
+      const groupFiltered: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>> = {};
+      
+      Object.entries(groupData).forEach(([disc, temas]) => {
         const discMatch = normalize(disc).includes(normSearch);
         const filteredTemas: Record<string, Types.ConcursoCargoSubtemaDto[]> = {};
 
@@ -149,16 +151,16 @@ export default function ConcursoCargoDetailPage() {
         });
 
         if (Object.keys(filteredTemas).length > 0) {
-          filtered[disc] = filteredTemas;
+          groupFiltered[disc] = filteredTemas;
         }
       });
-      return filtered;
-    };
 
-    return {
-      basicos: filterGroup(categorizedTopicos.basicos),
-      especificos: filterGroup(categorizedTopicos.especificos)
-    };
+      if (Object.keys(groupFiltered).length > 0) {
+        filtered[groupName] = groupFiltered;
+      }
+    });
+
+    return filtered;
   }, [categorizedTopicos, searchTerm]);
 
   const highlights = useMemo<HighlightMap>(() => {
@@ -199,7 +201,7 @@ export default function ConcursoCargoDetailPage() {
     if (entries.length === 0) return null;
 
     return (
-      <div className="py-2">
+      <div className="py-2" key={title}>
         <div className="flex items-center gap-3 px-6 py-4 bg-slate-50/50 border-y border-slate-100">
            <div className="p-1.5 bg-white rounded-lg shadow-sm border border-slate-200/50">
              {icon}
@@ -407,11 +409,11 @@ export default function ConcursoCargoDetailPage() {
             activeTab === 'conteudo' ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-500'
           }`} />
           <span>Conteúdo Programático</span>
-          {cargo.topicos.length > 0 && (
+          { (cargo.topicos?.length ?? 0) > 0 && (
             <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-tight transition-colors ${
               activeTab === 'conteudo' ? 'bg-indigo-50 text-indigo-500' : 'bg-slate-200 text-slate-500'
             }`}>
-              {cargo.topicos.length}
+              {cargo.topicos?.length}
             </span>
           )}
         </button>
@@ -436,7 +438,7 @@ export default function ConcursoCargoDetailPage() {
         {activeTab === 'conteudo' ? (
           <div className="space-y-6">
             {/* Search and Filters bar */}
-            {(Object.keys(categorizedTopicos.basicos).length > 0 || Object.keys(categorizedTopicos.especificos).length > 0) && (
+            {Object.keys(categorizedTopicos).length > 0 && (
               <div className="flex items-center gap-2 max-w-md">
                 <div className="relative flex-1">
                   <input
@@ -460,8 +462,7 @@ export default function ConcursoCargoDetailPage() {
             )}
 
             <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              {Object.keys(filteredCategorizedTopicos.basicos).length === 0 && 
-               Object.keys(filteredCategorizedTopicos.especificos).length === 0 ? (
+              {Object.keys(filteredCategorizedTopicos).length === 0 ? (
                 <div className="py-20 text-center">
                   <div className="p-4 bg-slate-50 rounded-full w-fit mx-auto mb-4 border border-slate-100">
                     {searchTerm ? (
@@ -489,16 +490,15 @@ export default function ConcursoCargoDetailPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {renderSyllabusGroup(
-                    "Conhecimentos Básicos", 
-                    <ClipboardList className="w-4 h-4 text-indigo-500" />, 
-                    filteredCategorizedTopicos.basicos
-                  )}
-                  {renderSyllabusGroup(
-                    "Conhecimentos Específicos", 
-                    <Target className="w-4 h-4 text-amber-500" />, 
-                    filteredCategorizedTopicos.especificos
-                  )}
+                  {Object.entries(filteredCategorizedTopicos).map(([groupName, groupData]) => (
+                    renderSyllabusGroup(
+                      groupName,
+                      groupName.toLowerCase().includes('básico') 
+                        ? <ClipboardList className="w-4 h-4 text-indigo-500" />
+                        : <Target className="w-4 h-4 text-amber-500" />,
+                      groupData
+                    )
+                  ))}
                 </div>
               )}
             </div>
@@ -528,4 +528,4 @@ export default function ConcursoCargoDetailPage() {
       />
     </div>
   );
-}
+}

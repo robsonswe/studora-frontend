@@ -458,22 +458,7 @@ export const questaoService = {
   /**
    * Obter questões com filtros.
    */
-  getAll: (params?: Types.PaginationParams & {
-    bancaId?: number;
-    instituicaoId?: number;
-    concursoId?: number;
-    cargoId?: number;
-    disciplinaId?: number;
-    temaId?: number;
-    subtemaId?: number;
-    instituicaoArea?: string;
-    cargoArea?: string;
-    cargoNivel?: string;
-    anulada?: boolean;
-    desatualizada?: boolean;
-    autoral?: boolean;
-    admin?: boolean;
-  }): Promise<Types.PageResponse<Types.QuestaoSummaryDto>> =>
+  getAll: (params?: Types.PaginationParams & Types.QuestaoFilter & { admin?: boolean }): Promise<Types.PageResponse<Types.QuestaoSummaryDto>> =>
     apiCall(`/questoes${buildQueryString(params)}`),
 
   /**

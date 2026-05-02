@@ -42,13 +42,12 @@ export const TaxonomyDisplay = ({ subtemas }: TaxonomyDisplayProps) => {
 
 interface QuestionHeaderProps {
   concurso?: Types.ConcursoQuestaoDto | null;
-  cargos?: Types.CargoSummaryDto[];
   anulada?: boolean;
   desatualizada?: boolean;
   autoral?: boolean;
 }
 
-export const QuestionHeader = ({ concurso, cargos, anulada, desatualizada, autoral }: QuestionHeaderProps) => {
+export const QuestionHeader = ({ concurso, anulada, desatualizada, autoral }: QuestionHeaderProps) => {
   const hasConcurso = !!concurso;
 
   if (autoral && !hasConcurso) {
@@ -97,8 +96,14 @@ export const QuestionHeader = ({ concurso, cargos, anulada, desatualizada, autor
         )}
       </div>
 
-      <div className="text-xs text-slate-500">
-        {(cargos || []).map((c) => `${c.nome} – ${c.area} (${formatNivel(c.nivel)})`).join(', ')}
+      <div className="text-[10px] sm:text-xs text-slate-500 font-medium tracking-tight">
+        {(concurso?.cargos || []).map((c) => {
+          const cargoInfo = `${c.nome} – ${c.area} (${formatNivel(c.nivel)})`;
+          const secoesInfo = c.secoes?.length > 0 
+            ? ` [${c.secoes.map(s => s.nome).join(', ')}]`
+            : '';
+          return cargoInfo + secoesInfo;
+        }).join(' | ')}
       </div>
     </div>
   );
@@ -267,7 +272,6 @@ export const DifficultySelector = ({ value, onChange }: DifficultySelectorProps)
 
 interface QuestionCardBodyProps {
   concurso?: Types.ConcursoQuestaoDto;
-  cargos?: Types.CargoSummaryDto[];
   enunciado: string;
   imageUrl?: string;
   subtemas?: Types.SubtemaQuestaoDto[];
@@ -307,7 +311,6 @@ const ENCOURAGING_MESSAGES = [
 
 export const QuestionCard = ({
   concurso,
-  cargos,
   enunciado,
   imageUrl,
   subtemas,
@@ -351,7 +354,12 @@ export const QuestionCard = ({
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       {/* Header */}
-      <QuestionHeader concurso={concurso} cargos={cargos} anulada={anulada} desatualizada={desatualizada} autoral={autoral} />
+      <QuestionHeader
+        concurso={concurso}
+        anulada={anulada}
+        desatualizada={desatualizada}
+        autoral={autoral}
+      />
 
       {/* Body */}
       <div className="p-6 md:p-8">
