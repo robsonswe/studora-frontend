@@ -379,9 +379,10 @@ export function generateSimuladoFromCargo(
   } = options;
 
   const topicos = cargo.topicos ?? [];
-
+  const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => secao.assuntos || []);
+  
   // Score every subtema
-  const scored = topicos.map(t => scoreTopico(t, strategy));
+  const scored = assuntos.map((t: Types.ConcursoCargoSubtemaDto) => scoreTopico(t, strategy));
 
   // Distribute
   const distribution = distributeQuestions(scored, targetQuestions);
@@ -424,7 +425,8 @@ export function generateSimuladoPreview(
   } = options;
 
   const topicos = cargo.topicos ?? [];
-  const scored = topicos.map(t => scoreTopico(t, strategy));
+  const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => secao.assuntos || []);
+  const scored = assuntos.map((t: Types.ConcursoCargoSubtemaDto) => scoreTopico(t, strategy));
   const distribution = distributeQuestions(scored, targetQuestions);
   const totalAllocated = distribution.reduce((s, d) => s + d.quantidade, 0);
 

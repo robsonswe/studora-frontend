@@ -185,7 +185,7 @@ interface EditalAnalysis {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface EditalAnalysisReportProps {
-  topicos: Types.ConcursoCargoSubtemaDto[];
+  topicos: Types.ConcursoSecaoDto[];
   dataProva?: string;
   inscrito?: boolean;
   /** Indica se o concurso já foi encerrado. Quando true, adapta todos os relatórios
@@ -2021,7 +2021,8 @@ const EditalAnalysisReport: React.FC<EditalAnalysisReportProps> = ({
     () => {
       if (!topicos || topicos.length === 0) return null;
       const ctx: EditalContext = { banca, instituicao, areaInstituicao, cargoId, cargoNome, areaCargo, nivel, finalizado };
-      return analyzeEdital(topicos, dataProva, inscrito, ctx, finalizado);
+      const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => secao.assuntos || []);
+      return analyzeEdital(assuntos, dataProva, inscrito, ctx, finalizado);
     },
     [topicos, dataProva, inscrito, finalizado, banca, instituicao, areaInstituicao, cargoId, cargoNome, areaCargo, nivel]
   );

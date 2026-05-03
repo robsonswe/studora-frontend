@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { questaoService, respostaService, concursoService } from '@/services/api';
-import { formatNivel } from '@/utils/formatters';
+
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import {
@@ -24,17 +24,14 @@ function ProvaContent() {
   const router = useRouter();
   const { showToast } = useToast();
   
-  const concursoId = Number(searchParams.get('concursoId'));
-  const cargoId = searchParams.get('cargoId') ? Number(searchParams.get('cargoId')) : undefined;
   const provaId = searchParams.get('provaId') ? Number(searchParams.get('provaId')) : undefined;
-  const provaSecaoId = searchParams.get('provaSecaoId') ? Number(searchParams.get('provaSecaoId')) : undefined;
-  const instituicaoId = Number(searchParams.get('instituicaoId'));
 
   // Data State
   const [questoes, setQuestoes] = useState<Types.QuestaoSummaryDto[]>([]);
   const [concurso, setConcurso] = useState<Types.ConcursoDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [concursoId, setConcursoId] = useState<number | undefined>(undefined);
   
   // Question State
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -81,7 +78,7 @@ function ProvaContent() {
 
   useEffect(() => {
     loadData();
-  }, [concursoId, cargoId, provaId, provaSecaoId, instituicaoId]);
+  }, [provaId]);
 
   useEffect(() => {
     if (currentQuestion) {
@@ -129,42 +126,44 @@ function ProvaContent() {
       setLoading(true);
       setError(null);
       
-      let finalConcursoId = concursoId;
-
-      const questoesRes = await questaoService.getAll({
-        concursoId: finalConcursoId || undefined,
-        cargoId,
-        provaId,
-        provaSecaoId,
-        size: 1000 // Big size to return all
-      });
-
-      const fetchedQuestoes = questoesRes.content;
-
-      if (!finalConcursoId && fetchedQuestoes.length > 0 && fetchedQuestoes[0].concurso) {
-        finalConcursoId = fetchedQuestoes[0].concurso.id;
-      }
-
-      if (!finalConcursoId) {
-        setError('Parâmetros insuficientes para carregar os dados.');
+      if (!provaId) {
+        setError('ID da prova não fornecido.');
         setLoading(false);
         return;
       }
 
-      const concursoRes = await concursoService.getById(finalConcursoId);
-      setConcurso(concursoRes);
+      const questoesRes = await questaoService.getAll({
+        provaId,
+        size: 1000
+      });
+
+      const fetchedQuestoes = questoesRes.content;
+
+      // Extract concursoId from the questions or fetch details directly
+      const concursoId = fetchedQuestoes.length > 0 && fetchedQuestoes[0].concurso 
+        ? fetchedQuestoes[0].concurso.id 
+        : null;
+
+      if (concursoId) {
+        const concursoRes = await concursoService.getById(concursoId);
+        setConcurso(concursoRes);
+      }
       
       const sortedQuestoes = [...fetchedQuestoes].sort((a, b) => {
-        const discA = a.subtemas?.[0]?.disciplina?.nome || 'Outros';
-        const discB = b.subtemas?.[0]?.disciplina?.nome || 'Outros';
-        if (discA !== discB) return discA.localeCompare(discB);
-        return a.id - b.id;
+        // Sort by numeroQuestao globally defined by the backend ordering logic
+        const getNumero = (q: Types.QuestaoSummaryDto) => {
+          const secoes = q.concurso?.cargos?.flatMap(c => c.secoes || []) || [];
+          const matched = secoes.find(s => s.provaId === provaId);
+          return matched?.numeroQuestao || 0;
+        };
+
+        return getNumero(a) - getNumero(b);
       });
 
       setQuestoes(sortedQuestoes);
       
       if (sortedQuestoes.length === 0) {
-        setError('Nenhuma questão encontrada para este cargo neste concurso.');
+        setError('Nenhuma questão encontrada para esta prova.');
       }
     } catch (err: unknown) {
       console.error('Erro ao carregar dados da prova:', err);
@@ -231,7 +230,6 @@ function ProvaContent() {
     return resp?.correta ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-red-100 text-red-700 border border-red-300';
   };
 
-  const cargo = concurso?.cargos.find(c => c.cargoId === cargoId);
   const progressPercentage = (stats.total > 0) ? (stats.answered / stats.total) * 100 : 0;
   const displayAlternativas = currentQuestion ? [...currentQuestion.alternativas].sort((a, b) => a.ordem - b.ordem) : [];
   
@@ -277,7 +275,7 @@ function ProvaContent() {
     <div className="min-h-screen bg-slate-50 pb-20">
       <PageHeader
         title={`Prova: ${concurso?.instituicao.nome} (${concurso?.ano})`}
-        subtitle={cargo ? `${cargo.cargoNome} - ${cargo.area} (${formatNivel(cargo.nivel)})` : "Execução de Prova"}
+        subtitle="Execução de Prova"
       />
 
       {/* Sticky Bar */}
@@ -287,7 +285,9 @@ function ProvaContent() {
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex justify-between items-center">
            <div className="flex items-center space-x-3 text-sm text-slate-600 font-medium">
-              <span className="bg-slate-100 px-2.5 py-1 rounded-md text-slate-900 border border-slate-200">Questão {currentQuestionIndex + 1}</span>
+              <span className="bg-slate-100 px-2.5 py-1 rounded-md text-slate-900 border border-slate-200">
+                Questão {currentQuestion?.concurso?.cargos?.flatMap(c => c.secoes).find(s => s.provaId === provaId)?.numeroQuestao || (currentQuestionIndex + 1)}
+              </span>
               <span className="text-slate-400">/</span><span>{stats.total}</span>
            </div>
            <div className="flex items-center space-x-4">
@@ -356,73 +356,48 @@ function ProvaContent() {
                 {(() => {
                   if (!concurso) return null;
 
-                  interface NavGroup {
-                    category: string;
-                    disciplines: { name: string, indices: number[] }[];
-                  }
-
-                  const groups: NavGroup[] = [];
+                  const groups: { category: string; indices: number[] }[] = [];
 
                   questoes.forEach((q, index) => {
-                    // Get secoes from question's concurso.cargos (CargoQuestaoDto type which has secoes)
-                    const allSecoes = q.concurso?.cargos?.flatMap(c => c.secoes) || [];
+                    const cargoSecoes = q.concurso?.cargos?.flatMap(c => c.secoes || []) || [];
                     
-                    // Filter to secao that matches the current provaId
-                    const secao = allSecoes.find(s => s.provaId === provaId);
+                    const secao = provaId 
+                      ? cargoSecoes.find(s => s.provaId === provaId)
+                      : cargoSecoes[0];
                     
-                    const category = secao ? secao.nome : 'Outros';
+                    const category = secao ? secao.nome : 'Outras Questões';
                     let group = groups.find(g => g.category === category);
                     if (!group) {
-                      group = { category, disciplines: [] };
+                      group = { category, indices: [] };
                       groups.push(group);
                     }
-                    
-                    const discName = q.subtemas?.[0]?.disciplina?.nome || 'Outros';
-                    let discGroup = group.disciplines.find(d => d.name === discName);
-                    if (!discGroup) {
-                      discGroup = { name: discName, indices: [] };
-                      group.disciplines.push(discGroup);
-                    }
-                    discGroup.indices.push(index);
+                    group.indices.push(index);
                   });
 
                   return groups.map(group => (
                     <div key={group.category} className="space-y-4">
                       <div className="flex items-center gap-2">
-                        {group.category.toLowerCase().includes('básico') ? (
-                          <div className="p-1 bg-indigo-50 rounded">
-                            <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
-                          </div>
-                        ) : (
-                          <div className="p-1 bg-amber-50 rounded">
-                            <Target className="w-3.5 h-3.5 text-amber-600" />
-                          </div>
-                        )}
+                        <div className="p-1 bg-indigo-50 rounded">
+                          <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
+                        </div>
                         <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
                           {group.category}
                         </span>
                         <div className="h-px flex-1 bg-slate-100" />
                       </div>
 
-                      {group.disciplines.map(disc => (
-                        <div key={disc.name} className="space-y-2 pl-2">
-                          <p className="text-[10px] font-extrabold text-[oklch(45%_0.22_264)] uppercase tracking-widest truncate" title={disc.name}>
-                            {disc.name}
-                          </p>
-                          <div className="grid grid-cols-5 gap-1.5">
-                            {disc.indices.map((index) => (
-                              <button
-                                key={index}
-                                onClick={() => setCurrentQuestionIndex(index)}
-                                className={`h-9 w-full rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-300 ${getQuestionStatusColor(index)}`}
-                                style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
-                              >
-                                {index + 1}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                      <div className="grid grid-cols-5 gap-1.5 pl-2">
+                        {group.indices.map((index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentQuestionIndex(index)}
+                            className={`h-9 w-full rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-300 ${getQuestionStatusColor(index)}`}
+                          >
+                            {questoes[index]?.secoes?.[0]?.numeroQuestao || index + 1}
+                          </button>
+                        ))}
+
+                      </div>
                     </div>
                   ));
                 })()}

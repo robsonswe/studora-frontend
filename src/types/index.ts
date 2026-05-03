@@ -511,8 +511,10 @@ export interface ConcursoCargoSummaryDto {
   area: string;
   /** Indica se o usuário está inscrito para este cargo neste concurso. */
   inscrito: boolean;
-  /** Subtemas associados a este cargo neste concurso. */
-  topicos: ConcursoCargoSubtemaDto[];
+  /** Provas associadas a este cargo neste concurso. */
+  provas?: ConcursoProvaDto[];
+  /** Seções (tópicos do edital) associadas a este cargo neste concurso. */
+  topicos: ConcursoSecaoDto[];
 }
 
 /**
@@ -560,6 +562,36 @@ export interface ConcursoSummaryDto {
 }
 
 /**
+ * DTO de prova associada a um cargo em um concurso.
+ */
+export interface ConcursoProvaDto {
+  /** ID da prova. */
+  id: number;
+  /** Nome da prova. */
+  nome: string;
+}
+
+/**
+ * DTO de seção do edital de um concurso (topico do cargo).
+ */
+export interface ConcursoSecaoDto {
+  /** ID da seção. */
+  id: number;
+  /** Nome da seção. */
+  nome: string;
+  /** Ordem da seção. */
+  ordem?: number;
+  /** Número de questões na seção. */
+  numQuestoes?: number;
+  /** Peso da seção. */
+  peso?: number;
+  /** Nota mínima para aprovação. */
+  notaMinima?: number;
+  /** Assuntos (subtemas) associados a esta seção. */
+  assuntos?: ConcursoCargoSubtemaDto[];
+}
+
+/**
  * DTO de uma seção de prova (ProvaSecaoDto).
  */
 export interface ProvaSecaoDto {
@@ -595,8 +627,8 @@ export interface ProvaDetailDto {
   concursoId: number;
   /** Nome da prova. */
   nome: string;
-  /** IDs dos cargos associados a esta prova. */
-  cargoIds: number[];
+  /** ID do cargo associado a esta prova. */
+  cargoId?: number;
   /** Seções da prova. */
   secoes: ProvaSecaoDto[];
 }
@@ -635,7 +667,7 @@ export interface ConcursoCreateRequest {
 
 export interface ProvaCreateRequest {
   nome: string;
-  cargoIds?: number[];
+  cargoId?: number;
   secoes?: ProvaSecaoCreateRequest[];
 }
 
@@ -680,7 +712,7 @@ export interface ConcursoUpdateRequest {
 export interface ProvaUpdateRequest {
   id?: number | null;
   nome: string;
-  cargoIds?: number[];
+  cargoId?: number | null;
   secoes?: ProvaSecaoUpdateRequest[];
 }
 
@@ -689,15 +721,9 @@ export interface ProvaSecaoUpdateRequest {
   nome: string;
   ordem?: number;
   numQuestoes?: number;
-  subtemaIds?: number[];
-  pesos?: ProvaSecaoPesoUpdateRequest[];
-}
-
-export interface ProvaSecaoPesoUpdateRequest {
-  id?: number | null;
-  cargoId?: number;
   peso?: number;
   notaMinima?: number;
+  subtemaIds?: number[];
 }
 
 /**
@@ -885,14 +911,23 @@ export interface QuestaoDetailDto {
 }
 
 /**
+ * Request DTO para vincular uma questão a uma seção com número.
+ */
+export interface SecaoQuestaoRequest {
+  secaoId: number;
+  numeroQuestao?: number;
+}
+
+/**
  * Request DTO for question creation.
  */
 export interface QuestaoCreateRequest {
   enunciado: string;
   alternativas: AlternativaCreateRequest[];
-  subtemaIds: number[];
-  /** IDs das seções da prova às quais esta questão pertence (ignorado se autoral=true). */
-  secoesIds?: number[];
+  /** @backend expects "subtemas" due to @JsonProperty */
+  subtemas: number[];
+  /** Associações com seções da prova. */
+  secoes?: SecaoQuestaoRequest[];
   imageUrl?: string;
   /** Se verdadeiro, a questão é autoral e não requer concurso ou cargo. Padrão: false. */
   autoral?: boolean;
@@ -908,9 +943,10 @@ export interface QuestaoCreateRequest {
 export interface QuestaoUpdateRequest {
   enunciado?: string;
   alternativas?: AlternativaUpdateRequest[];
-  subtemaIds?: number[];
-  /** IDs das seções da prova às quais esta questão pertence. */
-  secoesIds?: number[];
+  /** @backend expects "subtemas" due to @JsonProperty */
+  subtemas?: number[];
+  /** Associações com seções da prova. */
+  secoes?: SecaoQuestaoRequest[];
   imageUrl?: string;
   anulada?: boolean;
   /** Tipo da questão. Não pode ser alterado após a criação. */

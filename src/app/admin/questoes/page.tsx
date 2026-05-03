@@ -126,6 +126,7 @@ function QuestoesContent() {
   });
 
   const [currentAlternativas, setCurrentAlternativas] = useState<Types.AlternativaDto[]>([]);
+  const [numeroQuestaoState, setNumeroQuestaoState] = useState<Record<string, number>>({});
   const [novaAlternativa, setNovaAlternativa] = useState<Omit<Types.AlternativaDto, 'id' | 'questaoId'>>({
     ordem: 0,
     texto: '',
@@ -293,6 +294,7 @@ function QuestoesContent() {
     secoes: number[];
     imageUrl: string;
   }) => {
+    console.log('[handleQuestaoSubmit] data.subtemas:', data.subtemas);
     const errs: string[] = [];
 
     if (currentAlternativas.length < 2) {
@@ -312,6 +314,16 @@ function QuestoesContent() {
       errs.push('A questão deve estar associada a pelo menos uma seção de prova');
     }
 
+    // Validate that each cargo has at least one prova selected
+    const provasPorCargo = crudForm.getValues('provasPorCargo') as Record<string, number[]> || {};
+    const cargoSecoesMap = crudForm.getValues('cargoSecoesMap') as Record<string, number> || {};
+    for (const [cargoNome, topicoId] of Object.entries(cargoSecoesMap)) {
+      const provas = provasPorCargo[cargoNome] || [];
+      if (topicoId && provas.length === 0) {
+        errs.push(`O cargo "${cargoNome}" precisa ter pelo menos uma prova selecionada`);
+      }
+    }
+
     if (!data.autoral && !data.concurso) {
       errs.push('A questão deve estar vinculada a um concurso (ou marcar como autoral)');
     }
@@ -329,12 +341,13 @@ function QuestoesContent() {
     setFormLoading(true);
 
     try {
+      console.log('[handleQuestaoSubmit] subtemaIds:', data.subtemas.map((s) => s.value));
       const payload: Types.QuestaoCreateRequest = {
         enunciado: data.enunciado,
         anulada: data.anulada,
         desatualizada: data.desatualizada,
         imageUrl: data.imageUrl,
-        subtemaIds: data.subtemas.map((s) => s.value),
+        subtemas: data.subtemas.map((s) => s.value),
         autoral: data.autoral,
         alternativas: currentAlternativas.map((alt, index) => ({
           ...alt,
@@ -345,7 +358,15 @@ function QuestoesContent() {
       };
 
       if (!data.autoral && data.concurso) {
-        payload.secoesIds = data.secoes;
+        payload.secoes = (data.secoes || []).map(secaoId => {
+          let numero = 0;
+          Object.keys(numeroQuestaoState).forEach(key => {
+            if (key.startsWith(`${secaoId}-`)) {
+              numero = numeroQuestaoState[key];
+            }
+          });
+          return { secaoId, numeroQuestao: numero > 0 ? numero : 0 };
+        });
       }
 
       if (editingItem) {
@@ -395,6 +416,20 @@ function QuestoesContent() {
         });
       });
       crudForm.setValue('secoes', secoesIds);
+      
+      // Populate numeroQuestaoState for edit
+      const initialNumeroQuestaoState: Record<string, number> = {};
+      
+      (detail.concurso?.cargos || []).forEach(cargo => {
+        (cargo.secoes || []).forEach(secao => {
+          if (secao.numeroQuestao) {
+            const key = `${secao.id}-${secao.provaId}`;
+            initialNumeroQuestaoState[key] = secao.numeroQuestao;
+          }
+        });
+      });
+      setNumeroQuestaoState(initialNumeroQuestaoState);
+      
       crudForm.setValue('imageUrl', detail.imageUrl || '');
 
       setCurrentAlternativas([...detail.alternativas].sort((a, b) => a.ordem - b.ordem));
@@ -1058,6 +1093,8 @@ function QuestoesContent() {
         onMoverAlternativaParaCima={moverAlternativaParaCima}
         onMoverAlternativaParaBaixo={moverAlternativaParaBaixo}
         alternativeErrors={alternativeErrors}
+        numeroQuestaoState={numeroQuestaoState}
+        setNumeroQuestaoState={setNumeroQuestaoState}
       />
 
       <ConfirmModal

@@ -7,7 +7,8 @@ import {
   Plus,
   AlertCircle,
   Loader2,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import * as Types from '@/types';
 import { formatNivel } from '@/utils/formatters';
@@ -27,6 +28,8 @@ interface QuestaoFormData {
   subtemas: { value: number; label: string }[];
   secoes: number[];
   imageUrl: string;
+  provasPorCargo: Record<string, number[]>;
+  cargoSecoesMap: Record<string, number>;
 }
 
 interface QuestaoFormModalProps {
@@ -62,12 +65,76 @@ export default function QuestaoFormModal({
   onRemoverAlternativa,
   onMoverAlternativaParaCima,
   onMoverAlternativaParaBaixo,
-  alternativeErrors
-}: QuestaoFormModalProps) {
-  const [availableSecoes, setAvailableSecoes] = useState<{ id: number; label: string; provaId?: number }[]>([]);
+  alternativeErrors,
+  numeroQuestaoState,
+  setNumeroQuestaoState
+}: QuestaoFormModalProps & { 
+  numeroQuestaoState: Record<string, number>, 
+  setNumeroQuestaoState: React.Dispatch<React.SetStateAction<Record<string, number>>> 
+}) {
+  const [availableSecoes, setAvailableSecoes] = useState<{
+    cargoId: number; 
+    cargoNome: string; 
+    topicoId: number; 
+    topicoNome: string; 
+    provas: { id: number; nome: string }[] 
+  }[]>([]);
+  const [selectedProvas, setSelectedProvas] = useState<Record<number, number[]>>({});
   const [activeTab, setActiveTab] = useState<'dados' | 'alternativas'>('dados');
   const [isSubtemaPickerOpen, setIsSubtemaPickerOpen] = useState(false);
   const crudWatchedFields = crudForm.watch();
+
+
+  // Sync provas when editingItem changes (secoes are already set by the page)
+  useEffect(() => {
+    if (editingItem && editingItem.concurso && availableSecoes.length > 0) {
+      // Use cargoNome as the key since cargo IDs don't match between endpoints
+      const existingProvas: Record<string, number[]> = {};
+      const existingCargoSecoesMap: Record<string, number> = {};
+      
+      (editingItem.concurso.cargos || []).forEach(cargo => {
+        const key = cargo.nome;
+        existingProvas[key] = [];
+        existingCargoSecoesMap[key] = 0;
+        (cargo.secoes || []).forEach(secao => {
+          if (secao.provaId) {
+            existingProvas[key].push(secao.provaId);
+            existingCargoSecoesMap[key] = secao.id;
+          }
+        });
+      });
+      
+      setSelectedProvas(existingProvas as any);
+      crudForm.setValue('provasPorCargo', existingProvas as any);
+      crudForm.setValue('cargoSecoesMap', existingCargoSecoesMap as any);
+    }
+  }, [editingItem, availableSecoes]);
+
+  // When topico selection changes, preserve provas by cargoId
+  const handleTopicoChange = (selected: readonly any[] | any[]) => {
+    const arr = Array.isArray(selected) ? selected : [];
+    const seenCargoIds = new Set<number>();
+    const newSecoes: number[] = [];
+    
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const item = arr[i];
+      if (!seenCargoIds.has(item.cargoId)) {
+        newSecoes.push(item.value);
+        seenCargoIds.add(item.cargoId);
+      }
+    }
+    crudForm.setValue('secoes', newSecoes);
+
+    // Clear provas only for completely removed cargos
+    const currentProvas = { ...selectedProvas };
+    Object.keys(currentProvas).forEach(cargoId => {
+      const ct = availableSecoes.find(s => s.cargoId === Number(cargoId));
+      if (ct && !seenCargoIds.has(ct.cargoId)) {
+        delete currentProvas[Number(cargoId)];
+      }
+    });
+    setSelectedProvas(currentProvas);
+  };
 
   // Error indicators for mobile tabs
   const hasDadosErrors = validationErrors.length > 0 || Object.keys(crudForm.formState.errors).length > 0;
@@ -78,17 +145,31 @@ export default function QuestaoFormModal({
     if (crudWatchedFields.concurso?.value) {
       concursoService.getById(crudWatchedFields.concurso.value)
         .then(detail => {
-          const secoes: { id: number; label: string; provaId: number }[] = [];
-          (detail.provas || []).forEach(prova => {
-            (prova.secoes || []).forEach(secao => {
-              secoes.push({
-                id: secao.id,
-                provaId: prova.id,
-                label: `${prova.nome} — ${secao.nome}`
+          // Group by cargo+topico, collect provas for each
+          const cargoTopicos: { 
+            cargoId: number; 
+            cargoNome: string; 
+            topicoId: number; 
+            topicoNome: string; 
+            provas: { id: number; nome: string }[] 
+          }[] = [];
+          
+          (detail.cargos || []).forEach(cargo => {
+            const cargoNome = cargo.cargoNome || 'Sem cargo';
+            const cargoId = cargo.id;
+            const provas = cargo.provas || [];
+            
+            (cargo.topicos || []).forEach(topico => {
+              cargoTopicos.push({
+                cargoId,
+                cargoNome,
+                topicoId: topico.id,
+                topicoNome: topico.nome,
+                provas: provas
               });
             });
           });
-          setAvailableSecoes(secoes);
+          setAvailableSecoes(cargoTopicos);
         })
         .catch(console.error);
     } else {
@@ -282,38 +363,121 @@ export default function QuestaoFormModal({
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1.5">
-                        Seções da Prova
+                        Cargos / Seções
                       </label>
                       <Select
                         id="crud-secoes"
                         instanceId="crud-secoes-select"
                         isMulti
-                        options={availableSecoes.map(s => ({ value: s.id, label: s.label, provaId: s.provaId }))}
+                        options={availableSecoes.map(ct => ({
+                          value: ct.topicoId,
+                          label: `${ct.cargoNome} - ${ct.topicoNome}`,
+                          cargoId: ct.cargoId,
+                          provas: ct.provas
+                        }))}
                         value={(crudWatchedFields.secoes || []).map(id => {
-                          const secao = availableSecoes.find(s => s.id === id);
-                          return { value: id, label: secao ? secao.label : `Seção ID: ${id}`, provaId: secao?.provaId };
-                        })}
-                        onChange={(sel) => {
-                          const newSecoes: number[] = [];
-                          const selected = sel as any[];
-                          const seenProvaIds = new Set<number>();
-                          
-                          // Process in reverse to keep the most recent selection if collision occurs
-                          for (let i = selected.length - 1; i >= 0; i--) {
-                            const item = selected[i];
-                            if (!seenProvaIds.has(item.provaId)) {
-                              newSecoes.push(item.value);
-                              seenProvaIds.add(item.provaId);
-                            }
-                          }
-                          crudForm.setValue('secoes', newSecoes);
-                        }}
-                        placeholder={crudWatchedFields.concurso ? 'Selecione uma seção por prova…' : 'Selecione um concurso primeiro'}
+                          const ct = availableSecoes.find(s => s.topicoId === id);
+                          return ct ? { 
+                            value: ct.topicoId, 
+                            label: `${ct.cargoNome} - ${ct.topicoNome}`,
+                            cargoId: ct.cargoId,
+                            provas: ct.provas
+                          } : null;
+                        }).filter(Boolean)}
+                        onChange={handleTopicoChange}
+                        placeholder={crudWatchedFields.concurso ? 'Selecione os cargos/seções…' : 'Selecione um concurso primeiro'}
                         isDisabled={!crudWatchedFields.concurso}
                         styles={crudSelectStyles}
                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                       />
                     </div>
+                    {crudWatchedFields.secoes && crudWatchedFields.secoes.length > 0 && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest mb-1">
+                          Provas por Cargo
+                        </label>
+                        <p className="text-[10px] text-slate-500 mb-3">
+                          Selecione as provas e informe o número de cada questão na prova original
+                        </p>
+                        <div className="space-y-2">
+                          {crudWatchedFields.secoes.map(topicoId => {
+                            const ct = availableSecoes.find(s => s.topicoId === topicoId);
+                            if (!ct) return null;
+                            const cargoId = ct.cargoId;
+                            return (
+                              <div key={topicoId} className="border border-slate-200 rounded-lg p-3 bg-white">
+                                <p className="text-xs font-semibold text-slate-700 mb-2">
+                                  {ct.cargoNome} - {ct.topicoNome}
+                                </p>
+                                <Select
+                                  id={`provas-${ct.cargoNome}`}
+                                  isMulti
+                                  options={ct.provas
+                                    .filter(p => !((selectedProvas as any)[ct.cargoNome] || []).includes(p.id))
+                                    .map(p => ({ value: p.id, label: p.nome }))}
+                                  value={[]}
+                                  onChange={(sel: any) => {
+                                    const provaIds = sel.map((s: any) => s.value);
+                                    setSelectedProvas(prev => ({ ...prev, [ct.cargoNome]: provaIds }));
+                                    crudForm.setValue('provasPorCargo', { ...selectedProvas, [ct.cargoNome]: provaIds });
+                                    crudForm.setValue('cargoSecoesMap', { 
+                                      ...(crudForm.getValues('cargoSecoesMap') || {}),
+                                      [ct.cargoNome]: ct.topicoId 
+                                    });
+                                  }}
+                                  placeholder="Selecione provas..."
+                                  styles={crudSelectStyles}
+                                  menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                />
+                                {/* Numero Questao Input per Prova/Section - Option B: Vertical stacking */}
+                                {((selectedProvas as any)[ct.cargoNome] || []).map((provaId: number) => {
+                                  const prova = ct.provas.find(p => p.id === provaId);
+                                  return (
+                                    <div key={provaId} className="mt-3 pl-3 border-l-2 border-indigo-100 flex justify-between gap-3">
+                                      <div className="flex flex-col">
+                                        <p className="text-[10px] font-semibold text-indigo-600/80 mb-1 uppercase tracking-wider">
+                                          {prova?.nome}
+                                        </p>
+                                        <div className="flex items-center gap-2 pl-1">
+                                          <span className="text-[10px] text-slate-500">Nº Questão:</span>
+                                          <input
+                                            type="number"
+                                            className="w-12 text-xs border border-slate-200 rounded p-1 text-center"
+                                            value={numeroQuestaoState[`${ct.topicoId}-${provaId}`] || ''}
+                                            onChange={(e) => {
+                                              const val = parseInt(e.target.value);
+                                              setNumeroQuestaoState(prev => ({
+                                                ...prev,
+                                                [`${ct.topicoId}-${provaId}`]: val
+                                              }));
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const currentProvas = (selectedProvas as any)[ct.cargoNome] || [];
+                                          const newProvas = currentProvas.filter((id: number) => id !== provaId);
+                                          setSelectedProvas(prev => ({ ...prev, [ct.cargoNome]: newProvas }));
+                                          crudForm.setValue('provasPorCargo', { ...selectedProvas, [ct.cargoNome]: newProvas });
+                                          const newNumeroState = { ...numeroQuestaoState };
+                                          delete newNumeroState[`${ct.topicoId}-${provaId}`];
+                                          setNumeroQuestaoState(newNumeroState);
+                                        }}
+                                        className="text-slate-400 hover:text-red-500 transition-colors self-center"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

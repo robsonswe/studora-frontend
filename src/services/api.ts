@@ -290,11 +290,11 @@ export const concursoService = {
   }): Promise<Types.PageResponse<Types.ConcursoSummaryDto>> =>
     apiCall(`/concursos${buildQueryString(params)}`),
 
-  /**
-   * Obter concurso por ID.
-   * @param metrics Nível de métricas para os topicos nos cargos: 'lean', 'full'. Padrão: lean.
+/**
+   *Obter concurso por ID.
+   *@param metrics Nível de métricas para os topicos nos cargos: 'lean', 'summary', 'full'. Padrão: lean.
    */
-  getById: (id: number, metrics?: 'lean' | 'full'): Promise<Types.ConcursoDetailDto> =>
+  getById: (id: number, metrics?: 'lean' | 'summary' | 'full'): Promise<Types.ConcursoDetailDto> =>
     apiCall(`/concursos/${id}${buildQueryString(metrics ? { metrics } : undefined)}`),
 
   /**

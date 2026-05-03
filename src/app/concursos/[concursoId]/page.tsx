@@ -63,12 +63,21 @@ export default function ConcursoDetailPage() {
 
   const handleStartCargo = (cargoId: number) => {
     if (!concurso) return;
-    router.push(`/provas/executar?concursoId=${concurso.id}&cargoId=${cargoId}&instituicaoId=${concurso.instituicao.id}`);
+    
+    // Find the cargo object in the concurso data to access its nested provas
+    const cargo = concurso.cargos.find(c => c.cargoId === cargoId);
+    
+    // Check if the cargo has any associated provas
+    if (cargo && cargo.provas && cargo.provas.length > 0) {
+      handleStartProva(cargo.provas[0].id);
+    } else {
+      showToast('Nenhuma prova encontrada para este cargo.', 'error');
+    }
   };
 
   const handleStartProva = (provaId: number) => {
     if (!concurso) return;
-    router.push(`/provas/executar?concursoId=${concurso.id}&provaId=${provaId}&instituicaoId=${concurso.instituicao.id}`);
+    router.push(`/provas/executar?provaId=${provaId}`);
   };
 
   const handleToggleInscricao = async (concursoCargoId: number, cargoId: number) => {
@@ -221,7 +230,7 @@ export default function ConcursoDetailPage() {
             
             <div className="space-y-3">
               {areaCargos.map((cargo) => {
-                const cargoProvas = (concurso.provas || []).filter(p => p.cargoIds?.includes(cargo.cargoId));
+                const cargoProvas = (concurso.provas || []).filter((p: Types.ProvaDetailDto) => p.cargoId === cargo.cargoId);
 
                 return (
                   <div
@@ -278,31 +287,6 @@ export default function ConcursoDetailPage() {
                           >
                             {toggleLoading === cargo.cargoId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (cargo.inscrito ? 'Remover Inscrição' : 'Marcar Inscrição')}
                           </button>
-                        </div>
-
-                        <div className="h-px sm:h-8 w-full sm:w-px bg-slate-100" />
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          {cargoProvas.length > 0 ? (
-                            cargoProvas.map(prova => (
-                              <button
-                                key={prova.id}
-                                onClick={() => handleStartProva(prova.id)}
-                                className="inline-flex items-center justify-center flex-1 sm:flex-none px-5 py-2.5 sm:py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm hover:shadow-indigo-200/50 active:scale-95 border border-indigo-700/10 gap-2"
-                              >
-                                <ClipboardList className="w-3.5 h-3.5" />
-                                {prova.nome}
-                              </button>
-                            ))
-                          ) : (
-                            <button
-                              onClick={() => handleStartCargo(cargo.cargoId)}
-                              className="inline-flex items-center justify-center flex-1 sm:flex-none px-5 py-2.5 sm:py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm hover:shadow-indigo-200/50 active:scale-95 border border-indigo-700/10 gap-2"
-                            >
-                              <ClipboardList className="w-3.5 h-3.5" />
-                              Resolver Prova
-                            </button>
-                          )}
                         </div>
                       </div>
                     </div>

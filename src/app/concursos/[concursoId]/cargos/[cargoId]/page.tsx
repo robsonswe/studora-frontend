@@ -87,7 +87,7 @@ export default function ConcursoCargoDetailPage() {
   const [cargo, setCargo] = useState<Types.ConcursoCargoSummaryDto | null>(null);
 
   const [showSimuladoModal, setShowSimuladoModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'conteudo' | 'analise'>('conteudo');
+  const [activeTab, setActiveTab] = useState<'conteudo' | 'analise' | 'provas'>('conteudo');
   const [searchTerm, setSearchTerm] = useState('');
 
   const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -98,31 +98,26 @@ export default function ConcursoCargoDetailPage() {
     if (!cargo || !concurso) return {};
 
     // Find all provas associated with this cargo
-    const cargoProvas = (concurso.provas || []).filter(p => p.cargoIds?.includes(Number(cargoId)));
+    const cargoProvas = cargo.provas || [];
     
     // Create a map of subtemaId -> secao info
     const subtemaToSecao = new Map<number, string>();
-    cargoProvas.forEach(p => {
-      p.secoes?.forEach(s => {
-        s.subtemaIds?.forEach(sid => {
-          // We use the section name as the group identifier
-          subtemaToSecao.set(sid, s.nome);
-        });
-      });
-    });
 
     const groups: Record<string, Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>>> = {};
 
-    (cargo.topicos || []).forEach(t => {
-      const groupName = subtemaToSecao.get(t.id) || 'Outros Tópicos';
+    // Now topicos is ConcursoSecaoDto[], where each has assuntos (ConcursoCargoSubtemaDto[])
+    (cargo.topicos || []).forEach((secao: Types.ConcursoSecaoDto) => {
+      const groupName = secao.nome || 'Outros Tópicos';
       
-      const disc = t.disciplina?.nome || 'Outras Disciplinas';
-      const tema = t.tema?.nome || 'Geral';
-      
-      if (!groups[groupName]) groups[groupName] = {};
-      if (!groups[groupName][disc]) groups[groupName][disc] = {};
-      if (!groups[groupName][disc][tema]) groups[groupName][disc][tema] = [];
-      groups[groupName][disc][tema].push(t);
+      (secao.assuntos || []).forEach((t: Types.ConcursoCargoSubtemaDto) => {
+        const disc = t.disciplina?.nome || 'Outras Disciplinas';
+        const tema = t.tema?.nome || 'Geral';
+        
+        if (!groups[groupName]) groups[groupName] = {};
+        if (!groups[groupName][disc]) groups[groupName][disc] = {};
+        if (!groups[groupName][disc][tema]) groups[groupName][disc][tema] = [];
+        groups[groupName][disc][tema].push(t);
+      });
     });
 
     return groups;
@@ -431,6 +426,27 @@ export default function ConcursoCargoDetailPage() {
           }`} />
           <span>Análise do Edital</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('provas')}
+          className={`relative px-5 py-2 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-2 group ${
+            activeTab === 'provas'
+              ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/60'
+              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/60'
+          }`}
+        >
+          <ClipboardList className={`w-3.5 h-3.5 transition-colors ${
+            activeTab === 'provas' ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-500'
+          }`} />
+          <span>Provas</span>
+          { (cargo.provas?.length ?? 0) > 0 && (
+            <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black tracking-tight transition-colors ${
+              activeTab === 'provas' ? 'bg-indigo-50 text-indigo-500' : 'bg-slate-200 text-slate-500'
+            }`}>
+              {cargo.provas?.length}
+            </span>
+          )}
+        </button>
       </nav>
 
       {/* Tab Content */}
@@ -503,7 +519,7 @@ export default function ConcursoCargoDetailPage() {
               )}
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'analise' ? (
           <EditalAnalysisReport 
             topicos={cargo.topicos || []}
             dataProva={concurso.dataProva}
@@ -517,15 +533,81 @@ export default function ConcursoCargoDetailPage() {
             areaCargo={cargo.area}
             nivel={cargo.nivel}
           />
-        )}
-      </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="bg-[oklch(97%_0.02_264)]/50 border border-[oklch(90%_0.010_264)] rounded-2xl p-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-white rounded-xl shadow-sm border border-[oklch(90%_0.010_264)]/60">
+                  <ClipboardList className="w-6 h-6 text-[oklch(45%_0.22_264)]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 tracking-tight">Provas Oficiais</h3>
+                  <p className="text-xs font-semibold text-slate-500 tracking-tight">Pratique com a organização e sequência original da banca.</p>
+                </div>
+              </div>
 
-      <SimuladoCargoModal
+              {cargo.provas && cargo.provas.length > 0 ? (
+                <div className="grid gap-4">
+                  {cargo.provas.map((prova) => (
+                    <div 
+                      key={prova.id} 
+                      className="group flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white border border-[oklch(90%_0.010_264)]/60 rounded-xl hover:border-[oklch(45%_0.22_264)]/30 hover:shadow-md hover:shadow-indigo-500/5 transition-all duration-300"
+                    >
+                      <div className="flex items-center gap-4 mb-4 sm:mb-0">
+                        <div className="w-10 h-10 rounded-full bg-[oklch(97%_0.02_264)] flex items-center justify-center text-[oklch(45%_0.22_264)] font-black text-xs border border-[oklch(90%_0.010_264)]/40">
+                          {prova.nome.substring(0, 1).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800 group-hover:text-[oklch(45%_0.22_264)] transition-colors">{prova.nome}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sequência Original</span>
+                            <div className="w-1 h-1 rounded-full bg-slate-200" />
+                            <span className="text-[10px] font-bold text-[oklch(73%_0.17_65)]">Oficial</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => router.push(`/provas/executar?provaId=${prova.id}`)}
+                        className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[oklch(45%_0.22_264)] text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[oklch(35%_0.18_264)] shadow-sm hover:shadow-indigo-500/20 active:scale-95 transition-all"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        Resolver agora
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 bg-white/50 border border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-center">
+                  <div className="p-3 bg-slate-50 rounded-full mb-3">
+                    <FileText className="w-6 h-6 text-slate-300" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sem provas disponíveis</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-[240px]">Nenhuma prova oficial vinculada a este cargo.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-5 bg-[oklch(97%_0.02_65)]/40 border border-[oklch(90%_0.010_65)] rounded-2xl flex items-start gap-4">
+              <div className="mt-0.5">
+                <AlertCircle className="w-5 h-5 text-[oklch(73%_0.17_65)]" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-black text-slate-900 tracking-tight mb-1">Estratégia</h4>
+                <p className="text-xs font-semibold text-slate-600 leading-relaxed">A prova original revela a distribuição real de pesos e a fadiga do dia do exame. Praticar com a sequência oficial expõe a cadência planejada pela banca, detalhe que simulados aleatórios não replicam.</p>
+              </div>
+            </div>
+          </div>
+        )}
+        </div>
+
+        <SimuladoCargoModal
         isOpen={showSimuladoModal}
         onClose={() => setShowSimuladoModal(false)}
         concurso={concurso!}
         cargo={cargo!}
-      />
-    </div>
-  );
-}
+        />
+        </div>
+        );
+        }
+
