@@ -664,29 +664,27 @@ const errors: string[] = [];
         provas: formData.provas.map(p => {
           const provaId = p.id.startsWith('local-') ? null : Number(p.id);
           const secoesForCargo = formData.cargoSecoes.find(cs => cs.cargoId === p.cargoId)?.secoes || [];
-          console.log(`[SUBMIT] Prova: id=${provaId}, cargoId=${p.cargoId}, secoes count=${secoesForCargo.length}`);
-          secoesForCargo.forEach((s, i) => {
-            const secaoId = s.id.startsWith('local-') ? null : Number(s.id);
-            console.log(`[SUBMIT]   Secao ${i}: id=${secaoId}, nome=${s.nome}`);
-          });
           return {
             id: provaId,
             nome: p.nome,
             cargoId: p.cargoId,
-            secoes: secoesForCargo.map(s => ({
-              id: provaId === null ? null : (s.id.startsWith('local-') ? null : Number(s.id)),
-              nome: s.nome,
-              ordem: s.ordem,
-              numQuestoes: s.numQuestoes,
-              peso: s.peso,
-              notaMinima: s.notaMinima,
-              subtemaIds: subtemaIdsBySecao[`${p.cargoId}-${s.id}`] || []
-            }))
+            secoes: secoesForCargo.map((s, i) => {
+              const calculatedOrdem = i + 1;
+              return {
+                id: provaId === null ? null : (s.id.startsWith('local-') ? null : Number(s.id)),
+                nome: s.nome,
+                ordem: calculatedOrdem,
+                numQuestoes: s.numQuestoes,
+                peso: s.peso,
+                notaMinima: s.notaMinima,
+                subtemaIds: subtemaIdsBySecao[`${p.cargoId}-${s.id}`] || []
+              };
+            })
           };
         })
       };
 
-if (editingItem) {
+      if (editingItem) {
         await concursoService.update(editingItem.id, payload);
       } else {
         await concursoService.create(payload);
@@ -733,11 +731,6 @@ const handleEdit = async (item: ConcursoDto) => {
       const detail = await concursoService.getById(item.id);
       setEditingItem(item);
       
-      console.log('[LOAD] detail.cargos:', JSON.stringify(detail.cargos?.map(c => ({
-        cargoId: c.cargoId,
-        provas: c.provas?.map(p => ({ id: p.id, nome: p.nome }))
-      }))));
-      
       const localProvas: ProvaEntry[] = [];
       (detail.cargos || []).forEach(c => {
         (c.provas || []).forEach(p => {
@@ -756,7 +749,7 @@ const handleEdit = async (item: ConcursoDto) => {
           .map(s => ({
             id: String(s.id),
             nome: s.nome,
-            ordem: (s.ordem ?? 1) - 1,
+            ordem: Math.max(0, (s.ordem ?? 1) - 1),
             numQuestoes: s.numQuestoes ?? 0,
             peso: s.peso ?? 1,
             notaMinima: s.notaMinima ?? 0
@@ -1649,7 +1642,9 @@ const cargo = formData.cargos.find(c => c.value === cargoSec.cargoId);
                                                   </span>
                                                 </div>                                              
                                               </label>
-                                              {cargoSec.secoes.map((secao) => (
+                                              {cargoSec.secoes
+                                                .sort((a, b) => a.ordem - b.ordem)
+                                                .map((secao) => (
                                                 <label 
                                                   key={secao.id} 
                                                   className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-all cursor-pointer select-none ${
