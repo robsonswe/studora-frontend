@@ -468,7 +468,7 @@ setFormData((prev) => ({
       id: `local-${Math.random().toString(36).substring(2, 9)}`,
       nome: 'Nova Seção',
       ordem: cargoSecoes?.secoes.length || 0,
-      numQuestoes: 0,
+      numQuestoes: 1,
       peso: 1,
       notaMinima: 0
     };
@@ -1425,10 +1425,11 @@ const cargo = formData.cargos.find(c => c.value === cargoSec.cargoId);
                                       <label className="text-[9px] text-slate-400 font-medium">Questões</label>
                                       <input
                                         type="number"
+                                        min="1"
                                         value={secao.numQuestoes}
-                                        onChange={(e) => updateSecaoInCargo(cargoSec.cargoId, secao.id, { numQuestoes: parseInt(e.target.value) || 0 })}
+                                        onChange={(e) => updateSecaoInCargo(cargoSec.cargoId, secao.id, { numQuestoes: parseInt(e.target.value) || 1 })}
                                         className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs font-medium focus:ring-1 focus:ring-indigo-500"
-                                        placeholder="0"
+                                        placeholder="1"
                                       />
                                     </div>
                                     <div className="flex flex-col justify-center">
