@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import { concursoService, ApiError } from '@/services/api';
-import { formatNivel, formatDateTime } from '@/utils/formatters';
+import { formatNivel, formatDateTime, formatPeso } from '@/utils/formatters';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import EditalAnalysisReport from '@/components/concursos/EditalAnalysisReport';
@@ -449,7 +449,7 @@ export default function ConcursoCargoDetailPage() {
                            </h3>
                            <div className="flex items-center gap-3 mt-0.5">
                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                               Peso: {secao.peso || 1} • {secao.numQuestoes || 0} questões
+                               Peso: {formatPeso(secao.peso)} • {secao.numQuestoes || 0} questões
                              </span>
                            </div>
                          </div>

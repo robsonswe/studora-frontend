@@ -9,7 +9,7 @@ import { concursoService, bancaService, instituicaoService, cargoService, subtem
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
 import AsyncSelect from 'react-select/async';
-import { formatNivel, formatDateTime, utcToLocalInputValue, localInputValueToUtc } from '@/utils/formatters';
+import { formatNivel, formatDateTime, utcToLocalInputValue, localInputValueToUtc, formatPeso } from '@/utils/formatters';
 import {
   FileText,
   Plus,
@@ -1440,7 +1440,7 @@ const cargo = formData.cargos.find(c => c.value === cargoSec.cargoId);
                                             <input
                                               type="number"
                                               step="0.1"
-                                              value={secao.peso}
+                                              value={formatPeso(secao.peso)}
                                               readOnly={isComputed}
                                               tabIndex={isComputed ? -1 : 0}
                                               onChange={(e) => updateSecaoInCargo(cargoSec.cargoId, secao.id, { peso: parseFloat(e.target.value) || 1 })}
@@ -1604,7 +1604,7 @@ const cargo = formData.cargos.find(c => c.value === cargoSec.cargoId);
                                     <input
                                       type="number"
                                       step="0.1"
-                                      value={disc.peso ?? ''}
+                                      value={disc.peso !== null ? formatPeso(disc.peso) : ''}
                                       onChange={(e) => updateDisciplinaInSecao(cargoSec.cargoId, secao.id, disc.id, { peso: e.target.value === '' ? null : parseFloat(e.target.value) })}
                                       className="w-full bg-white border border-slate-200 rounded px-2 py-1.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500"
                                       placeholder="-"

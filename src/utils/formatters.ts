@@ -84,3 +84,13 @@ export const localInputValueToUtc = (localValue: string | undefined | null): str
   if (isNaN(date.getTime())) return null;
   return date.toISOString();
 };
+
+/**
+ * Formata um número de peso com 2 casas decimais.
+ * @param peso O valor do peso
+ * @returns O peso formatado com 2 casas decimais (ex: 1.50)
+ */
+export const formatPeso = (peso: number | undefined | null): string => {
+  if (peso === undefined || peso === null) return '0.00';
+  return peso.toFixed(2);
+};
