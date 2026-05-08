@@ -58,12 +58,17 @@ const STRATEGIES = [
 // ─── Rationale Tag Helpers ───────────────────────────────────────────────────
 
 function getRationaleTag(rationale: ScoreRationale): { label: string; icon: typeof Target } | null {
+  // Edital structure signals (highest priority display)
+  if (rationale.editalDisciplinaShare > 0) return { label: 'Peso edital (disciplina)', icon: FileText };
+  if (rationale.editalSecaoShare > 0) return { label: 'Peso edital (seção)', icon: FileText };
+  if (rationale.editalHistorico > 0) return { label: 'Alta incidência', icon: FileText };
+
+  // Performance signals
   if (rationale.perfStatus === 'critical-perf') return { label: 'Acerto < 45%', icon: Target };
   if (rationale.perfStatus === 'low-perf') return { label: 'Acerto < 65%', icon: Target };
   if (rationale.perfStatus === 'not-started') return { label: 'Não iniciado', icon: Star };
   if (rationale.perfStatus === 'untested-theory') return { label: 'Sem questões', icon: Star };
   if (rationale.daysSinceLastQuestion > 30) return { label: `${rationale.daysSinceLastQuestion}d sem prática`, icon: Clock };
-  if (rationale.editalScore > 10) return { label: 'Alta incidência', icon: FileText };
   return null;
 }
 

@@ -95,6 +95,13 @@ interface DisciplineStats {
   editalRespondidas: number;
   editalAcertadas: number;
   editalPerf: number | null;
+  /**
+   * Planned questions from the edital structure:
+   * sum of `ConcursoSecaoDisciplinaDto.numQuestoes` for disciplines matching this name,
+   * or a proportional share of `ConcursoSecaoDto.numQuestoes` when no per-discipline
+   * breakdown is available. 0 when neither level provides `numQuestoes`.
+   */
+  numQuestoesPrevistas: number;
 }
 
 interface DifficultyAggregate {
@@ -168,6 +175,8 @@ interface EditalAnalysis {
     editalRespondidas: number;
     editalAcertadas: number;
     editalPerf: number | null;
+    /** Total planned questions from edital structure (sum of numQuestoesPrevistas across disciplines). */
+    totalNumQuestoesPrevistas: number;
     // Composite
     readinessScore: number;
     finalizado: boolean;
@@ -229,6 +238,12 @@ const analyzeEdital = (
   inscrito?: boolean,
   context?: EditalContext,
   finalizado?: boolean,
+  /**
+   * Map of disciplina name → planned questions from the edital structure
+   * (`ConcursoSecaoDisciplinaDto.numQuestoes` or proportional `ConcursoSecaoDto.numQuestoes`).
+   * Built by the component from `ConcursoSecaoDto[]` before flattening.
+   */
+  disciplinaNumQuestoesMap?: Map<string, number>,
 ): EditalAnalysis => {
 
   const isFinished = finalizado === true;
@@ -255,6 +270,11 @@ const analyzeEdital = (
   const editalRespondidas = topicos.reduce((s, t) => s + (t.questoesConcursoCargo?.respondidas ?? 0), 0);
   const editalAcertadas = topicos.reduce((s, t) => s + (t.questoesConcursoCargo?.acertadas ?? 0), 0);
   const editalPerf = editalRespondidas > 0 ? editalAcertadas / editalRespondidas : null;
+
+  // ── Edital structure: planned questions (numQuestoes) ─────────────────────
+  const totalNumQuestoesPrevistas = disciplinaNumQuestoesMap
+    ? Array.from(disciplinaNumQuestoesMap.values()).reduce((s, v) => s + v, 0)
+    : 0;
 
   // ── Compute context stats ──────────────────────────────────────────────────
   let bancaTotal = 0, bancaCertas = 0;
@@ -365,6 +385,7 @@ const analyzeEdital = (
       editalRespondidas,
       editalAcertadas,
       editalPerf,
+      numQuestoesPrevistas: disciplinaNumQuestoesMap?.get(nome) ?? 0,
     });
   });
 
@@ -429,8 +450,11 @@ const analyzeEdital = (
       const sub: SubInsight[] = [];
       if (disc.totalQuestoes > 0)
         sub.push({ icon: <FlaskConical className="w-3 h-3" />, text: `${disc.totalQuestoes} questões disponíveis no banco.` });
-      if (disc.editalTotalQuestoes > 0)
-        sub.push({ icon: <FileSearch className="w-3 h-3" />, text: `${disc.editalTotalQuestoes} questão${disc.editalTotalQuestoes !== 1 ? 'ões' : ''} ${isFinished ? 'cobrada' : 'prevista'}${disc.editalTotalQuestoes !== 1 ? 's' : ''} neste edital — disciplina relevante.` });
+      // Prefer edital-structure numQuestoesPrevistas; fall back to historical editalTotalQuestoes
+      const previstasRef = disc.numQuestoesPrevistas > 0 ? Math.round(disc.numQuestoesPrevistas) : disc.editalTotalQuestoes;
+      const previstasLabel = disc.numQuestoesPrevistas > 0 ? 'prevista' : (isFinished ? 'cobrada' : 'prevista');
+      if (previstasRef > 0)
+        sub.push({ icon: <FileSearch className="w-3 h-3" />, text: `${previstasRef} questão${previstasRef !== 1 ? 'ões' : ''} ${previstasLabel}${previstasRef !== 1 ? 's' : ''} neste edital — disciplina relevante.` });
       insights.push({
         severity: 'critical',
         disciplina: disc.nome,
@@ -438,13 +462,15 @@ const analyzeEdital = (
         detail: 'Nenhuma sessão de estudo ou questão registrada para esta disciplina.',
         subInsights: sub,
         action: 'Revisão teórica',
-        urgency: disc.editalTotalQuestoes > 0 ? 10 : 9,
+        urgency: (previstasRef > 0) ? 10 : 9,
       });
       return;
     }
 
     // Abandoned (started but stopped early)
     if (disc.estudados > 0 && disc.coverageRate < 0.2 && disc.daysSinceLastStudy > 60 && disc.daysSinceLastStudy !== Infinity) {
+      const previstasRef = disc.numQuestoesPrevistas > 0 ? Math.round(disc.numQuestoesPrevistas) : disc.editalTotalQuestoes;
+      const previstasLabel = disc.numQuestoesPrevistas > 0 ? 'prevista' : (isFinished ? 'cobrada' : 'prevista');
       insights.push({
         severity: 'critical',
         disciplina: disc.nome,
@@ -452,8 +478,8 @@ const analyzeEdital = (
         detail: `Apenas ${disc.estudados} de ${disc.totalTopicos} tópicos abordados. Conteúdo iniciado mas não consolidado.`,
         subInsights: [
           { icon: <Layers className="w-3 h-3" />, text: `${pct(disc.coverageRate)} de cobertura — muito aquém do necessário.` },
-          ...(disc.editalTotalQuestoes > 0
-            ? [{ icon: <FileSearch className="w-3 h-3" />, text: `${disc.editalTotalQuestoes} questão${disc.editalTotalQuestoes !== 1 ? 'ões' : ''} ${isFinished ? 'cobrada' : 'prevista'}${disc.editalTotalQuestoes !== 1 ? 's' : ''} neste edital.` }]
+          ...(previstasRef > 0
+            ? [{ icon: <FileSearch className="w-3 h-3" />, text: `${previstasRef} questão${previstasRef !== 1 ? 'ões' : ''} ${previstasLabel}${previstasRef !== 1 ? 's' : ''} neste edital.` }]
             : []),
         ],
         action: 'Revisão teórica',
@@ -468,6 +494,8 @@ const analyzeEdital = (
       if (diffLine) sub.push({ icon: <BarChart2 className="w-3 h-3" />, text: diffLine });
       if (disc.editalTotalQuestoes > 0 && disc.editalPerf !== null)
         sub.push({ icon: <FileSearch className="w-3 h-3" />, text: `Questões do edital: ${pct(disc.editalPerf)} de acerto (${disc.editalRespondidas}/${disc.editalTotalQuestoes} respondidas).` });
+      if (disc.numQuestoesPrevistas > 0 && disc.editalTotalQuestoes === 0)
+        sub.push({ icon: <FileSearch className="w-3 h-3" />, text: `${Math.round(disc.numQuestoesPrevistas)} questão${Math.round(disc.numQuestoesPrevistas) !== 1 ? 'ões' : ''} prevista${Math.round(disc.numQuestoesPrevistas) !== 1 ? 's' : ''} neste edital — disciplina de alto impacto.` });
       insights.push({
         severity: 'critical',
         disciplina: disc.nome,
@@ -497,6 +525,8 @@ const analyzeEdital = (
     }
 
     if (disc.totalEstudos >= 5 && disc.questoesRespondidas <= 2 && disc.coverageRate > 0.3) {
+      const previstasRef = disc.numQuestoesPrevistas > 0 ? Math.round(disc.numQuestoesPrevistas) : disc.editalTotalQuestoes;
+      const previstasLabel = disc.numQuestoesPrevistas > 0 ? 'prevista' : (isFinished ? 'cobrada' : 'prevista');
       insights.push({
         severity: 'critical',
         disciplina: disc.nome,
@@ -504,7 +534,7 @@ const analyzeEdital = (
         detail: `${disc.totalEstudos} sessões registradas, apenas ${disc.questoesRespondidas} questão${disc.questoesRespondidas !== 1 ? 'ões' : ''} respondida${disc.questoesRespondidas !== 1 ? 's' : ''}.`,
         subInsights: [
           ...(disc.totalQuestoes > 0 ? [{ icon: <FlaskConical className="w-3 h-3" />, text: `${disc.totalQuestoes} questões disponíveis ainda não exploradas.` }] : []),
-          ...(disc.editalTotalQuestoes > 0 ? [{ icon: <FileSearch className="w-3 h-3" />, text: `${disc.editalTotalQuestoes} questão${disc.editalTotalQuestoes !== 1 ? 'ões' : ''} ${isFinished ? 'cobrada' : 'prevista'}${disc.editalTotalQuestoes !== 1 ? 's' : ''} neste edital sem prática.` }] : []),
+          ...(previstasRef > 0 ? [{ icon: <FileSearch className="w-3 h-3" />, text: `${previstasRef} questão${previstasRef !== 1 ? 'ões' : ''} ${previstasLabel}${previstasRef !== 1 ? 's' : ''} neste edital sem prática.` }] : []),
         ],
         action: 'Bateria de questões',
         urgency: 8,
@@ -597,13 +627,15 @@ const analyzeEdital = (
 
     if (disc.coverageRate >= 0.3 && disc.coverageRate < 0.75) {
       const nao = disc.totalTopicos - disc.estudados;
+      const previstasRef = disc.numQuestoesPrevistas > 0 ? Math.round(disc.numQuestoesPrevistas) : disc.editalTotalQuestoes;
+      const previstasLabel = disc.numQuestoesPrevistas > 0 ? 'prevista' : (isFinished ? 'cobrada' : 'prevista');
       const sub: SubInsight[] = [
         { icon: <Layers className="w-3 h-3" />, text: `${nao} tópico${nao !== 1 ? 's' : ''} não coberto${nao !== 1 ? 's' : ''} de ${disc.totalTopicos} no edital.` },
       ];
       if (disc.performanceRate !== null)
         sub.push({ icon: <Target className="w-3 h-3" />, text: `Taxa de acerto nos tópicos estudados: ${pct(disc.performanceRate)}.` });
-      if (disc.editalTotalQuestoes > 0)
-        sub.push({ icon: <FileSearch className="w-3 h-3" />, text: `${disc.editalTotalQuestoes} questão${disc.editalTotalQuestoes !== 1 ? 'ões' : ''} ${isFinished ? 'cobrada' : 'prevista'}${disc.editalTotalQuestoes !== 1 ? 's' : ''} neste edital — cobertura parcial representa risco.` });
+      if (previstasRef > 0)
+        sub.push({ icon: <FileSearch className="w-3 h-3" />, text: `${previstasRef} questão${previstasRef !== 1 ? 'ões' : ''} ${previstasLabel}${previstasRef !== 1 ? 's' : ''} neste edital — cobertura parcial representa risco.` });
       insights.push({
         severity: 'attention',
         disciplina: disc.nome,
@@ -690,8 +722,12 @@ const analyzeEdital = (
         sub.push({ icon: <Timer className="w-3 h-3" />, text: `Ritmo ágil: ${sToMin(disc.avgTempoResposta)}/questão.` });
       if (disc.autoralPerf !== null && disc.performanceRate !== null)
         sub.push({ icon: <BookOpen className="w-3 h-3" />, text: `Autorais: ${pct(disc.autoralPerf)}${disc.autoralPerf >= (disc.performanceRate - 0.05) ? ' — consistência entre autorais e concurso.' : ' — verifique gap com questões de banca.'}` });
-      // Edital-specific strength sub-insight
-      if (disc.editalTotalQuestoes > 0 && disc.editalPerf !== null)
+      // Prefer numQuestoesPrevistas for edital weight display; fall back to historical performance
+      if (disc.numQuestoesPrevistas > 0 && disc.editalTotalQuestoes > 0 && disc.editalPerf !== null)
+        sub.push({ icon: <FileSearch className="w-3 h-3" />, text: `Edital: ${Math.round(disc.numQuestoesPrevistas)} questões previstas · desempenho histórico ${pct(disc.editalPerf)} (${disc.editalRespondidas}/${disc.editalTotalQuestoes}).` });
+      else if (disc.numQuestoesPrevistas > 0)
+        sub.push({ icon: <FileSearch className="w-3 h-3" />, text: `${Math.round(disc.numQuestoesPrevistas)} questão${Math.round(disc.numQuestoesPrevistas) !== 1 ? 'ões' : ''} prevista${Math.round(disc.numQuestoesPrevistas) !== 1 ? 's' : ''} neste edital.` });
+      else if (disc.editalTotalQuestoes > 0 && disc.editalPerf !== null)
         sub.push({ icon: <FileSearch className="w-3 h-3" />, text: `Questões ${isFinished ? 'cobradas' : 'do'} edital: ${pct(disc.editalPerf)} de acerto (${disc.editalRespondidas}/${disc.editalTotalQuestoes}).` });
 
       const perfStr = disc.performanceRate !== null ? `${pct(disc.performanceRate)} de acertos` : 'cobertura completa';
@@ -1199,6 +1235,7 @@ const analyzeEdital = (
       editalRespondidas,
       editalAcertadas,
       editalPerf,
+      totalNumQuestoesPrevistas,
       readinessScore,
       finalizado: isFinished,
     },
@@ -1491,7 +1528,14 @@ const EditalQuestoesPanel = ({
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <span className="text-[10px] font-bold text-slate-700 truncate">{disc.nome}</span>
-                      <span className="text-[9px] text-slate-400 flex-shrink-0">{disc.editalTotalQuestoes} qst. · {weight}%</span>
+                      <span className="text-[9px] text-slate-400 flex-shrink-0">
+                        {disc.numQuestoesPrevistas > 0
+                          ? `${Math.round(disc.numQuestoesPrevistas)} prev.`
+                          : `${disc.editalTotalQuestoes} hist.`
+                        }
+                        {disc.numQuestoesPrevistas > 0 && disc.editalTotalQuestoes > 0 && ` · ${disc.editalTotalQuestoes} hist.`}
+                        {' · '}{weight}%
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                       {discPerfPct !== null ? (
@@ -1831,14 +1875,17 @@ const DiscMap = ({ disciplineStats, finalizado }: { disciplineStats: DisciplineS
                           {hasAutoralGap && ' ⚠'}
                         </span>
                       )}
-                      {/* Edital-specific indicator */}
-                      {disc.editalTotalQuestoes > 0 && (
+                      {/* Edital weight indicator: prefer numQuestoesPrevistas (edital spec), annotate with historical perf */}
+                      {(disc.numQuestoesPrevistas > 0 || disc.editalTotalQuestoes > 0) && (
                         <span className={`text-[9px] font-medium ${
+                          disc.numQuestoesPrevistas > 0 ? 'text-indigo-500' :
                           editalCovPct === 0 ? 'text-indigo-400' :
                           editalCovPct !== null && editalCovPct >= 70 ? 'text-emerald-500' : 'text-indigo-500'
                         }`}>
-                          edital: <span className="font-bold">{disc.editalTotalQuestoes}q</span>
-                          {editalPerfPct !== null && ` · ${editalPerfPct}%`}
+                          {disc.numQuestoesPrevistas > 0
+                            ? <>edital: <span className="font-bold">{Math.round(disc.numQuestoesPrevistas)}q prev.</span>{editalPerfPct !== null ? ` · ${editalPerfPct}%` : ''}</>
+                            : <>edital: <span className="font-bold">{disc.editalTotalQuestoes}q</span>{editalPerfPct !== null ? ` · ${editalPerfPct}%` : ''}</>
+                          }
                         </span>
                       )}
                     </div>
@@ -1847,7 +1894,7 @@ const DiscMap = ({ disciplineStats, finalizado }: { disciplineStats: DisciplineS
                     <p className="mt-1 text-[9px] font-bold text-red-400 uppercase tracking-widest">
                       Não iniciada
                       {disc.totalQuestoes > 0 ? ` · ${disc.totalQuestoes} questões no banco` : ''}
-                      {disc.editalTotalQuestoes > 0 ? ` · ${disc.editalTotalQuestoes} no edital` : ''}
+                      {disc.numQuestoesPrevistas > 0 ? ` · ${Math.round(disc.numQuestoesPrevistas)} prev. no edital` : disc.editalTotalQuestoes > 0 ? ` · ${disc.editalTotalQuestoes} no edital` : ''}
                     </p>
                   )}
                 </div>
@@ -2021,10 +2068,36 @@ const EditalAnalysisReport: React.FC<EditalAnalysisReportProps> = ({
     () => {
       if (!topicos || topicos.length === 0) return null;
       const ctx: EditalContext = { banca, instituicao, areaInstituicao, cargoId, cargoNome, areaCargo, nivel, finalizado };
+
+      // Build a map: disciplinaName → planned questions from edital structure.
+      // Priority: ConcursoSecaoDisciplinaDto.numQuestoes (most authoritative) →
+      //           proportional ConcursoSecaoDto.numQuestoes (section-level fallback).
+      // When some disciplines in a section have numQuestoes and others don't, each
+      // discipline independently falls back to its own proportional section share.
+      const disciplinaNumQuestoesMap = new Map<string, number>();
+      topicos.forEach((secao: Types.ConcursoSecaoDto) => {
+        const disciplinas = secao.disciplinas ?? [];
+        const secaoTotalSubtemas = disciplinas.reduce(
+          (s, d) => s + (d.assuntos?.length ?? 0), 0,
+        );
+
+        disciplinas.forEach(disc => {
+          const existing = disciplinaNumQuestoesMap.get(disc.nome) ?? 0;
+          if (disc.numQuestoes != null) {
+            // Discipline-level spec: most authoritative
+            disciplinaNumQuestoesMap.set(disc.nome, existing + disc.numQuestoes);
+          } else if (secao.numQuestoes && secaoTotalSubtemas > 0 && (disc.assuntos?.length ?? 0) > 0) {
+            // Section-level proportional fallback
+            const share = secao.numQuestoes * ((disc.assuntos!.length) / secaoTotalSubtemas);
+            disciplinaNumQuestoesMap.set(disc.nome, existing + share);
+          }
+        });
+      });
+
       const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => 
         secao.disciplinas?.flatMap(d => d.assuntos || []) || []
       );
-      return analyzeEdital(assuntos, dataProva, inscrito, ctx, finalizado);
+      return analyzeEdital(assuntos, dataProva, inscrito, ctx, finalizado, disciplinaNumQuestoesMap);
     },
     [topicos, dataProva, inscrito, finalizado, banca, instituicao, areaInstituicao, cargoId, cargoNome, areaCargo, nivel]
   );

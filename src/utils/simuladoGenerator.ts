@@ -50,8 +50,29 @@ interface ScoredTopico {
 }
 
 export interface ScoreRationale {
-  /** Score contributed by edital history (questoesConcursoCargo). */
+  /** Combined edital base score (all three signals combined). */
   editalScore: number;
+  /**
+   * Per-subtema share of the parent `ConcursoSecaoDisciplinaDto.numQuestoes`.
+   * This is the most authoritative signal — it reflects the exact number of
+   * questions this discipline is allocated in the official edital.
+   * 0 when the parent discipline has no `numQuestoes` defined.
+   */
+  editalDisciplinaShare: number;
+  /**
+   * Per-subtema share of the parent `ConcursoSecaoDto.numQuestoes`.
+   * Used as a fallback when `editalDisciplinaShare` is 0.
+   * Proportional: secao.numQuestoes / total subtemas in that section.
+   * 0 when either the discipline share is active or the section has no `numQuestoes`.
+   */
+  editalSecaoShare: number;
+  /**
+   * Raw `questoesConcursoCargo.totalQuestoes` for this subtema.
+   * Historical signal — how many questions for this subtema appeared in this
+   * specific concurso+cargo historically. Always considered, but with lower
+   * weight than the structural edital signals above.
+   */
+  editalHistorico: number;
   /** Multiplier applied due to performance deficit (or boost for strength). */
   perfMultiplier: number;
   /** Multiplier applied due to staleness of practice. */
@@ -115,7 +136,84 @@ const daysSince = (dateStr?: string | null): number => {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 };
 
-// ─── Core scoring engine ──────────────────────────────────────────────────────
+// ─── Edital-enriched subtema ──────────────────────────────────────────────────
+
+/**
+ * Subtema augmented with its parent section and discipline edital metadata.
+ * Carries the `numQuestoes` signals down to the scoring engine so it can apply
+ * the correct weights without losing the original DTO structure.
+ */
+interface EnrichedSubtema extends Types.ConcursoCargoSubtemaDto {
+  /**
+   * Per-subtema proportional share of `ConcursoSecaoDisciplinaDto.numQuestoes`.
+   * Computed as `disc.numQuestoes / disc.assuntos.length`.
+   * 0 when the discipline has no `numQuestoes` defined.
+   */
+  editalDisciplinaShare: number;
+  /**
+   * Per-subtema proportional share of `ConcursoSecaoDto.numQuestoes`.
+   * Computed as `secao.numQuestoes / totalSubtemasInSection`.
+   * Only populated when `editalDisciplinaShare` is 0 (acts as a fallback).
+   * 0 when the discipline share is active or the section has no `numQuestoes`.
+   */
+  editalSecaoShare: number;
+}
+
+/**
+ * Flattens `ConcursoSecaoDto[]` into `EnrichedSubtema[]`, propagating the
+ * parent section and discipline `numQuestoes` into each subtema as a
+ * proportional per-subtema share.
+ *
+ * Priority logic:
+ * - If `disciplina.numQuestoes` is defined → `editalDisciplinaShare > 0`, `editalSecaoShare = 0`
+ * - If only `secao.numQuestoes` is defined → `editalDisciplinaShare = 0`, `editalSecaoShare > 0`
+ * - If neither is defined → both shares are 0 (historical signal still applies in scoring)
+ *
+ * Mixed sections (some disciplines with `numQuestoes`, others without) are
+ * handled gracefully: each discipline independently falls back to the section
+ * share only when its own `numQuestoes` is absent.
+ */
+function enrichAssuntos(topicos: Types.ConcursoSecaoDto[]): EnrichedSubtema[] {
+  const result: EnrichedSubtema[] = [];
+
+  for (const secao of topicos) {
+    const disciplinas = secao.disciplinas ?? [];
+
+    // Total subtemas in this section — used for proportional section-level share
+    const secaoTotalSubtemas = disciplinas.reduce(
+      (s, d) => s + (d.assuntos?.length ?? 0), 0,
+    );
+    const secaoNumQuestoes = secao.numQuestoes ?? 0;
+    const secaoSharePerSubtema =
+      secaoTotalSubtemas > 0 && secaoNumQuestoes > 0
+        ? secaoNumQuestoes / secaoTotalSubtemas
+        : 0;
+
+    for (const disc of disciplinas) {
+      const assuntos = disc.assuntos ?? [];
+      const discNumQuestoes = disc.numQuestoes ?? 0;
+
+      // Per-subtema share of this discipline's numQuestoes
+      const discSharePerSubtema =
+        assuntos.length > 0 && discNumQuestoes > 0
+          ? discNumQuestoes / assuntos.length
+          : 0;
+
+      for (const assunto of assuntos) {
+        result.push({
+          ...assunto,
+          editalDisciplinaShare: discSharePerSubtema,
+          // Section share only as fallback (when discipline has no numQuestoes)
+          editalSecaoShare: discSharePerSubtema === 0 ? secaoSharePerSubtema : 0,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+
 
 /**
  * Computes a composite priority score for a single subtema.
@@ -130,7 +228,7 @@ const daysSince = (dateStr?: string | null): number => {
  * @returns  A `ScoredTopico` including raw score and full rationale.
  */
 function scoreTopico(
-  topico: Types.ConcursoCargoSubtemaDto,
+  topico: EnrichedSubtema,
   strategy: SimuladoStrategy,
 ): ScoredTopico {
   const respondidas = topico.questaoStats?.total?.respondidas ?? 0;
@@ -144,11 +242,28 @@ function scoreTopico(
   const daysSinceQuestion = daysSince(ultimaQuestao);
 
   // ── 1. Base score (edital importance) ────────────────────────────────────
-  // Always at least 1 so topics with no edital history still get questions.
-  // The `edital` strategy triples the weight of this signal.
+  // Three signals, in descending authority:
+  //   a) editalDisciplinaShare — most authoritative: from ConcursoSecaoDisciplinaDto.numQuestoes
+  //      divided by the number of subtemas in that discipline. Reflects the exact
+  //      question allocation the official edital assigns to this discipline.
+  //   b) editalSecaoShare      — section-level fallback when (a) is absent.
+  //      Proportional share of ConcursoSecaoDto.numQuestoes.
+  //   c) editalHistorico       — historical questoesConcursoCargo.totalQuestoes.
+  //      Always included but with lower weight than the structural signals.
+  //
+  // The `edital` strategy amplifies all signals proportionally without changing
+  // their relative hierarchy.
+  const { editalDisciplinaShare, editalSecaoShare } = topico;
+
+  // Structural signal: use the most specific available, with discipline > section
+  const primaryEdital = editalDisciplinaShare > 0
+    ? editalDisciplinaShare * 3.0   // disciplina-level: 3× — highest authority
+    : editalSecaoShare * 2.0;       // section-level fallback: 2× — medium authority
+
+  // Historical signal: always present at 1× base (strategy may amplify)
   const editalScore = strategy === 'edital'
-    ? 1 + editalHistorico * 3
-    : 1 + editalHistorico;
+    ? 1 + (primaryEdital + editalHistorico) * 3
+    : 1 + primaryEdital + editalHistorico;
 
   // ── 2. Performance multiplier ─────────────────────────────────────────────
   // Mirrors the critical/attention/strength classification in EditalAnalysisReport.
@@ -288,6 +403,9 @@ function scoreTopico(
     questoesDisponiveis: totalQuestoes,
     rationale: {
       editalScore,
+      editalDisciplinaShare,
+      editalSecaoShare,
+      editalHistorico,
       perfMultiplier,
       stalenessMultiplier,
       chuteMultiplier,
@@ -379,12 +497,10 @@ export function generateSimuladoFromCargo(
   } = options;
 
   const topicos = cargo.topicos ?? [];
-  const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => 
-    secao.disciplinas?.flatMap(d => d.assuntos || []) || []
-  );
-  
+  const assuntos = enrichAssuntos(topicos);
+
   // Score every subtema
-  const scored = assuntos.map((t: Types.ConcursoCargoSubtemaDto) => scoreTopico(t, strategy));
+  const scored = assuntos.map(t => scoreTopico(t, strategy));
 
   // Distribute
   const distribution = distributeQuestions(scored, targetQuestions);
@@ -427,10 +543,8 @@ export function generateSimuladoPreview(
   } = options;
 
   const topicos = cargo.topicos ?? [];
-  const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => 
-    secao.disciplinas?.flatMap(d => d.assuntos || []) || []
-  );
-  const scored = assuntos.map((t: Types.ConcursoCargoSubtemaDto) => scoreTopico(t, strategy));
+  const assuntos = enrichAssuntos(topicos);
+  const scored = assuntos.map(t => scoreTopico(t, strategy));
   const distribution = distributeQuestions(scored, targetQuestions);
   const totalAllocated = distribution.reduce((s, d) => s + d.quantidade, 0);
 
