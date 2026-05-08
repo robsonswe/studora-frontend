@@ -94,13 +94,34 @@ export default function ConcursoCargoDetailPage() {
 
   usePageTitle(cargo ? `${cargo.cargoNome} — ${concurso?.instituicao.nome}` : undefined);
 
-  const filteredTopicos = useMemo(() => {
+  const sortedTopicos = useMemo(() => {
     if (!cargo?.topicos) return [];
     
-    const normSearch = normalize(searchTerm);
-    if (!normSearch) return cargo.topicos;
+    // 1. Sort sections by ordem
+    const sorted = [...cargo.topicos].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
 
-    return cargo.topicos.map(secao => {
+    // 2. Sort disciplines and subtemas within each section
+    return sorted.map(secao => ({
+      ...secao,
+      disciplinas: (secao.disciplinas || []).slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(disc => ({
+        ...disc,
+        assuntos: (disc.assuntos || []).slice().sort((a, b) => {
+          // Sort by discipline name, theme name, then subtema name
+          const discOrder = (a.disciplina.nome).localeCompare(b.disciplina.nome);
+          if (discOrder !== 0) return discOrder;
+          const temaOrder = (a.tema.nome).localeCompare(b.tema.nome);
+          if (temaOrder !== 0) return temaOrder;
+          return (a.nome).localeCompare(b.nome);
+        })
+      }))
+    }));
+  }, [cargo?.topicos]);
+
+  const filteredTopicos = useMemo(() => {
+    const normSearch = normalize(searchTerm);
+    if (!normSearch) return sortedTopicos;
+
+    return sortedTopicos.map(secao => {
       const secaoMatch = normalize(secao.nome).includes(normSearch);
       
       const filteredDisciplinas = (secao.disciplinas || []).map(disc => {
@@ -121,7 +142,7 @@ export default function ConcursoCargoDetailPage() {
       }
       return null;
     }).filter(Boolean) as Types.ConcursoSecaoDto[];
-  }, [cargo?.topicos, searchTerm]);
+  }, [sortedTopicos, searchTerm]);
 
   const highlights = useMemo<HighlightMap>(() => {
     if (!concurso || !cargo) return {};
@@ -475,8 +496,25 @@ export default function ConcursoCargoDetailPage() {
                               />
                             </div>
                             
-                            <div className="space-y-2 px-6 py-4 pl-10">
-                              {(disc.assuntos || []).map(assunto => renderAssunto(assunto))}
+                            <div className="space-y-4 px-6 py-4 pl-10">
+                              {(() => {
+                                // Group subtemas by tema
+                                const grouped = (disc.assuntos || []).reduce((acc, assunto) => {
+                                  const temaNome = assunto.tema.nome;
+                                  if (!acc[temaNome]) acc[temaNome] = [];
+                                  acc[temaNome].push(assunto);
+                                  return acc;
+                                }, {} as Record<string, typeof disc.assuntos>);
+
+                                return Object.entries(grouped).map(([temaNome, subtemas]) => (
+                                  <div key={temaNome} className="space-y-2">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-1 mb-2">
+                                      {temaNome}
+                                    </h4>
+                                    {subtemas.map(assunto => renderAssunto(assunto))}
+                                  </div>
+                                ));
+                              })()}
                             </div>
                           </div>
                         ))}
@@ -489,7 +527,7 @@ export default function ConcursoCargoDetailPage() {
           </div>
         ) : activeTab === 'analise' ? (
           <EditalAnalysisReport 
-            topicos={cargo.topicos || []}
+            topicos={sortedTopicos}
             dataProva={concurso.dataProva}
             inscrito={cargo.inscrito}
             finalizado={concurso.finalizado}
