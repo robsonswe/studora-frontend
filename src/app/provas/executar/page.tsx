@@ -356,47 +356,80 @@ function ProvaContent() {
                 {(() => {
                   if (!concurso) return null;
 
-                  const groups: { category: string; indices: number[] }[] = [];
+                  const groups: { 
+                    secao: string; 
+                    disciplinas: { 
+                      nome: string | null; 
+                      indices: number[] 
+                    }[] 
+                  }[] = [];
 
                   questoes.forEach((q, index) => {
                     const cargoSecoes = q.concurso?.cargos?.flatMap(c => c.secoes || []) || [];
                     
-                    const secao = provaId 
+                    const secaoInfo = provaId 
                       ? cargoSecoes.find(s => s.provaId === provaId)
                       : cargoSecoes[0];
                     
-                    const category = secao ? secao.nome : 'Outras Questões';
-                    let group = groups.find(g => g.category === category);
+                    const secaoNome = secaoInfo ? secaoInfo.nome : 'Outras Questões';
+                    
+                    // Identify the discipline for this specific question within the secao
+                    // We look up the disciplinaEditalNome from the question's concurso object hierarchy
+                    const secaoData = q.concurso?.cargos?.flatMap(c => c.secoes || [])
+                        .find(s => s.provaId === provaId);
+
+                    const discNome = secaoData?.disciplinaEditalNome || 'Geral';
+                    
+                    let group = groups.find(g => g.secao === secaoNome);
                     if (!group) {
-                      group = { category, indices: [] };
+                      group = { secao: secaoNome, disciplinas: [] };
                       groups.push(group);
                     }
-                    group.indices.push(index);
+                    
+                    let disc = group.disciplinas.find(d => d.nome === discNome);
+                    if (!disc) {
+                      disc = { nome: discNome, indices: [] };
+                      group.disciplinas.push(disc);
+                    }
+                    disc.indices.push(index);
                   });
 
                   return groups.map(group => (
-                    <div key={group.category} className="space-y-4">
+                    <div key={group.secao} className="space-y-5">
                       <div className="flex items-center gap-2">
                         <div className="p-1 bg-indigo-50 rounded">
                           <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
                         </div>
-                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-                          {group.category}
+                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+                          {group.secao}
                         </span>
                         <div className="h-px flex-1 bg-slate-100" />
                       </div>
 
-                      <div className="grid grid-cols-5 gap-1.5 pl-2">
-                        {group.indices.map((index) => (
-                          <button
-                            key={index}
-                            onClick={() => setCurrentQuestionIndex(index)}
-                            className={`h-9 w-full rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-300 ${getQuestionStatusColor(index)}`}
-                          >
-                            {questoes[index]?.secoes?.[0]?.numeroQuestao || index + 1}
-                          </button>
+                      <div className="space-y-6 pl-2">
+                        {group.disciplinas.map((disc, dIdx) => (
+                          <div key={disc.nome || `disc-${dIdx}`} className="space-y-3">
+                            <div className="flex items-center gap-2 opacity-80">
+                                <div className="w-1 h-1 rounded-full bg-slate-300" />
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                                  {disc.nome}
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-5 gap-1.5">
+                              {disc.indices.map((index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => setCurrentQuestionIndex(index)}
+                                  className={`h-9 w-full rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-300 ${getQuestionStatusColor(index)}`}
+                                >
+                                  {questoes[index]?.concurso?.cargos
+  ?.flatMap(c => c.secoes || [])
+  .find(s => s.provaId === provaId)?.numeroQuestao || index + 1}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         ))}
-
                       </div>
                     </div>
                   ));

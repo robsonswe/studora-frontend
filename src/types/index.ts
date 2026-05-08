@@ -451,6 +451,12 @@ export interface SecaoQuestaoDto {
   provaNome: string;
   /** ID da prova à qual pertence. */
   provaId: number;
+  /** Número da questão na prova. */
+  numeroQuestao?: number;
+  /** ID da disciplina conforme edital vinculada a esta questão nesta seção. */
+  disciplinaEditalId?: number;
+  /** Nome da disciplina conforme edital vinculada a esta questão nesta seção. */
+  disciplinaEditalNome?: string;
 }
 
 /**
@@ -587,8 +593,38 @@ export interface ConcursoSecaoDto {
   peso?: number;
   /** Nota mínima para aprovação. */
   notaMinima?: number;
-  /** Assuntos (subtemas) associados a esta seção. */
+  /** Total de estudos realizados nesta seção. */
+  totalEstudos?: number;
+  /** Disciplinas do edital associadas a esta seção. */
+  disciplinas?: ConcursoSecaoDisciplinaDto[];
+  /** Estatísticas de questões da seção (Visão Geral). */
+  questaoStats?: QuestaoStatsDto;
+  /** Estatísticas específicas de questões para este concurso e cargo. */
+  questoesConcursoCargo?: StatSliceDto;
+}
+
+/**
+ * DTO de disciplina vinculada a uma seção do edital.
+ */
+export interface ConcursoSecaoDisciplinaDto {
+  /** ID da disciplina da seção. */
+  id: number;
+  /** Nome da disciplina. */
+  nome: string;
+  /** Número de questões nesta disciplina dentro da seção. */
+  numQuestoes?: number;
+  /** Peso da disciplina. */
+  peso?: number;
+  /** Nota mínima para esta disciplina. */
+  notaMinima?: number;
+  /** Total de estudos realizados nesta disciplina. */
+  totalEstudos?: number;
+  /** Assuntos (subtemas) associados a esta disciplina. */
   assuntos?: ConcursoCargoSubtemaDto[];
+  /** Estatísticas de questões da disciplina (Visão Geral). */
+  questaoStats?: QuestaoStatsDto;
+  /** Estatísticas específicas de questões para este concurso e cargo. */
+  questoesConcursoCargo?: StatSliceDto;
 }
 
 /**
@@ -675,8 +711,17 @@ export interface ProvaSecaoCreateRequest {
   nome: string;
   ordem?: number;
   numQuestoes?: number;
-  subtemaIds?: number[];
+  disciplinas?: SecaoDisciplinaRequest[];
   pesos?: ProvaSecaoPesoCreateRequest[];
+}
+
+export interface SecaoDisciplinaRequest {
+  id?: number | null;
+  nome: string;
+  peso?: number;
+  numQuestoes?: number;
+  notaMinima?: number;
+  subtemaIds: number[];
 }
 
 export interface ProvaSecaoPesoCreateRequest {
@@ -723,7 +768,7 @@ export interface ProvaSecaoUpdateRequest {
   numQuestoes?: number;
   peso?: number;
   notaMinima?: number;
-  subtemaIds?: number[];
+  disciplinas?: SecaoDisciplinaRequest[];
 }
 
 /**
@@ -773,6 +818,8 @@ export interface SubtemaQuestaoDto {
   tema: TemaReferenceDto;
   /** Disciplina à qual o subtema pertence. */
   disciplina: DisciplinaReferenceDto;
+  /** Indica se este é o subtema principal da questão. */
+  principal?: boolean;
 }
 
 /**
@@ -916,6 +963,8 @@ export interface QuestaoDetailDto {
 export interface SecaoQuestaoRequest {
   secaoId: number;
   numeroQuestao?: number;
+  /** ID da disciplina do edital à qual a questão está vinculada nesta seção. */
+  disciplinaEditalId?: number;
 }
 
 /**
@@ -926,6 +975,8 @@ export interface QuestaoCreateRequest {
   alternativas: AlternativaCreateRequest[];
   /** @backend expects "subtemas" due to @JsonProperty */
   subtemas: number[];
+  /** ID do subtema principal da questão. */
+  principalSubtemaId: number;
   /** Associações com seções da prova. */
   secoes?: SecaoQuestaoRequest[];
   imageUrl?: string;
@@ -945,6 +996,8 @@ export interface QuestaoUpdateRequest {
   alternativas?: AlternativaUpdateRequest[];
   /** @backend expects "subtemas" due to @JsonProperty */
   subtemas?: number[];
+  /** ID do subtema principal da questão. */
+  principalSubtemaId?: number;
   /** Associações com seções da prova. */
   secoes?: SecaoQuestaoRequest[];
   imageUrl?: string;
@@ -1213,6 +1266,9 @@ export interface AnalyticsEvolucaoDto {
   difficultyDistribution: Record<string, number>;
 }
 
+/**
+ * DTO para taxa de aprendizado em questões repetidas.
+ */
 /**
  * DTO para taxa de aprendizado em questões repetidas.
  */

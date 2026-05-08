@@ -2021,7 +2021,9 @@ const EditalAnalysisReport: React.FC<EditalAnalysisReportProps> = ({
     () => {
       if (!topicos || topicos.length === 0) return null;
       const ctx: EditalContext = { banca, instituicao, areaInstituicao, cargoId, cargoNome, areaCargo, nivel, finalizado };
-      const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => secao.assuntos || []);
+      const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => 
+        secao.disciplinas?.flatMap(d => d.assuntos || []) || []
+      );
       return analyzeEdital(assuntos, dataProva, inscrito, ctx, finalizado);
     },
     [topicos, dataProva, inscrito, finalizado, banca, instituicao, areaInstituicao, cargoId, cargoNome, areaCargo, nivel]

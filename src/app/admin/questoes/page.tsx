@@ -13,6 +13,7 @@ import { questaoService, concursoService, instituicaoService, cargoService, banc
 import { formatNivel, formatDificuldade, formatDateTime } from '@/utils/formatters';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import * as Types from '@/types';
+import { QuestaoFormData } from '@/components/ui/QuestaoFormModal';
 import {
   Filter,
   Trash2,
@@ -134,16 +135,19 @@ function QuestoesContent() {
     justificativa: ''
   });
 
-  const crudForm = useForm({
+  const crudForm = useForm<QuestaoFormData>({
     defaultValues: {
-      concurso: null as { value: number, label: string } | null,
+      concurso: null,
       enunciado: '',
       anulada: false,
       desatualizada: false,
       autoral: false,
-      subtemas: [] as { value: number, label: string }[],
-      secoes: [] as number[],
-      imageUrl: ''
+      subtemas: [],
+      principalSubtemaId: null,
+      secoes: [],
+      imageUrl: '',
+      provasPorCargo: {},
+      cargoSecoesMap: {}
     }
   });
 
@@ -291,6 +295,7 @@ function QuestoesContent() {
     desatualizada: boolean;
     autoral: boolean;
     subtemas: { value: number; label: string }[];
+    principalSubtemaId: number | null;
     secoes: number[];
     imageUrl: string;
   }) => {
@@ -315,8 +320,8 @@ function QuestoesContent() {
     }
 
     // Validate that each cargo has at least one prova selected
-    const provasPorCargo = crudForm.getValues('provasPorCargo') as Record<string, number[]> || {};
-    const cargoSecoesMap = crudForm.getValues('cargoSecoesMap') as Record<string, number> || {};
+    const provasPorCargo = (crudForm.getValues('provasPorCargo') as unknown) as Record<string, number[]> || {};
+    const cargoSecoesMap = (crudForm.getValues('cargoSecoesMap') as unknown) as Record<string, number> || {};
     for (const [cargoNome, topicoId] of Object.entries(cargoSecoesMap)) {
       const provas = provasPorCargo[cargoNome] || [];
       if (topicoId && provas.length === 0) {
@@ -330,6 +335,8 @@ function QuestoesContent() {
 
     if (data.subtemas.length === 0) {
       errs.push('A questão deve estar associada a pelo menos um subtema');
+    } else if (!data.principalSubtemaId) {
+      errs.push('A questão deve ter um subtema principal definido');
     }
 
     if (errs.length > 0) {
@@ -348,6 +355,7 @@ function QuestoesContent() {
         desatualizada: data.desatualizada,
         imageUrl: data.imageUrl,
         subtemas: data.subtemas.map((s) => s.value),
+        principalSubtemaId: data.principalSubtemaId as number,
         autoral: data.autoral,
         alternativas: currentAlternativas.map((alt, index) => ({
           ...alt,
@@ -408,6 +416,9 @@ function QuestoesContent() {
         value: s.id,
         label: s.disciplina?.nome ? `${s.disciplina.nome} - ${s.tema?.nome} - ${s.nome}` : s.nome
       })));
+
+      const principal = (detail.subtemas || []).find(s => s.principal);
+      crudForm.setValue('principalSubtemaId', principal ? principal.id : null);
 
       const secoesIds: number[] = [];
       (detail.concurso?.cargos || []).forEach(cargo => {
@@ -497,6 +508,7 @@ function QuestoesContent() {
       desatualizada: false,
       autoral: false,
       subtemas: [],
+      principalSubtemaId: null,
       secoes: [],
       imageUrl: ''
     });

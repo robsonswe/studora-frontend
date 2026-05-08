@@ -19,7 +19,7 @@ import { Feedback } from './Feedback';
 import BaseModal from './BaseModal';
 import SubtemaPickerModal from '@/components/concursos/SubtemaPickerModal';
 
-interface QuestaoFormData {
+export interface QuestaoFormData {
   concurso: { value: number; label: string } | null;
   enunciado: string;
   anulada: boolean;
@@ -30,6 +30,7 @@ interface QuestaoFormData {
   imageUrl: string;
   provasPorCargo: Record<string, number[]>;
   cargoSecoesMap: Record<string, number>;
+  principalSubtemaId?: number | null;
 }
 
 interface QuestaoFormModalProps {

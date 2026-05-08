@@ -251,11 +251,20 @@ export default function SimuladosPage() {
   };
 
 const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
-    control: (base) => ({ ...base, borderColor: '#e5e7eb', boxShadow: 'none', '&:hover': { borderColor: '#6366f1' }, borderRadius: '0.75rem', padding: '2px' }),
-    singleValue: (base) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
-    placeholder: (base) => ({ ...base, fontSize: '0.875rem', color: '#9ca3af' }),
-    menuPortal: (base) => ({ ...base, zIndex: 99 })
-  };
+  control: (base) => ({ 
+    ...base, 
+    borderColor: '#e5e7eb', 
+    boxShadow: 'none', 
+    '&:hover': { borderColor: '#6366f1' }, 
+    borderRadius: '0.75rem', 
+    padding: '2px' 
+  }),
+  singleValue: (base) => ({ ...base, color: '#374151', fontSize: '0.875rem' }),
+  placeholder: (base) => ({ ...base, fontSize: '0.875rem', color: '#9ca3af' }),
+  
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menu: (base) => ({ ...base, zIndex: 99999 })
+};
 
   const buildPages = (current: number, total: number) => {
     if (total <= 7) return Array.from({ length: total }, (_, i) => i);
@@ -303,7 +312,7 @@ const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
         }}
         onSubmit={handleGenerate}
         title={formStep === 1 ? "Novo Simulado: Conteúdo Programático" : "Novo Simulado: Filtros Estratégicos"}
-        size="lg"
+        size="2xl"
         loading={localLoading}
         submitLabel={formStep === 1 ? 'Próximo' : 'Confirmar Geração'}
         footerExtra={

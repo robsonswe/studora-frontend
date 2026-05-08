@@ -28,7 +28,10 @@ import {
   XCircle,
   Hash,
   SlidersHorizontal,
-  X
+  X,
+  Target,
+  BookOpen,
+  ClipboardList
 } from 'lucide-react';
 import { Feedback } from '@/components/ui/Feedback';
 import SubtemaPickerModal from '@/components/concursos/SubtemaPickerModal';
@@ -37,14 +40,6 @@ import type { CSSProperties } from 'react';
 
 type ConcursoDto = Types.ConcursoSummaryDto;
 
-interface TopicoEntry {
-  subtemaId: number;
-  subtemaLabel: string;
-  disciplina?: Types.DisciplinaReferenceDto;
-  tema?: Types.TemaReferenceDto;
-  // Map cargoId -> (secaoId | null)
-  cargoSecaoMap: Record<number, string | null>;
-}
 
 interface SecaoEntry {
   id: string;
@@ -53,6 +48,16 @@ interface SecaoEntry {
   numQuestoes: number;
   peso: number;
   notaMinima: number;
+  disciplinas: DisciplinaEntry[];
+}
+
+interface DisciplinaEntry {
+  id: string;
+  nome: string;
+  peso: number | null;
+  numQuestoes: number | null;
+  notaMinima: number | null;
+  subtemas: { value: number, label: string }[];
 }
 
 interface CargoWithSecoes {
@@ -67,39 +72,6 @@ interface ProvaEntry {
   cargoId: number | null;
 }
 
-interface TopicosByDisciplina {
-  disciplina?: Types.DisciplinaReferenceDto;
-  temas: {
-    tema?: Types.TemaReferenceDto;
-    topicos: TopicoEntry[];
-  }[];
-}
-
-const groupTopicos = (topicos: TopicoEntry[]): TopicosByDisciplina[] => {
-  const disciplinaMap = new Map<string, TopicosByDisciplina>();
-
-  for (const t of topicos) {
-    const discKey = String(t.disciplina?.id ?? 0);
-    if (!disciplinaMap.has(discKey)) {
-      disciplinaMap.set(discKey, {
-        disciplina: t.disciplina,
-        temas: [],
-      });
-    }
-    const disciplinaGroup = disciplinaMap.get(discKey)!;
-
-    const temaKey = String(t.tema?.id ?? 0);
-    let temaGroup = disciplinaGroup.temas.find(tg => String(tg.tema?.id ?? 0) === temaKey);
-    if (!temaGroup) {
-      temaGroup = { tema: t.tema, topicos: [] };
-      disciplinaGroup.temas.push(temaGroup);
-    }
-
-    temaGroup.topicos.push(t);
-  }
-
-  return Array.from(disciplinaMap.values());
-};
 
 function ConcursosContent() {
   const router = useRouter();
@@ -143,6 +115,7 @@ function ConcursosContent() {
   const [editingProvaValue, setEditingProvaValue] = useState('');
   const [formTab, setFormTab] = useState<'dados' | 'provas' | 'conteudo'>('dados');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [pickingSubtemasFor, setPickingSubtemasFor] = useState<{ cargoId: number, secaoId: string, discId: string } | null>(null);
 
   const [formData, setFormData] = useState<{
     instituicao: { value: number, label: string } | null;
@@ -155,7 +128,7 @@ function ConcursosContent() {
     cargos: { value: number, label: string }[];
     cargoSecoes: CargoWithSecoes[];
     provas: ProvaEntry[];
-    topicos: TopicoEntry[]
+    topicos: { id: number; nome: string }[];
   }>({
     instituicao: null as { value: number, label: string } | null,
     banca: null as { value: number, label: string } | null,
@@ -167,7 +140,7 @@ function ConcursosContent() {
     cargos: [] as { value: number, label: string }[],
     cargoSecoes: [] as CargoWithSecoes[],
     provas: [] as ProvaEntry[],
-    topicos: [] as TopicoEntry[]
+    topicos: []
   });
 
   // Set current date only on mount to avoid hydration mismatch
@@ -394,48 +367,69 @@ setFormData((prev) => ({
      setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
    };
 
-  const addTopico = (opt: { value: number, label: string, disciplina?: Types.DisciplinaReferenceDto, tema?: Types.TemaReferenceDto }) => {
-    if (formData.topicos.find((t: TopicoEntry) => t.subtemaId === opt.value)) return;
+  const addDisciplinaToSecao = (cargoId: number, secaoId: string) => {
+    const newDisc: DisciplinaEntry = {
+      id: `local-${Math.random().toString(36).substring(2, 9)}`,
+      nome: 'Nova Disciplina',
+      peso: null,
+      numQuestoes: null,
+      notaMinima: null,
+      subtemas: []
+    };
     
-    // Default: map every cargo to null (not included in any secao)
-    const cargoSecaoMap: Record<number, string | null> = {};
-    formData.cargos.forEach(c => cargoSecaoMap[c.value] = null);
-
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
-      topicos: [
-        ...prev.topicos,
-        {
-          subtemaId: opt.value,
-          subtemaLabel: opt.label,
-          disciplina: opt.disciplina,
-          tema: opt.tema,
-          cargoSecaoMap,
-        },
-      ],
+      cargoSecoes: prev.cargoSecoes.map(cs => 
+        cs.cargoId === cargoId 
+          ? { ...cs, secoes: cs.secoes.map(s => s.id === secaoId ? { ...s, disciplinas: [...s.disciplinas, newDisc] } : s) }
+          : cs
+      )
     }));
   };
 
-  const removeTopico = (subtemaId: number) => {
-    setFormData((prev) => ({
+  const calculateSecaoMetrics = (secao: SecaoEntry): Partial<SecaoEntry> => {
+    const hasValues = secao.disciplinas.some(d => d.numQuestoes !== null || d.peso !== null || d.notaMinima !== null);
+    
+    if (!hasValues) {
+      return { numQuestoes: 1, peso: 1, notaMinima: 0 };
+    }
+
+    return {
+      numQuestoes: Math.max(1, secao.disciplinas.reduce((acc, d) => acc + (d.numQuestoes || 0), 0)),
+      peso: Math.max(1, secao.disciplinas.reduce((acc, d) => acc + (d.peso || 0), 0)),
+      notaMinima: Math.max(0, secao.disciplinas.reduce((acc, d) => acc + (d.notaMinima || 0), 0))
+    };
+  };
+
+  const removeDisciplinaFromSecao = (cargoId: number, secaoId: string, discId: string) => {
+    setFormData(prev => ({
       ...prev,
-      topicos: prev.topicos.filter((t: TopicoEntry) => t.subtemaId !== subtemaId)
+      cargoSecoes: prev.cargoSecoes.map(cs => 
+        cs.cargoId === cargoId 
+          ? { ...cs, secoes: cs.secoes.map(s => {
+              if (s.id !== secaoId) return s;
+              const remainingDiscs = s.disciplinas.filter(d => d.id !== discId);
+              const updatedSecao = { ...s, disciplinas: remainingDiscs };
+              return { ...updatedSecao, ...calculateSecaoMetrics(updatedSecao) };
+            }) }
+          : cs
+      )
     }));
   };
 
-  const toggleTopicoSecao = (subtemaId: number, cargoId: number, secaoId: string | null) => {
-    setFormData((prev) => ({
+  const updateDisciplinaInSecao = (cargoId: number, secaoId: string, discId: string, updates: Partial<DisciplinaEntry>) => {
+    setFormData(prev => ({
       ...prev,
-      topicos: prev.topicos.map((t: TopicoEntry) => {
-        if (t.subtemaId !== subtemaId) return t;
-        return {
-          ...t,
-          cargoSecaoMap: {
-            ...t.cargoSecaoMap,
-            [cargoId]: secaoId
-          }
-        };
-      })
+      cargoSecoes: prev.cargoSecoes.map(cs => 
+        cs.cargoId === cargoId 
+          ? { ...cs, secoes: cs.secoes.map(s => {
+              if (s.id !== secaoId) return s;
+              const updatedDiscs = s.disciplinas.map(d => d.id === discId ? { ...d, ...updates } : d);
+              const updatedSecao = { ...s, disciplinas: updatedDiscs };
+              return { ...updatedSecao, ...calculateSecaoMetrics(updatedSecao) };
+            }) }
+          : cs
+      )
     }));
   };
 
@@ -470,7 +464,8 @@ setFormData((prev) => ({
       ordem: cargoSecoes?.secoes.length || 0,
       numQuestoes: 1,
       peso: 1,
-      notaMinima: 0
+      notaMinima: 0,
+      disciplinas: []
     };
     
     setFormData(prev => ({
@@ -490,14 +485,7 @@ setFormData((prev) => ({
         cs.cargoId === cargoId 
           ? { ...cs, secoes: cs.secoes.filter(s => s.id !== secaoId) }
           : cs
-      ),
-      topicos: prev.topicos.map(t => {
-        const newMap = { ...t.cargoSecaoMap };
-        if (newMap[cargoId] === secaoId) {
-          newMap[cargoId] = null;
-        }
-        return { ...t, cargoSecaoMap: newMap };
-      })
+      )
     }));
   };
 
@@ -534,11 +522,21 @@ setFormData((prev) => ({
   const updateSecaoInCargo = (cargoId: number, secaoId: string, updates: Partial<SecaoEntry>) => {
     setFormData(prev => ({
       ...prev,
-      cargoSecoes: prev.cargoSecoes.map(cs => 
-        cs.cargoId === cargoId 
-          ? { ...cs, secoes: cs.secoes.map(s => s.id === secaoId ? { ...s, ...updates } : s) }
-          : cs
-      )
+      cargoSecoes: prev.cargoSecoes.map(cs => {
+        if (cs.cargoId !== cargoId) return cs;
+        return {
+          ...cs,
+          secoes: cs.secoes.map(s => {
+            if (s.id !== secaoId) return s;
+            // If computed, only allow name changes
+            const hasValues = s.disciplinas.some(d => d.numQuestoes !== null || d.peso !== null || d.notaMinima !== null);
+            if (hasValues) {
+              return { ...s, nome: updates.nome ?? s.nome };
+            }
+            return { ...s, ...updates };
+          })
+        };
+      })
     }));
   };
 
@@ -562,16 +560,25 @@ setFormData((prev) => ({
         .concat(
           addedCargoIds.map(cargoId => {
             const cargo = newCargos.find(c => c.value === cargoId);
+            const secaoId = `local-${Math.random().toString(36).substring(2, 9)}`;
             return {
               cargoId,
               cargoNome: cargo?.label.split(' - ')[0] || '',
               secoes: [{
-                id: `local-${Math.random().toString(36).substring(2, 9)}`,
+                id: secaoId,
                 nome: 'Conhecimentos Gerais',
                 ordem: 0,
-                numQuestoes: 30,
+                numQuestoes: 0,
                 peso: 1,
-                notaMinima: 0
+                notaMinima: 0,
+                disciplinas: [{
+                  id: `local-${Math.random().toString(36).substring(2, 9)}`,
+                  nome: 'Conteúdo Geral',
+                  peso: 1,
+                  numQuestoes: 30,
+                  notaMinima: 0,
+                  subtemas: []
+                }]
               }]
             };
           })
@@ -587,23 +594,11 @@ setFormData((prev) => ({
         })
         .concat(newProvas);
       
-      const updatedTopicos = prev.topicos.map(t => {
-        const newMap = { ...t.cargoSecaoMap };
-        removedCargoIds.forEach(id => {
-          delete newMap[id];
-        });
-        addedCargoIds.forEach(id => {
-          newMap[id] = null;
-        });
-        return { ...t, cargoSecaoMap: newMap };
-      });
-      
       return {
         ...prev,
         cargos: newCargos,
         cargoSecoes: updatedCargoSecoes,
-        provas: updatedProvas,
-        topicos: updatedTopicos
+        provas: updatedProvas
       };
     });
   };
@@ -622,36 +617,50 @@ setFormData((prev) => ({
     };
 
 const errors: string[] = [];
-    if (!formData.instituicao) errors.push('Selecione uma instituição');
-    if (!formData.banca) errors.push('Selecione uma banca');
-    if (formData.ano < 1900 || formData.ano > 2100) errors.push('Ano deve ser entre 1900 e 2100');
-    if (formData.mes < 1 || formData.mes > 12) errors.push('Mês deve ser entre 1 e 12');
-    if (formData.cargos.length === 0) errors.push('Selecione pelo menos um cargo');
-    if (formData.edital && !isValidUrl(formData.edital)) errors.push('O edital deve ser um link válido (http:// ou https://)');
+if (!formData.instituicao) errors.push('Selecione uma instituição');
+if (!formData.banca) errors.push('Selecione uma banca');
+if (formData.ano < 1900 || formData.ano > 2100) errors.push('Ano deve ser entre 1900 e 2100');
+if (formData.mes < 1 || formData.mes > 12) errors.push('Mês deve ser entre 1 e 12');
+if (formData.cargos.length === 0) errors.push('Selecione pelo menos um cargo');
+if (formData.edital && !isValidUrl(formData.edital)) errors.push('O edital deve ser um link válido (http:// ou https://)');
 
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      return;
+// Validate metrics and subtema rules
+for (const cs of formData.cargoSecoes) {
+  const usedSubtemas = new Set<number>();
+  for (const secao of cs.secoes) {
+    if (secao.disciplinas.length === 0) {
+      errors.push(`A seção '${secao.nome}' deve ter pelo menos uma disciplina.`);
     }
+    for (const disc of secao.disciplinas) {
+      const anyFilled = disc.numQuestoes !== null || disc.peso !== null || disc.notaMinima !== null;
+      const allFilled = disc.numQuestoes !== null && disc.peso !== null && disc.notaMinima !== null;
 
+      if (anyFilled && !allFilled) {
+         errors.push(`Inconsistência na disciplina '${disc.nome}': Se definir uma métrica, deve definir todas.`);
+      } else if (anyFilled && (disc.numQuestoes! < 1 || disc.peso! < 1.0 || disc.notaMinima! < 0)) {
+         errors.push(`Inconsistência na disciplina '${disc.nome}': Valores devem respeitar os mínimos (questões >= 1, peso >= 1.0, nota >= 0).`);
+      }
+
+      if (disc.subtemas.length === 0) {
+        errors.push(`A disciplina '${disc.nome}' deve ter pelo menos um subtema associado.`);
+      }
+
+      for (const st of disc.subtemas) {
+        if (usedSubtemas.has(st.value)) {
+          errors.push(`O subtema '${st.label}' já está associado a outra disciplina deste cargo.`);
+        }
+        usedSubtemas.add(st.value);
+      }
+    }
+  }
+}
+
+if (errors.length > 0) {
+  setValidationErrors(errors);
+  return;
+}
     setLocalLoading(true);
     try {
-      const buildSubtemaIdsBySecao = () => {
-        const result: Record<string, number[]> = {};
-        formData.cargoSecoes.forEach(cs => {
-          cs.secoes.forEach(s => {
-            const secaoKey = `${cs.cargoId}-${s.id}`;
-            const linkedSubtemas = formData.topicos
-              .filter(t => t.cargoSecaoMap[cs.cargoId] === s.id)
-              .map(t => t.subtemaId);
-            result[secaoKey] = linkedSubtemas;
-          });
-        });
-        return result;
-      };
-
-      const subtemaIdsBySecao = buildSubtemaIdsBySecao();
-
       const payload: any = {
         instituicaoId: formData.instituicao!.value,
         bancaId: formData.banca!.value,
@@ -674,10 +683,14 @@ const errors: string[] = [];
                 id: provaId === null ? null : (s.id.startsWith('local-') ? null : Number(s.id)),
                 nome: s.nome,
                 ordem: calculatedOrdem,
-                numQuestoes: s.numQuestoes,
-                peso: s.peso,
-                notaMinima: s.notaMinima,
-                subtemaIds: subtemaIdsBySecao[`${p.cargoId}-${s.id}`] || []
+                disciplinas: s.disciplinas.map(d => ({
+                  id: provaId === null ? null : (d.id.startsWith('local-') ? null : Number(d.id)),
+                  nome: d.nome,
+                  peso: d.peso,
+                  numQuestoes: d.numQuestoes,
+                  notaMinima: d.notaMinima,
+                  subtemaIds: d.subtemas.map(st => st.value)
+                }))
               };
             })
           };
@@ -750,37 +763,22 @@ const handleEdit = async (item: ConcursoDto) => {
             id: String(s.id),
             nome: s.nome,
             ordem: Math.max(0, (s.ordem ?? 1) - 1),
-            numQuestoes: s.numQuestoes ?? 0,
+            numQuestoes: s.numQuestoes ?? 1,
             peso: s.peso ?? 1,
-            notaMinima: s.notaMinima ?? 0
+            notaMinima: s.notaMinima ?? 0,
+            disciplinas: (s.disciplinas || []).map(d => ({
+              id: String(d.id),
+              nome: d.nome,
+              peso: d.peso ?? 1,
+              numQuestoes: d.numQuestoes ?? 0,
+              notaMinima: d.notaMinima ?? 0,
+              subtemas: (d.assuntos || []).map(a => ({ value: a.id, label: a.nome }))
+            }))
           }))
           .sort((a, b) => a.ordem - b.ordem)
       }));
 
-      const topicoMap = new Map<number, TopicoEntry>();
-      (detail.cargos || []).forEach(cargo => {
-        cargo.topicos?.forEach(secao => {
-          secao.assuntos?.forEach((subtema: any) => {
-            if (!topicoMap.has(subtema.id)) {
-              const cargoSecaoMap: Record<number, string | null> = {};
-              detail.cargos.forEach(c => cargoSecaoMap[c.cargoId] = null);
-              
-              topicoMap.set(subtema.id, {
-                subtemaId: subtema.id,
-                subtemaLabel: subtema.disciplina?.nome
-                  ? `${subtema.disciplina.nome} - ${subtema.tema?.nome} - ${subtema.nome}`
-                  : subtema.nome,
-                disciplina: subtema.disciplina,
-                tema: subtema.tema,
-                cargoSecaoMap,
-              });
-            }
-            topicoMap.get(subtema.id)!.cargoSecaoMap[cargo.cargoId] = String(secao.id);
-          });
-        });
-      });
-
-      setFormData({
+setFormData({
         instituicao: { value: detail.instituicao.id, label: detail.instituicao.nome },
         banca: { value: detail.banca.id, label: detail.banca.nome },
         ano: detail.ano,
@@ -791,7 +789,7 @@ const handleEdit = async (item: ConcursoDto) => {
         cargos: detail.cargos.map(c => ({ value: c.cargoId, label: `${c.cargoNome} - ${c.area} (${formatNivel(c.nivel)})` })),
         cargoSecoes: localCargoSecoes,
         provas: localProvas,
-        topicos: Array.from(topicoMap.values()),
+        topicos: []
       });
 
       setModalOpen(true);
@@ -895,27 +893,20 @@ setModalOpen(false);
     urlFinalizado !== ''
   );
 
-  const selectedSubtemaIds = new Set(formData.topicos.map((t: TopicoEntry) => t.subtemaId));
-  const groupedTopicos = groupTopicos(formData.topicos);
-
   const [topicoSearch, setTopicoSearch] = useState('');
-
   const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-  const filteredTopicos = groupedTopicos.map(discGroup => {
-    const discMatch = normalize(discGroup.disciplina?.nome || '').includes(normalize(topicoSearch));
+  const filteredCargoSecoes = formData.cargoSecoes.map(cs => {
+    const normSearch = normalize(topicoSearch);
+    if (!normSearch) return cs;
     
-    const filteredTemas = discGroup.temas.map(temaGroup => {
-      const temaMatch = normalize(temaGroup.tema?.nome || '').includes(normalize(topicoSearch));
-      const filteredSubtemas = temaGroup.topicos.filter(t => 
-        discMatch || temaMatch || normalize(t.subtemaLabel).includes(normalize(topicoSearch))
-      );
-      
-      return filteredSubtemas.length > 0 ? { ...temaGroup, topicos: filteredSubtemas } : null;
-    }).filter(Boolean) as typeof discGroup.temas;
-
-    return filteredTemas.length > 0 ? { ...discGroup, temas: filteredTemas } : null;
-  }).filter(Boolean) as typeof groupedTopicos;
+    const filteredSecoes = cs.secoes.filter(s => 
+      normalize(s.nome).includes(normSearch) || 
+      s.disciplinas.some(d => normalize(d.nome).includes(normSearch))
+    );
+    
+    return { ...cs, secoes: filteredSecoes };
+  });
 
   const selectStyles: Record<string, (base: CSSProperties) => CSSProperties> = {
     menuPortal: (base) => ({ ...base, zIndex: 9999 }),
@@ -1421,39 +1412,60 @@ const cargo = formData.cargos.find(c => c.value === cargoSec.cargoId);
                                         placeholder="Nome"
                                       />
                                     </div>
-                                    <div className="flex flex-col justify-center">
-                                      <label className="text-[9px] text-slate-400 font-medium">Questões</label>
-                                      <input
-                                        type="number"
-                                        min="1"
-                                        value={secao.numQuestoes}
-                                        onChange={(e) => updateSecaoInCargo(cargoSec.cargoId, secao.id, { numQuestoes: parseInt(e.target.value) || 1 })}
-                                        className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs font-medium focus:ring-1 focus:ring-indigo-500"
-                                        placeholder="1"
-                                      />
-                                    </div>
-                                    <div className="flex flex-col justify-center">
-                                      <label className="text-[9px] text-slate-400 font-medium">Peso</label>
-                                      <input
-                                        type="number"
-                                        step="0.1"
-                                        value={secao.peso}
-                                        onChange={(e) => updateSecaoInCargo(cargoSec.cargoId, secao.id, { peso: parseFloat(e.target.value) || 1 })}
-                                        className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs font-medium focus:ring-1 focus:ring-indigo-500"
-                                        placeholder="1"
-                                      />
-                                    </div>
-                                    <div className="flex flex-col justify-center">
-                                      <label className="text-[9px] text-slate-400 font-medium">Nota Mínima</label>
-                                      <input
-                                        type="number"
-                                        step="0.1"
-                                        value={secao.notaMinima}
-                                        onChange={(e) => updateSecaoInCargo(cargoSec.cargoId, secao.id, { notaMinima: parseFloat(e.target.value) || 0 })}
-                                        className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs font-medium focus:ring-1 focus:ring-indigo-500"
-                                        placeholder="0"
-                                      />
-                                    </div>
+                                    {(() => {
+                                      const isComputed = secao.disciplinas.some(d => d.numQuestoes !== null || d.peso !== null || d.notaMinima !== null);
+                                      const inputClass = `w-full border border-slate-200 rounded px-2 py-1 text-xs font-medium focus:ring-1 focus:ring-indigo-500 ${isComputed ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-700'}`;
+                                      
+                                      return (
+                                        <>
+                                          <div className="flex flex-col justify-center">
+                                            <label className="text-[9px] text-slate-400 font-medium flex items-center gap-1">
+                                              Questões {isComputed && <span className="text-[7px] bg-indigo-100 text-indigo-600 px-1 rounded">AUTO</span>}
+                                            </label>
+                                            <input
+                                              type="number"
+                                              min="1"
+                                              value={secao.numQuestoes}
+                                              readOnly={isComputed}
+                                              tabIndex={isComputed ? -1 : 0}
+                                              onChange={(e) => updateSecaoInCargo(cargoSec.cargoId, secao.id, { numQuestoes: parseInt(e.target.value) || 1 })}
+                                              className={inputClass}
+                                              placeholder="1"
+                                            />
+                                          </div>
+                                          <div className="flex flex-col justify-center">
+                                            <label className="text-[9px] text-slate-400 font-medium flex items-center gap-1">
+                                              Peso {isComputed && <span className="text-[7px] bg-indigo-100 text-indigo-600 px-1 rounded">AUTO</span>}
+                                            </label>
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              value={secao.peso}
+                                              readOnly={isComputed}
+                                              tabIndex={isComputed ? -1 : 0}
+                                              onChange={(e) => updateSecaoInCargo(cargoSec.cargoId, secao.id, { peso: parseFloat(e.target.value) || 1 })}
+                                              className={inputClass}
+                                              placeholder="1"
+                                            />
+                                          </div>
+                                          <div className="flex flex-col justify-center">
+                                            <label className="text-[9px] text-slate-400 font-medium flex items-center gap-1">
+                                              Nota Mínima {isComputed && <span className="text-[7px] bg-indigo-100 text-indigo-600 px-1 rounded">AUTO</span>}
+                                            </label>
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              value={secao.notaMinima}
+                                              readOnly={isComputed}
+                                              tabIndex={isComputed ? -1 : 0}
+                                              onChange={(e) => updateSecaoInCargo(cargoSec.cargoId, secao.id, { notaMinima: parseFloat(e.target.value) || 0 })}
+                                              className={inputClass}
+                                              placeholder="0"
+                                            />
+                                          </div>
+                                        </>
+                                      );
+                                    })()}
                                   </div>
                                   <button
                                     type="button"
@@ -1478,239 +1490,198 @@ const cargo = formData.cargos.find(c => c.value === cargoSec.cargoId);
         ) : null}
 
       <div className={formTab === 'conteudo' ? 'block' : 'hidden'}>
-  <div className="pt-2">
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-      <div className="flex items-center gap-2.5">
-        <div className="p-2 bg-indigo-50 rounded-lg">
-          <Hash className="w-5 h-5 text-indigo-600" />
-        </div>
-        <div>
-          <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Conteúdo Programático</h4>
-          <p className="text-[11px] text-slate-500 font-medium">Gerencie a taxonomia e vinculação por cargo</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 sm:w-64">
-          <input
-            type="text"
-            placeholder="Filtrar tópicos..."
-            value={topicoSearch}
-            onChange={(e) => setTopicoSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-          />
-          <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          {topicoSearch && (
-            <button 
-              onClick={() => setTopicoSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => setSubtemaPickerOpen(true)}
-          className="inline-flex items-center px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-100 active:scale-95 whitespace-nowrap"
-        >
-          <Plus className="w-3.5 h-3.5 mr-1.5" />
-          Adicionar Subtemas
-        </button>
-      </div>
-    </div>
+        <div className="pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-indigo-50 rounded-lg">
+                <Hash className="w-5 h-5 text-indigo-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Conteúdo Programático</h4>
+                <p className="text-[11px] text-slate-500 font-medium">Gerencie a taxonomia e vinculação por cargo</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 sm:w-64">
+                <input
+                  type="text"
+                  placeholder="Filtrar seções/disciplinas..."
+                  value={topicoSearch}
+                  onChange={(e) => setTopicoSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                />
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                {topicoSearch && (
+                  <button 
+                    onClick={() => setTopicoSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
 
-    {formData.topicos.length > 0 ? (
-      <div className="space-y-4">
-        {filteredTopicos.map((disciplinaGroup) => {
-          const discId = `disc-${disciplinaGroup.disciplina?.id ?? 0}`;
-          const isDiscExpanded = expandedSections[discId];
-          const totalSubtemas = disciplinaGroup.temas.reduce((acc, t) => acc + t.topicos.length, 0);
+          <div className="space-y-8">
+            {filteredCargoSecoes.map((cargoSec) => {
+              const cargo = formData.cargos.find(c => c.value === cargoSec.cargoId);
+              return (
+                <div key={cargoSec.cargoId} className="space-y-4">
+                  <div className="flex items-center gap-3 px-4 py-2 bg-slate-100/50 rounded-lg border border-slate-200/50">
+                    <Target className="w-4 h-4 text-indigo-600" />
+                    <h5 className="text-xs font-black uppercase tracking-widest text-slate-700">
+                      Cargo: {cargo?.label.split(' - ')[0] || `ID ${cargoSec.cargoId}`}
+                    </h5>
+                  </div>
 
-          return (
-            <div key={discId} className="border border-slate-200/60 rounded-xl overflow-hidden bg-white shadow-sm">
-              {/* Disciplina Row */}
-              <button
-                type="button"
-                onClick={() => toggleSection(discId)}
-                className="w-full flex items-center justify-between px-5 py-4 bg-[oklch(98%_0.005_264)]/40 hover:bg-[oklch(97%_0.02_264)] transition-all duration-300 group cursor-pointer"
-                style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
-              >
-                <div className="flex items-center gap-4">
-                  <ChevronRight className={`w-4 h-4 text-slate-300 transition-transform duration-500 ${isDiscExpanded ? 'rotate-90 text-[oklch(45%_0.22_264)]' : ''}`} 
-                    style={{ transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.25, 1)' }}
-                  />
-                  <span className="text-sm font-bold text-[oklch(25%_0.015_264)] tracking-tight uppercase">
-                    {disciplinaGroup.disciplina?.nome || 'Conhecimentos Gerais'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                   <span className="text-[10px] font-mono font-bold text-slate-400 tabular-nums bg-slate-100/60 px-2 py-1 rounded border border-slate-200/30">
-                    {totalSubtemas} {totalSubtemas === 1 ? 'TÓPICO' : 'TÓPICOS'}
-                  </span>
-                </div>
-              </button>
-
-              {/* Tema List */}
-              {isDiscExpanded && (
-                <div className="border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-300" style={{ animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
-                  {disciplinaGroup.temas.map((temaGroup) => {
-                    const temaId = `tema-${temaGroup.tema?.id ?? 0}-${disciplinaGroup.disciplina?.id ?? 0}`;
-                    const isTemaExpanded = expandedSections[temaId];
-
-                    return (
-                      <div key={temaId} className="group/tema border-b border-slate-50 last:border-b-0">
-                        <button
-                          type="button"
-                          onClick={() => toggleSection(temaId)}
-                          className={`w-full flex items-center justify-between px-6 py-3.5 hover:bg-[oklch(97%_0.02_264)]/50 transition-all cursor-pointer ${
-                            isTemaExpanded ? 'bg-[oklch(97%_0.02_264)]/40' : ''
-                          }`}
-                          style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
-                        >
-                          <div className="flex items-center gap-3 pl-4 border-l border-slate-100 group-hover/tema:border-[oklch(85%_0.05_264)] transition-colors">
-                            <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-300 ${
-                              isTemaExpanded ? 'rotate-90 text-[oklch(73%_0.17_65)]' : 'text-slate-300'
-                            }`} style={{ transitionTimingFunction: 'cubic-bezier(0.25, 1, 0.25, 1)' }} />
-                            <span className={`text-[11px] font-bold uppercase tracking-wide text-left ${
-                              isTemaExpanded ? 'text-[oklch(25%_0.015_264)]' : 'text-slate-500'
-                            }`}>
-                              {temaGroup.tema?.nome || 'Tópicos Gerais'}
+                  <div className="grid grid-cols-1 gap-6">
+                    {cargoSec.secoes.map((secao) => (
+                      <div key={secao.id} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                        <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white border border-slate-200 text-[10px] font-bold text-slate-500">
+                              {secao.ordem + 1}
                             </span>
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-900">{secao.nome}</span>
                           </div>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => addDisciplinaToSecao(cargoSec.cargoId, secao.id)}
+                            className="inline-flex items-center px-3 py-1.5 text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors border border-indigo-100"
+                          >
+                            <Plus className="w-3 h-3 mr-1" /> Add Disciplina
+                          </button>
+                        </div>
 
-                        {/* Subtema Strategy Grid */}
-                        {isTemaExpanded && (
-                          <div className="px-6 pb-6 pt-2 space-y-4 bg-[oklch(98%_0.005_264)]/20 animate-in fade-in duration-300">
-                            {temaGroup.topicos.map((topico) => (
-                              <div key={topico.subtemaId} className="pl-11 relative">
-                                {/* Visual Thread */}
-                                <div className="absolute left-7 top-0 bottom-0 w-px bg-slate-200/40" />
-                                <div className="absolute left-7 top-4 w-3 h-px bg-slate-200/40" />
-
-                                <div className="bg-white border border-slate-200/60 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.02)] overflow-hidden">
-                                  <div className="px-4 py-2.5 bg-slate-50/30 border-b border-slate-100 flex items-center justify-between">
-                                    <div className="flex flex-col text-left">
-                                      <span className="text-[13px] font-bold text-[oklch(35%_0.015_264)] tracking-tight leading-tight">
-                                        {topico.subtemaLabel.split(' - ').pop()}
-                                      </span>
-                                      <span className="text-[9px] font-mono text-slate-400 mt-0.5 uppercase tracking-[0.05em]">ID #{topico.subtemaId}</span>
-                                    </div>
+                        <div className="divide-y divide-slate-100">
+                          {(() => {
+                            const filledDiscs = secao.disciplinas.filter(d => d.numQuestoes !== null || d.peso !== null || d.notaMinima !== null);
+                            const isInconsistent = filledDiscs.length > 0 && filledDiscs.length < secao.disciplinas.length;
+                            
+                            if (isInconsistent) {
+                              return (
+                                <div className="px-5 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
+                                  <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                                  <p className="text-[10px] font-bold text-amber-700 uppercase tracking-tight">
+                                    Atenção: Defina as métricas para TODAS as disciplinas desta seção (ou para nenhuma).
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+                          {secao.disciplinas.length === 0 ? (
+                            <div className="p-8 text-center">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhuma disciplina cadastrada</p>
+                            </div>
+                          ) : (
+                            secao.disciplinas.map((disc) => (
+                              <div key={disc.id} className="p-5 space-y-4">
+                                <div className="flex flex-wrap items-center gap-4">
+                                  <div className="flex-1 min-w-[200px]">
+                                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Nome da Disciplina (no Edital)</label>
+                                    <input
+                                      type="text"
+                                      value={disc.nome}
+                                      onChange={(e) => updateDisciplinaInSecao(cargoSec.cargoId, secao.id, disc.id, { nome: e.target.value })}
+                                      className="w-full bg-white border border-slate-200 rounded px-2 py-1.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500"
+                                      placeholder="Ex: Língua Portuguesa"
+                                    />
+                                  </div>
+                                  <div className="w-20">
+                                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Questões</label>
+                                    <input
+                                      type="number"
+                                      value={disc.numQuestoes ?? ''}
+                                      onChange={(e) => updateDisciplinaInSecao(cargoSec.cargoId, secao.id, disc.id, { numQuestoes: e.target.value === '' ? null : parseInt(e.target.value) })}
+                                      className="w-full bg-white border border-slate-200 rounded px-2 py-1.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500"
+                                      placeholder="-"
+                                    />
+                                  </div>
+                                  <div className="w-16">
+                                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Peso</label>
+                                    <input
+                                      type="number"
+                                      step="0.1"
+                                      value={disc.peso ?? ''}
+                                      onChange={(e) => updateDisciplinaInSecao(cargoSec.cargoId, secao.id, disc.id, { peso: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                      className="w-full bg-white border border-slate-200 rounded px-2 py-1.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500"
+                                      placeholder="-"
+                                    />
+                                  </div>
+                                  <div className="w-20">
+                                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Mínima</label>
+                                    <input
+                                      type="number"
+                                      step="0.1"
+                                      value={disc.notaMinima ?? ''}
+                                      onChange={(e) => updateDisciplinaInSecao(cargoSec.cargoId, secao.id, disc.id, { notaMinima: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                      className="w-full bg-white border border-slate-200 rounded px-2 py-1.5 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500"
+                                      placeholder="-"
+                                    />
+                                  </div>
+                                  <div className="flex items-end pb-0.5">
                                     <button
                                       type="button"
-                                      onClick={() => removeTopico(topico.subtemaId)}
-                                      className="p-1.5 text-slate-300 hover:text-[oklch(65%_0.16_25)] hover:bg-[oklch(95%_0.03_25)] rounded-md transition-all"
-                                      title="Remover"
+                                      onClick={() => removeDisciplinaFromSecao(cargoSec.cargoId, secao.id, disc.id)}
+                                      className="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                     >
-                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <Trash2 className="w-4 h-4" />
                                     </button>
                                   </div>
-                                  
-                                  <div className="p-3">
-                                    <div className="grid grid-cols-1 gap-4">
-                                      {formData.cargoSecoes.map((cargoSec) => {
-                                        const cargo = formData.cargos.find(c => c.value === cargoSec.cargoId);
-                                        const selectedSecaoId = topico.cargoSecaoMap[cargoSec.cargoId];
-                                        
-                                        return (
-                                          <div key={cargoSec.cargoId} className="space-y-2">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                              <span className="w-1 h-1 rounded-full bg-slate-300" />
-                                              {cargo?.label.split(' - ')[0] || `Cargo ${cargoSec.cargoId}`}
-                                            </p>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                              <label 
-                                                className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-all cursor-pointer select-none ${
-                                                  selectedSecaoId === null || selectedSecaoId === undefined
-                                                    ? 'bg-indigo-50/60 border-indigo-200 shadow-sm'
-                                                    : 'bg-white border-slate-100 hover:border-slate-200'
-                                                }`}
-                                              >
-                                                <div className="flex-shrink-0 flex items-center justify-center">
-                                                  <input
-                                                    type="radio"
-                                                    name={`secao-${topico.subtemaId}-cargo-${cargoSec.cargoId}`}
-                                                    checked={selectedSecaoId === null || selectedSecaoId === undefined}
-                                                    onChange={() => toggleTopicoSecao(topico.subtemaId, cargoSec.cargoId, null)}
-                                                    className="h-3.5 w-3.5 text-indigo-600 focus:ring-indigo-500 border-slate-300"
-                                                  />
-                                                </div>
-                                                <div className="flex flex-col min-w-0">
-                                                  <span className={`text-[10px] font-bold uppercase tracking-tight leading-none truncate ${
-                                                    selectedSecaoId === null || selectedSecaoId === undefined ? 'text-indigo-900' : 'text-slate-600'
-                                                  }`}>
-                                                    Não utilizado
-                                                  </span>
-                                                </div>                                              
-                                              </label>
-                                              {cargoSec.secoes
-                                                .sort((a, b) => a.ordem - b.ordem)
-                                                .map((secao) => (
-                                                <label 
-                                                  key={secao.id} 
-                                                  className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-all cursor-pointer select-none ${
-                                                    selectedSecaoId === secao.id
-                                                      ? 'bg-indigo-50/60 border-indigo-200 shadow-sm'
-                                                      : 'bg-white border-slate-100 hover:border-slate-200'
-                                                  }`}
-                                                >
-                                                  <div className="flex-shrink-0 flex items-center justify-center">
-                                                    <input
-                                                      type="radio"
-                                                      name={`secao-${topico.subtemaId}-cargo-${cargoSec.cargoId}`}
-                                                      checked={selectedSecaoId === secao.id}
-                                                      onChange={() => toggleTopicoSecao(topico.subtemaId, cargoSec.cargoId, secao.id)}
-                                                      className="h-3.5 w-3.5 text-indigo-600 focus:ring-indigo-500 border-slate-300"
-                                                    />
-                                                  </div>
-                                                  <div className="flex flex-col min-w-0">
-                                                    <span className={`text-[10px] font-bold uppercase tracking-tight leading-none truncate ${
-                                                      selectedSecaoId === secao.id ? 'text-indigo-900' : 'text-slate-600'
-                                                    }`}>
-                                                      {secao.nome}
-                                                    </span>
-                                                  </div>                                              
-                                                </label>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
+                                </div>
+
+                                <div className="pl-6 border-l-2 border-indigo-50 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Assuntos / Subtemas</label>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setPickingSubtemasFor({ cargoId: cargoSec.cargoId, secaoId: secao.id, discId: disc.id });
+                                        setSubtemaPickerOpen(true);
+                                      }}
+                                      className="inline-flex items-center px-3 py-1 text-[9px] font-black uppercase tracking-wider text-white bg-indigo-500 rounded hover:bg-indigo-600 transition-colors"
+                                    >
+                                      <Plus className="w-3 h-3 mr-1" /> Selecionar Subtemas
+                                    </button>
+                                  </div>
+
+                                  <div className="flex flex-wrap gap-2">
+                                    {disc.subtemas.length === 0 ? (
+                                      <p className="text-[10px] italic text-slate-400">Nenhum subtema vinculado</p>
+                                    ) : (
+                                      disc.subtemas.map((st) => (
+                                        <div key={st.value} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-lg shadow-sm group">
+                                          <span className="text-[10px] font-bold text-slate-600">{st.label.split(' - ').pop()}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const updated = disc.subtemas.filter(s => s.value !== st.value);
+                                              updateDisciplinaInSecao(cargoSec.cargoId, secao.id, disc.id, { subtemas: updated });
+                                            }}
+                                            className="p-0.5 text-slate-300 hover:text-red-500 rounded group-hover:bg-slate-50 transition-colors"
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      ))
+                                    )}
                                   </div>
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        )}
+                            ))
+                          )}
+                        </div>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              )}
-            </div>
-          );
-        })}
-        {filteredTopicos.length === 0 && topicoSearch && (
-          <div className="py-12 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhum tópico encontrado</p>
-            <p className="text-xs text-slate-400 mt-1">Tente ajustar o termo da sua pesquisa.</p>
+              );
+            })}
           </div>
-        )}
-      </div>
-    ) : (
-      <div className="flex flex-col items-center justify-center py-16 px-4 bg-slate-50/30 rounded-2xl border-2 border-dashed border-slate-200">
-        <div className="p-4 bg-white rounded-full shadow-sm mb-4">
-          <Hash className="w-8 h-8 text-slate-300" />
         </div>
-        <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Lista Vazia</p>
-        <p className="text-xs text-slate-400 mt-1 max-w-[240px] text-center leading-relaxed">
-          Selecione os subtemas que compõem este edital para vincular aos cargos.
-        </p>
       </div>
-    )}
-  </div>
-</div>
 
       </FormModal>
 
@@ -1728,37 +1699,30 @@ const cargo = formData.cargos.find(c => c.value === cargoSec.cargoId);
 
       <SubtemaPickerModal
         isOpen={subtemaPickerOpen}
-        onClose={() => setSubtemaPickerOpen(false)}
-        onConfirm={(selected) => {
-          const currentCargoIds = formData.cargos.map((c: { value: number }) => c.value);
-          const newTopicos = selected
-            .filter(s => !selectedSubtemaIds.has(s.subtemaId))
-            .map(s => {
-              const cargoSecaoMap: Record<number, string | null> = {};
-              currentCargoIds.forEach(id => cargoSecaoMap[id] = null);
-              return {
-                subtemaId: s.subtemaId,
-                subtemaLabel: s.label || `Subtema ${s.subtemaId}`,
-                disciplina: s.disciplina,
-                tema: s.tema,
-                cargoSecaoMap,
-              };
-            });
-            
-          setFormData(prev => ({
-            ...prev,
-            topicos: [...prev.topicos, ...newTopicos],
-          }));
-          
-          setSubtemaPickerOpen(false); 
+        onClose={() => {
+          setSubtemaPickerOpen(false);
+          setPickingSubtemasFor(null);
         }}
-        initiallySelected={formData.topicos.map(t => ({ 
-          subtemaId: t.subtemaId, 
-          label: t.subtemaLabel,
-          disciplina: t.disciplina,
-          tema: t.tema,
-          cargoSecaoMap: t.cargoSecaoMap
-        }))}
+        onConfirm={(selected) => {
+          if (pickingSubtemasFor) {
+            const { cargoId, secaoId, discId } = pickingSubtemasFor;
+            const newSubtemas = selected.map(s => ({ value: s.subtemaId, label: s.label ?? '' }));
+            updateDisciplinaInSecao(cargoId, secaoId, discId, { subtemas: newSubtemas });
+          }
+          setSubtemaPickerOpen(false);
+          setPickingSubtemasFor(null);
+        }}
+        initiallySelected={(() => {
+          if (!pickingSubtemasFor) return [];
+          const { cargoId, secaoId, discId } = pickingSubtemasFor;
+          const cargo = formData.cargoSecoes.find(cs => cs.cargoId === cargoId);
+          const secao = cargo?.secoes.find(s => s.id === secaoId);
+          const disc = secao?.disciplinas.find(d => d.id === discId);
+          return (disc?.subtemas || []).map(st => ({
+            subtemaId: st.value,
+            label: st.label
+          }));
+        })()}
       />
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">

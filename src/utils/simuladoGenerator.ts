@@ -379,7 +379,9 @@ export function generateSimuladoFromCargo(
   } = options;
 
   const topicos = cargo.topicos ?? [];
-  const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => secao.assuntos || []);
+  const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => 
+    secao.disciplinas?.flatMap(d => d.assuntos || []) || []
+  );
   
   // Score every subtema
   const scored = assuntos.map((t: Types.ConcursoCargoSubtemaDto) => scoreTopico(t, strategy));
@@ -425,7 +427,9 @@ export function generateSimuladoPreview(
   } = options;
 
   const topicos = cargo.topicos ?? [];
-  const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => secao.assuntos || []);
+  const assuntos: Types.ConcursoCargoSubtemaDto[] = topicos.flatMap((secao: Types.ConcursoSecaoDto) => 
+    secao.disciplinas?.flatMap(d => d.assuntos || []) || []
+  );
   const scored = assuntos.map((t: Types.ConcursoCargoSubtemaDto) => scoreTopico(t, strategy));
   const distribution = distributeQuestions(scored, targetQuestions);
   const totalAllocated = distribution.reduce((s, d) => s + d.quantidade, 0);

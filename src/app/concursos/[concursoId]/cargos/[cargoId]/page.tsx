@@ -94,69 +94,34 @@ export default function ConcursoCargoDetailPage() {
 
   usePageTitle(cargo ? `${cargo.cargoNome} — ${concurso?.instituicao.nome}` : undefined);
 
-  const categorizedTopicos = useMemo(() => {
-    if (!cargo || !concurso) return {};
-
-    // Find all provas associated with this cargo
-    const cargoProvas = cargo.provas || [];
+  const filteredTopicos = useMemo(() => {
+    if (!cargo?.topicos) return [];
     
-    // Create a map of subtemaId -> secao info
-    const subtemaToSecao = new Map<number, string>();
-
-    const groups: Record<string, Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>>> = {};
-
-    // Now topicos is ConcursoSecaoDto[], where each has assuntos (ConcursoCargoSubtemaDto[])
-    (cargo.topicos || []).forEach((secao: Types.ConcursoSecaoDto) => {
-      const groupName = secao.nome || 'Outros Tópicos';
-      
-      (secao.assuntos || []).forEach((t: Types.ConcursoCargoSubtemaDto) => {
-        const disc = t.disciplina?.nome || 'Outras Disciplinas';
-        const tema = t.tema?.nome || 'Geral';
-        
-        if (!groups[groupName]) groups[groupName] = {};
-        if (!groups[groupName][disc]) groups[groupName][disc] = {};
-        if (!groups[groupName][disc][tema]) groups[groupName][disc][tema] = [];
-        groups[groupName][disc][tema].push(t);
-      });
-    });
-
-    return groups;
-  }, [cargo, concurso, cargoId]);
-
-  const filteredCategorizedTopicos = useMemo(() => {
-    const filtered: Record<string, Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>>> = {};
     const normSearch = normalize(searchTerm);
+    if (!normSearch) return cargo.topicos;
 
-    Object.entries(categorizedTopicos).forEach(([groupName, groupData]) => {
-      const groupFiltered: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>> = {};
+    return cargo.topicos.map(secao => {
+      const secaoMatch = normalize(secao.nome).includes(normSearch);
       
-      Object.entries(groupData).forEach(([disc, temas]) => {
-        const discMatch = normalize(disc).includes(normSearch);
-        const filteredTemas: Record<string, Types.ConcursoCargoSubtemaDto[]> = {};
+      const filteredDisciplinas = (secao.disciplinas || []).map(disc => {
+        const discMatch = normalize(disc.nome).includes(normSearch);
+        
+        const filteredAssuntos = (disc.assuntos || []).filter(a => 
+          discMatch || secaoMatch || normalize(a.nome).includes(normSearch)
+        );
 
-        Object.entries(temas).forEach(([tema, subtopicos]) => {
-          const temaMatch = normalize(tema).includes(normSearch);
-          const filteredSubtopicos = subtopicos.filter(t => 
-            discMatch || temaMatch || normalize(t.nome).includes(normSearch)
-          );
-
-          if (filteredSubtopicos.length > 0) {
-            filteredTemas[tema] = filteredSubtopicos;
-          }
-        });
-
-        if (Object.keys(filteredTemas).length > 0) {
-          groupFiltered[disc] = filteredTemas;
+        if (filteredAssuntos.length > 0 || discMatch) {
+          return { ...disc, assuntos: filteredAssuntos };
         }
-      });
+        return null;
+      }).filter(Boolean) as Types.ConcursoSecaoDisciplinaDto[];
 
-      if (Object.keys(groupFiltered).length > 0) {
-        filtered[groupName] = groupFiltered;
+      if (filteredDisciplinas.length > 0 || secaoMatch) {
+        return { ...secao, disciplinas: filteredDisciplinas };
       }
-    });
-
-    return filtered;
-  }, [categorizedTopicos, searchTerm]);
+      return null;
+    }).filter(Boolean) as Types.ConcursoSecaoDto[];
+  }, [cargo?.topicos, searchTerm]);
 
   const highlights = useMemo<HighlightMap>(() => {
     if (!concurso || !cargo) return {};
@@ -191,90 +156,54 @@ export default function ConcursoCargoDetailPage() {
     try { return ['http:', 'https:'].includes(new URL(s).protocol); } catch { return false; }
   };
 
-  const renderSyllabusGroup = (title: string, icon: React.ReactNode, groups: Record<string, Record<string, Types.ConcursoCargoSubtemaDto[]>>) => {
-    const entries = Object.entries(groups);
-    if (entries.length === 0) return null;
-
+  const renderAssunto = (assunto: Types.ConcursoCargoSubtemaDto) => {
+    const studied = (assunto.totalEstudos ?? 0) > 0;
     return (
-      <div className="py-2" key={title}>
-        <div className="flex items-center gap-3 px-6 py-4 bg-slate-50/50 border-y border-slate-100">
-           <div className="p-1.5 bg-white rounded-lg shadow-sm border border-slate-200/50">
-             {icon}
-           </div>
-           <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
-             {title}
-           </h3>
-        </div>
-        <div className="divide-y divide-slate-50">
-          {entries.map(([disciplina, temas]) => (
-            <div key={disciplina}>
-              <div className="px-6 py-3 bg-white flex items-center gap-3">
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[oklch(45%_0.22_264)] bg-[oklch(97%_0.02_264)] px-3 py-1 rounded-full border border-[oklch(85%_0.05_264)]/50">{disciplina}</span>
-                <div className="h-px flex-1 bg-[oklch(90%_0.010_264)]/40" />
+      <div key={assunto.id} className="group rounded-lg border border-slate-100 bg-slate-50/20 hover:border-[oklch(85%_0.05_264)] hover:bg-white transition-all duration-200 p-3">
+        <div className="flex items-start gap-2.5">
+          <div className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${studied ? 'bg-[oklch(75%_0.12_150)]' : 'bg-slate-200'}`} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors leading-snug">{assunto.nome}</p>
+            
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              {/* Neste Edital Context */}
+              <div className="flex items-center gap-1.5 bg-[oklch(97%_0.02_264)]/50 px-2 py-0.5 rounded border border-[oklch(85%_0.05_264)]/30">
+                <span className="text-[9px] font-black uppercase tracking-tighter text-[oklch(45%_0.22_264)] opacity-70">Neste Edital:</span>
+                <span className="text-[10px] font-bold text-[oklch(45%_0.22_264)] tabular-nums">
+                  {assunto.questoesConcursoCargo?.totalQuestoes ?? 0} qst.
+                </span>
+                <div className="w-px h-2.5 bg-[oklch(85%_0.05_264)]/30 mx-0.5" />
+                <PerformanceBadge 
+                  acertadas={assunto.questoesConcursoCargo?.acertadas} 
+                  respondidas={assunto.questoesConcursoCargo?.respondidas} 
+                />
               </div>
-              {Object.entries(temas).map(([tema, subtopicos]) => (
-                <div key={tema} className="px-6 py-4">
-                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-3">
-                    <ChevronRight className="w-3 h-3 text-slate-300" /> {tema}
-                  </h4>
-                  <div className="space-y-2 pl-4">
-                    {subtopicos.map(topico => {
-                      const studied = (topico.totalEstudos ?? 0) > 0;
-                      return (
-                        <div key={topico.id} className="group rounded-lg border border-slate-100 bg-slate-50/20 hover:border-[oklch(85%_0.05_264)] hover:bg-white transition-all duration-200 p-3">
-                          <div className="flex items-start gap-2.5">
-                            <div className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${studied ? 'bg-[oklch(75%_0.12_150)]' : 'bg-slate-200'}`} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors leading-snug">{topico.nome}</p>
-                              
-                              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                                {/* Neste Edital Context */}
-                                <div className="flex items-center gap-1.5 bg-[oklch(97%_0.02_264)]/50 px-2 py-0.5 rounded border border-[oklch(85%_0.05_264)]/30">
-                                  <span className="text-[9px] font-black uppercase tracking-tighter text-[oklch(45%_0.22_264)] opacity-70">Neste Edital:</span>
-                                  <span className="text-[10px] font-bold text-[oklch(45%_0.22_264)] tabular-nums">
-                                    {topico.questoesConcursoCargo?.totalQuestoes ?? 0} qst.
-                                  </span>
-                                  <div className="w-px h-2.5 bg-[oklch(85%_0.05_264)]/30 mx-0.5" />
-                                  <PerformanceBadge 
-                                    acertadas={topico.questoesConcursoCargo?.acertadas} 
-                                    respondidas={topico.questoesConcursoCargo?.respondidas} 
-                                  />
-                                </div>
 
-                                {/* Desempenho Geral */}
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[9px] font-black uppercase tracking-tighter text-slate-400">Geral:</span>
-                                  <PerformanceBadge 
-                                    acertadas={topico.questaoStats?.total?.acertadas} 
-                                    respondidas={topico.questaoStats?.total?.respondidas} 
-                                  />
-                                </div>
-                                
-                                {(topico.questaoStats?.total?.ultimaQuestao ?? null) && (
-                                  <span className="text-[10px] font-medium text-slate-400 inline-flex items-center gap-1">
-                                    <BarChart2 className="w-2.5 h-2.5" /> Questão: {formatDateShort(topico.questaoStats?.total?.ultimaQuestao ?? undefined)}
-                                  </span>
-                                )}
-                                <span className={`text-[10px] font-medium inline-flex items-center gap-1 ${studied ? 'text-slate-400' : 'text-slate-300'}`}>
-                                  <Clock className="w-2.5 h-2.5" /> Estudo: {formatDateShort(topico.ultimoEstudo ?? undefined)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <StatsBreakdownPanel 
-                            stats={topico.questaoStats} 
-                            highlights={highlights} 
-                            title="Desempenho no tópico" 
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+              {/* Desempenho Geral */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-black uppercase tracking-tighter text-slate-400">Geral:</span>
+                <PerformanceBadge 
+                  acertadas={assunto.questaoStats?.total?.acertadas} 
+                  respondidas={assunto.questaoStats?.total?.respondidas} 
+                />
+              </div>
+              
+              {(assunto.questaoStats?.total?.ultimaQuestao ?? null) && (
+                <span className="text-[10px] font-medium text-slate-400 inline-flex items-center gap-1">
+                  <BarChart2 className="w-2.5 h-2.5" /> Questão: {formatDateShort(assunto.questaoStats?.total?.ultimaQuestao ?? undefined)}
+                </span>
+              )}
+              <span className={`text-[10px] font-medium inline-flex items-center gap-1 ${studied ? 'text-slate-400' : 'text-slate-300'}`}>
+                <Clock className="w-2.5 h-2.5" /> Estudo: {formatDateShort(assunto.ultimoEstudo ?? undefined)}
+              </span>
             </div>
-          ))}
+          </div>
         </div>
+        <StatsBreakdownPanel 
+          stats={assunto.questaoStats} 
+          highlights={highlights} 
+          title="Desempenho no tópico" 
+        />
       </div>
     );
   };
@@ -454,7 +383,7 @@ export default function ConcursoCargoDetailPage() {
         {activeTab === 'conteudo' ? (
           <div className="space-y-6">
             {/* Search and Filters bar */}
-            {Object.keys(categorizedTopicos).length > 0 && (
+            {cargo.topicos && cargo.topicos.length > 0 && (
               <div className="flex items-center gap-2 max-w-md">
                 <div className="relative flex-1">
                   <input
@@ -478,7 +407,7 @@ export default function ConcursoCargoDetailPage() {
             )}
 
             <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              {Object.keys(filteredCategorizedTopicos).length === 0 ? (
+              {filteredTopicos.length === 0 ? (
                 <div className="py-20 text-center">
                   <div className="p-4 bg-slate-50 rounded-full w-fit mx-auto mb-4 border border-slate-100">
                     {searchTerm ? (
@@ -506,14 +435,53 @@ export default function ConcursoCargoDetailPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {Object.entries(filteredCategorizedTopicos).map(([groupName, groupData]) => (
-                    renderSyllabusGroup(
-                      groupName,
-                      groupName.toLowerCase().includes('básico') 
-                        ? <ClipboardList className="w-4 h-4 text-indigo-500" />
-                        : <Target className="w-4 h-4 text-amber-500" />,
-                      groupData
-                    )
+                  {filteredTopicos.map((secao) => (
+                    <div className="py-2" key={secao.id}>
+                      <div className="flex items-center gap-3 px-6 py-4 bg-slate-50/50 border-y border-slate-100">
+                         <div className="p-1.5 bg-white rounded-lg shadow-sm border border-slate-200/50">
+                           {secao.nome.toLowerCase().includes('básico') 
+                              ? <ClipboardList className="w-4 h-4 text-indigo-500" />
+                              : <Target className="w-4 h-4 text-amber-500" />}
+                         </div>
+                         <div className="flex-1">
+                           <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
+                             {secao.nome}
+                           </h3>
+                           <div className="flex items-center gap-3 mt-0.5">
+                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                               Peso: {secao.peso || 1} • {secao.numQuestoes || 0} questões
+                             </span>
+                           </div>
+                         </div>
+                         <PerformanceBadge 
+                            acertadas={secao.questoesConcursoCargo?.acertadas} 
+                            respondidas={secao.questoesConcursoCargo?.respondidas} 
+                         />
+                      </div>
+                      
+                      <div className="divide-y divide-slate-50">
+                        {(secao.disciplinas || []).map(disc => (
+                          <div key={disc.id}>
+                            <div className="px-6 py-3 bg-white flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[oklch(45%_0.22_264)] bg-[oklch(97%_0.02_264)] px-3 py-1 rounded-full border border-[oklch(85%_0.05_264)]/50">{disc.nome}</span>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                                  {disc.numQuestoes || 0} questões
+                                </span>
+                              </div>
+                              <PerformanceBadge 
+                                acertadas={disc.questoesConcursoCargo?.acertadas} 
+                                respondidas={disc.questoesConcursoCargo?.respondidas} 
+                              />
+                            </div>
+                            
+                            <div className="space-y-2 px-6 py-4 pl-10">
+                              {(disc.assuntos || []).map(assunto => renderAssunto(assunto))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
