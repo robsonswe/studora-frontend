@@ -534,6 +534,52 @@ setFormData({
     }
   };
 
+  const handleDuplicate = async (id: number) => {
+    setLocalLoading(true);
+    try {
+      const detail = await concursoService.getById(id);
+      const now = new Date();
+      
+      const payload = {
+        instituicaoId: detail.instituicao.id,
+        bancaId: detail.banca.id,
+        ano: now.getFullYear(),
+        mes: now.getMonth() + 1,
+        edital: detail.edital,
+        dataProva: detail.dataProva,
+        finalizado: false,
+        cargos: (detail.cargos || []).map(c => c.cargoId),
+        provas: (detail.cargos || []).flatMap(c => 
+          (c.provas || []).map(p => ({
+            nome: p.nome,
+            cargoId: c.cargoId,
+            secoes: (c.topicos || []).map((t, idx) => ({
+              nome: t.nome,
+              ordem: idx + 1,
+              numQuestoes: t.numQuestoes,
+              disciplinas: (t.disciplinas || []).map(d => ({
+                nome: d.nome,
+                peso: d.peso,
+                numQuestoes: d.numQuestoes,
+                notaMinima: d.notaMinima,
+                subtemaIds: (d.assuntos || []).map(a => a.id)
+              }))
+            }))
+          }))
+        )
+      };
+
+      await concursoService.create(payload);
+      showToast('Concurso duplicado com sucesso', 'success');
+      await loadConcursos(currentPage);
+    } catch (err: unknown) {
+      console.error('Erro ao duplicar concurso:', err);
+      showToast('Erro ao duplicar concurso', 'error');
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
   const handleDelete = (id: number) => {
     setConfirmModal({
       isOpen: true,
@@ -886,6 +932,13 @@ const resetForm = () => {
                     </div>
                   </div>
                   <div className="flex space-x-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleDuplicate(concurso.id!)}
+                      disabled={localLoading}
+                      className="inline-flex items-center px-3 py-1 border border-slate-600 text-sm font-medium rounded-md text-slate-600 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 disabled:opacity-50 transition-colors"
+                    >
+                      Duplicar
+                    </button>
                     <button
                       onClick={() => handleEdit(concurso)}
                       disabled={localLoading}
