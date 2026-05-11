@@ -5,6 +5,7 @@ import { concursoService } from '@/services/api';
 import FormModal from '@/components/ui/FormModal';
 import { Feedback } from '@/components/ui/Feedback';
 import SubtemaPickerModal from '@/components/concursos/SubtemaPickerModal';
+import CopySubtemasModal from '@/components/concursos/CopySubtemasModal';
 import AsyncSelect from 'react-select/async';
 import { formatNivel, utcToLocalInputValue, formatPeso } from '@/utils/formatters';
 import type { CSSProperties } from 'react';
@@ -21,6 +22,7 @@ import {
   X,
   Target,
   ExternalLink,
+  Copy,
 } from 'lucide-react';
 
 type ConcursoDto = Types.ConcursoSummaryDto;
@@ -101,7 +103,9 @@ export default function ConcursoFormModal({
   const [editingProvaValue, setEditingProvaValue] = useState('');
   
   const [subtemaPickerOpen, setSubtemaPickerOpen] = useState(false);
+  const [copySubtemasOpen, setCopySubtemasOpen] = useState(false);
   const [pickingSubtemasFor, setPickingSubtemasFor] = useState<{ cargoId: number, secaoId: string, discId: string } | null>(null);
+  const [copyingSubtemasFor, setCopyingSubtemasFor] = useState<{ cargoId: number, secaoId: string, discId: string } | null>(null);
   const [selectedCargoIdConteudo, setSelectedCargoIdConteudo] = useState<number | null>(null);
 
   useEffect(() => {
@@ -930,18 +934,28 @@ export default function ConcursoFormModal({
                                       <div className="pl-6 border-l-2 border-indigo-50 space-y-3">
                                         <div className="flex items-center justify-between">
                                           <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Assuntos / Subtemas</label>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setPickingSubtemasFor({ cargoId: cargoSec.cargoId, secaoId: secao.id, discId: disc.id });
-                                              setSubtemaPickerOpen(true);
-                                            }}
-                                            className="inline-flex items-center px-3 py-1 text-[9px] font-black uppercase tracking-wider text-white bg-indigo-500 rounded hover:bg-indigo-600 transition-colors"
-                                          >
-                                            <Plus className="w-3 h-3 mr-1" /> Selecionar Subtemas
-                                          </button>
-                                        </div>
-
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setPickingSubtemasFor({ cargoId: cargoSec.cargoId, secaoId: secao.id, discId: disc.id });
+                                                setSubtemaPickerOpen(true);
+                                              }}
+                                              className="inline-flex items-center px-3 py-1 text-[9px] font-black uppercase tracking-wider text-white bg-indigo-500 rounded hover:bg-indigo-600 transition-colors"
+                                            >
+                                              <Plus className="w-3 h-3 mr-1" /> Selecionar Subtemas
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setCopyingSubtemasFor({ cargoId: cargoSec.cargoId, secaoId: secao.id, discId: disc.id });
+                                                setCopySubtemasOpen(true);
+                                              }}
+                                              className="inline-flex items-center px-3 py-1 text-[9px] font-black uppercase tracking-wider text-slate-600 bg-slate-100 rounded hover:bg-slate-200 transition-colors"
+                                            >
+                                              <Copy className="w-3 h-3 mr-1" /> Copiar Subtemas
+                                            </button>
+                                          </div>                                          </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                                           {disc.subtemas.length === 0 ? (
                                             <p className="text-[10px] italic text-slate-400 col-span-full">Nenhum subtema vinculado</p>
@@ -1047,6 +1061,23 @@ export default function ConcursoFormModal({
             tema: st.tema ? { id: st.tema.id, nome: st.tema.nome } : undefined,
           }));
         })()}
+      />
+      <CopySubtemasModal
+        isOpen={copySubtemasOpen}
+        onClose={() => {
+          setCopySubtemasOpen(false);
+          setCopyingSubtemasFor(null);
+        }}
+        onConfirm={(subtemas) => {
+          if (copyingSubtemasFor) {
+            updateDisciplinaInSecao(copyingSubtemasFor.cargoId, copyingSubtemasFor.secaoId, copyingSubtemasFor.discId, { subtemas });
+          }
+          setCopySubtemasOpen(false);
+          setCopyingSubtemasFor(null);
+        }}
+        cargoSecoes={formData.cargoSecoes}
+        currentCargoId={copyingSubtemasFor?.cargoId ?? 0}
+        currentDiscId={copyingSubtemasFor?.discId ?? ''}
       />
     </>
   );
