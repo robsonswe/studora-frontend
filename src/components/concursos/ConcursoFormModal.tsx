@@ -906,7 +906,7 @@ export default function ConcursoFormModal({
                                           />
                                         </div>
                                         <div className="w-20">
-                                          <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Mínima</label>
+                                          <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Nota Min.</label>
                                           <input
                                             type="number"
                                             step="0.1"
