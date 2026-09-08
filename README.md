@@ -24,15 +24,30 @@
 ## Início rápido
 
 ```bash
+cp .env.example .env   # ajuste NEXT_PUBLIC_API_URL se necessário
 bun install
 bun dev          # http://localhost:3000
 bun build
 bun start
 ```
 
-API backend em `http://localhost:4534/api/v1` (configurável em `src/services/api.ts`).
+API backend via `NEXT_PUBLIC_API_URL` (padrão `http://localhost:4534/api/v1`, definido em `src/services/api.ts:7` com fallback).
 
 Repositório do backend: [robsonswe/studora-backend](https://github.com/robsonswe/studora-backend)
+
+### Executando com Docker
+
+```bash
+docker compose up --build
+# http://localhost:3000
+```
+
+Ou sem compose:
+
+```bash
+docker build -t studora-front .
+docker run --rm -p 3000:3000 studora-front
+```
 
 ---
 
@@ -48,10 +63,13 @@ Repositório do backend: [robsonswe/studora-backend](https://github.com/robsonsw
 | `/simulados/[id]` | Execução do simulado: timer por questão, navegação entre questões, modal de resultado |
 | `/provas/executar` | Resolução de prova vinculada a um concurso e cargo específicos |
 | `/concursos` | Catálogo de editais com filtros e controle de inscrições por cargo |
+| `/concursos/[concursoId]` | Detalhe do concurso |
 | `/concursos/[concursoId]/cargos/[cargoId]` | Conteúdo programático do cargo + análise de prontidão |
 | `/disciplinas` | Disciplinas com cobertura do edital, taxa de acerto e data de último estudo |
 | `/disciplinas/[id]` | Árvore Disciplina → Temas → Subtemas com registro de sessões e estatísticas por tópico |
 | `/desempenho` | Consistência diária, evolução temporal, domínio por disciplina, taxa de aprendizado |
+| `/perfil` | Perfil do estudante |
+| `/configuracoes` | Configurações da aplicação |
 
 ### Admin (`/admin`)
 
@@ -133,53 +151,50 @@ Erros HTTP via `ApiError` com suporte a RFC 7807 (Problem Details) e erros de va
 ```
 src/
 ├── app/
-│   ├── (aluno)/
-│   │   ├── page.tsx
-│   │   ├── praticar/
-│   │   ├── simulados/[id]/
-│   │   ├── provas/executar/
-│   │   ├── concursos/[concursoId]/cargos/[cargoId]/
-│   │   ├── disciplinas/[id]/
-│   │   └── desempenho/
+│   ├── page.tsx                          # Dashboard
+│   ├── praticar/
+│   ├── simulados/ & simulados/[id]/
+│   ├── provas/executar/
+│   ├── concursos/ & concursos/[concursoId]/ & concursos/[concursoId]/cargos/[cargoId]/
+│   ├── disciplinas/ & disciplinas/[id]/
+│   ├── desempenho/
+│   ├── perfil/
+│   ├── configuracoes/
 │   ├── admin/
-│   │   ├── bancas/
-│   │   ├── instituicoes/
-│   │   ├── cargos/
-│   │   ├── concursos/
-│   │   ├── disciplinas/
-│   │   ├── temas/
-│   │   ├── subtemas/
-│   │   └── questoes/
+│   │   ├── layout.tsx & page.tsx
+│   │   ├── bancas/ instituicoes/ cargos/ concursos/
+│   │   ├── disciplinas/ temas/ subtemas/ questoes/
 │   ├── layout.tsx
 │   └── globals.css
 ├── components/
 │   ├── concursos/
-│   │   └── EditalAnalysisReport.tsx
+│   │   ├── EditalAnalysisReport.tsx
+│   │   ├── ConcursoFormModal.tsx
+│   │   ├── SubtemaPickerModal.tsx
+│   │   ├── SimuladoCargoModal.tsx
+│   │   └── CopySubtemasModal.tsx
 │   ├── layout/
 │   │   ├── AppShell.tsx
-│   │   ├── AdminSidebar.tsx
 │   │   └── BreadcrumbContext.tsx
 │   ├── navigation/
 │   │   ├── Sidebar.tsx
-│   │   └── Navbar.tsx
+│   │   ├── Navbar.tsx
+│   │   └── AdminSidebar.tsx
 │   ├── practice/
-│   │   └── QuestionCard.tsx
+│   │   ├── QuestionCard.tsx
+│   │   └── strategistInsight.ts
 │   └── ui/
-│       ├── BaseModal.tsx
-│       ├── FormModal.tsx
-│       ├── Modal.tsx
-│       ├── ConfirmModal.tsx
-│       ├── Drawer.tsx
-│       ├── Breadcrumbs.tsx
-│       ├── PageHeader.tsx
-│       ├── StatsBreakdownPanel.tsx
-│       └── QuestaoFormModal.tsx
+│       ├── BaseModal.tsx / FormModal.tsx / Modal.tsx / ConfirmModal.tsx
+│       ├── Drawer.tsx / Breadcrumbs.tsx / PageHeader.tsx
+│       ├── StatsBreakdownPanel.tsx / QuestaoFormModal.tsx
+│       ├── ToastContext.tsx / Feedback.tsx
 ├── services/
-│   └── api.ts
+│   └── api.ts                            # NEXT_PUBLIC_API_URL com fallback
 ├── types/
 │   └── index.ts
 ├── hooks/
 │   └── usePageTitle.ts
 └── utils/
-    └── formatters.ts
+    ├── formatters.ts
+    └── simuladoGenerator.ts
 ```

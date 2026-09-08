@@ -1,0 +1,7 @@
+services:
+  web:
+    build: .
+    container_name: studora-front
+    ports:
+      - "${FRONT_HOST_PORT:-3000}:3000"
+    restart: unless-stopped

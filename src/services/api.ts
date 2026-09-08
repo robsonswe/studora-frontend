@@ -4,7 +4,7 @@
  */
 import * as Types from '@/types';
 
-const API_BASE_URL = 'http://localhost:4534/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4534/api/v1';
 
 /**
  * Custom error class for API errors.
